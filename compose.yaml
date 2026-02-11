@@ -1,0 +1,20 @@
+{\rtf1\ansi\ansicpg1254\cocoartf2822
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 version: '3.8'\
+\
+services:\
+  web:\
+    build: .\
+    container_name: oyunevleri\
+    ports:\
+      - "9000:80"\
+    volumes:\
+      # BURASI DE\uc0\u286 \u304 \u350 T\u304 : Nokta (.) diyerek t\'fcm proje klas\'f6r\'fcn\'fc i\'e7eri al\u305 yoruz.\
+      # B\'f6ylece /eno4/v2/... adresi sunucu i\'e7inde de /var/www/html/eno4/v2/... ile e\uc0\u351 le\u351 ir.\
+      - .:/var/www/html \
+    restart: always}

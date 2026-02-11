@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#e5f7f4"/>
+  <circle cx="260" cy="540" r="160" fill="#ff7a59" opacity="0.8"/>
+  <circle cx="880" cy="300" r="120" fill="#ffd36e" opacity="0.9"/>
+  <rect x="140" y="120" width="920" height="220" rx="40" fill="#ffffff" opacity="0.9"/>
+  <text x="190" y="230" font-family="Arial" font-size="48" fill="#1f2937">Mutlu Oyun Evleri</text>
+  <text x="190" y="290" font-family="Arial" font-size="28" fill="#6b7280">Öğren, keşfet, paylaş</text>
+</svg>

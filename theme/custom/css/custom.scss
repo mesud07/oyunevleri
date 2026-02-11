@@ -1,0 +1,29 @@
+body{
+    .modal{
+        &.thisModal{
+            background-color: rgba(20, 20, 213, 0.131);
+    -webkit-backdrop-filter: blur(15px);
+    backdrop-filter: blur(8px);
+            .modal-content{
+                border-radius: 20px !important;
+
+                .modal-body{
+                   .form-group{
+                    input{
+                        &.form-control{
+                           
+    background: #FFFFFF;
+    box-shadow: 0px 4px 60px rgb(227, 225, 225);
+    padding: 13px;
+    border: 2px solid rgb(128, 128, 128);
+    border: none;
+    width: 100% !important;
+    border-radius: 50px;
+                        }
+                    }
+                   }
+                }
+            }
+        }
+    }
+}

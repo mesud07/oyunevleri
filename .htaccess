@@ -1,0 +1,17 @@
+RewriteOptions inherit
+Options -Indexes
+RewriteEngine On
+# RewriteCond %{HTTPS} off
+# RewriteRule .* 	http://%{HTTP_HOST}%{REQUEST_URI} 	[L,R=301]
+# RewriteCond %{HTTP_HOST} !^www\.
+# RewriteRule .* http://%{HTTP_HOST}%{REQUEST_URI} 	[L,R=301]
+
+RewriteRule ^404  404.php [NC]
+ErrorDocument 404 /404.php
+ErrorDocument 500 /404.php
+
+RewriteRule ^login$		    login.php	    [L,QSA]
+RewriteRule ^logout$        logout.php	    [L,QSA]
+RewriteRule ^dashboard$	    index.php	    [L,QSA]
+RewriteRule ^index$		    index.php	    [L,QSA]
+RewriteRule ^ajax$		    ajax.php	    [L,QSA]
