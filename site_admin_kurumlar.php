@@ -258,6 +258,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($kurum_form['kurum_kodu'] === '') {
                 $kurum_form['kurum_kodu'] = kurum_kodu_uret($db_master);
             }
+            $slug = kurum_slug_uret($kurum_form['kurum_adi']);
             $min_ay = $kurum_form['min_ay'] !== '' ? (int) $kurum_form['min_ay'] : null;
             $max_ay = $kurum_form['max_ay'] !== '' ? (int) $kurum_form['max_ay'] : null;
             $kurulus_yili = $kurum_form['kurulus_yili'] !== '' ? (int) $kurum_form['kurulus_yili'] : null;
@@ -266,6 +267,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $sql = "UPDATE kurumlar SET
                     kurum_kodu = :kurum_kodu,
                     kurum_adi = :kurum_adi,
+                    slug = :slug,
                     kurum_type = :kurum_type,
                     sehir = :sehir,
                     ilce = :ilce,
@@ -298,6 +300,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $params = [
                     'kurum_kodu' => $kurum_form['kurum_kodu'],
                     'kurum_adi' => $kurum_form['kurum_adi'],
+                    'slug' => $slug,
                     'kurum_type' => $kurum_form['kurum_type'],
                     'sehir' => $kurum_form['sehir'],
                     'ilce' => $kurum_form['ilce'],
@@ -340,14 +343,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             } else {
                 $sql = "INSERT INTO kurumlar
-                    (kurum_kodu, kurum_adi, kurum_type, kurum_db_adi, sehir, ilce, adres, telefon, eposta, web_site, instagram, hakkimizda,
+                    (kurum_kodu, kurum_adi, slug, kurum_type, kurum_db_adi, sehir, ilce, adres, telefon, eposta, web_site, instagram, hakkimizda,
                      min_ay, max_ay, kurulus_yili, ucret, kapali_alan, acik_alan,
                      meb_onay, aile_sosyal_onay, hizmet_bahceli, hizmet_havuz, hizmet_guvenlik, hizmet_guvenlik_kamerasi, hizmet_yemek, hizmet_ingilizce, durum";
                 if ($ozellik_kolon_var) {
                     $sql .= ", ozellikler";
                 }
                 $sql .= ") VALUES
-                    (:kurum_kodu, :kurum_adi, :kurum_type, :kurum_db_adi, :sehir, :ilce, :adres, :telefon, :eposta, :web_site, :instagram, :hakkimizda,
+                    (:kurum_kodu, :kurum_adi, :slug, :kurum_type, :kurum_db_adi, :sehir, :ilce, :adres, :telefon, :eposta, :web_site, :instagram, :hakkimizda,
                      :min_ay, :max_ay, :kurulus_yili, :ucret, :kapali_alan, :acik_alan,
                      :meb_onay, :aile_sosyal_onay, :hizmet_bahceli, :hizmet_havuz, :hizmet_guvenlik, :hizmet_guvenlik_kamerasi, :hizmet_yemek, :hizmet_ingilizce, :durum";
                 if ($ozellik_kolon_var) {
@@ -358,6 +361,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $params = [
                     'kurum_kodu' => $kurum_form['kurum_kodu'],
                     'kurum_adi' => $kurum_form['kurum_adi'],
+                    'slug' => $slug,
                     'kurum_type' => $kurum_form['kurum_type'],
                     'kurum_db_adi' => 'oyunev_kurum',
                     'sehir' => $kurum_form['sehir'],

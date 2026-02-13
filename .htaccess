@@ -15,3 +15,11 @@ RewriteRule ^logout$        logout.php	    [L,QSA]
 RewriteRule ^dashboard$	    index.php	    [L,QSA]
 RewriteRule ^index$		    index.php	    [L,QSA]
 RewriteRule ^ajax$		    ajax.php	    [L,QSA]
+
+RewriteRule ^sitemap\.xml$  sitemap.php    [L,QSA]
+RewriteRule ^robots\.txt$   robots.php     [L,QSA]
+RewriteRule ^([a-z0-9-]+)-(anaokulu|kres|oyun-gruplari|oyun-evi|oyun-evleri)$ category.php?lokasyon=$1&kategori=$2 [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^([^/]+)/([^/]+)/([^/]+)/?$ store.php?sehir=$1&ilce=$2&slug=$3 [L,QSA]

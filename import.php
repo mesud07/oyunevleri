@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/includes/config.php';
+require_once __DIR__ . '/includes/functions.php';
 
 $csv_file = trim($_GET['file'] ?? 'kurumlar_listesi.csv');
 $csv_file = basename($csv_file);
@@ -27,8 +28,8 @@ if ($header !== false && count($header) < 2) {
     $header = fgetcsv($handle, 1000, $delimiter);
 }
 
-$stmt = $db_master->prepare("INSERT INTO kurumlar (kurum_adi, sehir, ilce, telefon, eposta)
-    VALUES (:kurum_adi, :sehir, :ilce, :telefon, :eposta)");
+$stmt = $db_master->prepare("INSERT INTO kurumlar (kurum_adi, slug, sehir, ilce, telefon, eposta)
+    VALUES (:kurum_adi, :slug, :sehir, :ilce, :telefon, :eposta)");
 
 $eklenen = 0;
 $atlan = 0;
@@ -52,6 +53,7 @@ while (($data = fgetcsv($handle, 1000, $delimiter)) !== false) {
         $atlan++;
         continue;
     }
+    $slug = kurum_slug_uret($kurum_adi);
 
     $ilce = '';
     $sehir = '';
@@ -64,6 +66,7 @@ while (($data = fgetcsv($handle, 1000, $delimiter)) !== false) {
     try {
         $ok = $stmt->execute([
             'kurum_adi' => $kurum_adi,
+            'slug' => $slug,
             'sehir' => $sehir,
             'ilce' => $ilce,
             'telefon' => $tel,

@@ -1,9 +1,13 @@
 <?php
 // www.oyunevleri.com store page
 require_once("includes/config.php");
+require_once("includes/functions.php");
 
 $kurum_id = (int) ($_GET['id'] ?? 0);
 $kurum_adi_param = trim($_GET['kurum'] ?? '');
+$slug_param = trim($_GET['slug'] ?? '');
+$seo_sehir = trim($_GET['sehir'] ?? '');
+$seo_ilce = trim($_GET['ilce'] ?? '');
 $kurum = null;
 $galeri = [];
 $egitmenler = [];
@@ -13,11 +17,17 @@ $avg_puan = 0;
 $yorum_sayisi = 0;
 $veli_giris = !empty($_SESSION['veli_giris']) && !empty($_SESSION['veli']);
 $next_url = $_SERVER['REQUEST_URI'] ?? 'store.php';
+$canonical_url = '';
+$breadcrumb_items = [];
 
 if (!empty($db_master)) {
     if ($kurum_id > 0) {
         $stmt = $db_master->prepare("SELECT * FROM kurumlar WHERE id = :id AND durum = 1 LIMIT 1");
         $stmt->execute(['id' => $kurum_id]);
+        $kurum = $stmt->fetch();
+    } elseif ($slug_param !== '') {
+        $stmt = $db_master->prepare("SELECT * FROM kurumlar WHERE slug = :slug AND durum = 1 LIMIT 1");
+        $stmt->execute(['slug' => $slug_param]);
         $kurum = $stmt->fetch();
     } elseif ($kurum_adi_param !== '') {
         $stmt = $db_master->prepare("SELECT * FROM kurumlar WHERE kurum_adi = :adi AND durum = 1 LIMIT 1");
@@ -27,6 +37,40 @@ if (!empty($db_master)) {
 
     if ($kurum) {
         $kurum_id = (int) $kurum['id'];
+
+        $canonical_url = '';
+        $base = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? '');
+        $canonical_url = kurum_seo_url($kurum, $base);
+        if ($slug_param !== '' && $seo_sehir !== '' && $seo_ilce !== '') {
+            $current_sehir = seo_slugify($kurum['sehir'] ?? '');
+            $current_ilce = seo_slugify($kurum['ilce'] ?? '');
+            $current_slug = $kurum['slug'] ?? kurum_slug_uret($kurum['kurum_adi'] ?? '');
+            if ($current_sehir !== '' && $current_ilce !== '' && $current_slug !== '' &&
+                ($current_sehir !== $seo_sehir || $current_ilce !== $seo_ilce || $current_slug !== $slug_param)) {
+                header("Location: " . $canonical_url, true, 301);
+                exit;
+            }
+        }
+
+        $breadcrumb_items[] = ['name' => 'Anasayfa', 'url' => $base . '/'];
+        $sehir_label = trim((string) ($kurum['sehir'] ?? ''));
+        $ilce_label = trim((string) ($kurum['ilce'] ?? ''));
+        if ($sehir_label !== '') {
+            $breadcrumb_items[] = [
+                'name' => $sehir_label,
+                'url' => $base . '/search.php?sehir=' . urlencode($sehir_label),
+            ];
+        }
+        if ($ilce_label !== '') {
+            $breadcrumb_items[] = [
+                'name' => $ilce_label,
+                'url' => $base . '/search.php?sehir=' . urlencode($sehir_label) . '&ilce=' . urlencode($ilce_label),
+            ];
+        }
+        $breadcrumb_items[] = [
+            'name' => $kurum['kurum_adi'] ?? 'Kurum',
+            'url' => $canonical_url !== '' ? $canonical_url : ($base . '/store.php?id=' . $kurum_id),
+        ];
 
         $stmt = $db_master->prepare("SELECT gorsel_yol FROM kurum_galeri WHERE kurum_id = :kurum_id ORDER BY sira ASC, id ASC");
         $stmt->execute(['kurum_id' => $kurum_id]);
@@ -78,13 +122,41 @@ if ($kurum) {
         $kurum_map_url = 'https://www.google.com/maps?q=' . urlencode(implode(', ', $map_parts)) . '&output=embed';
     }
 }
+
+$meta_title = $kurum_adi . ' | Oyunevleri.com';
+$meta_desc = 'Oyun evleri, anaokulları ve kreşleri tek ekrandan keşfedin. Kurum detayları, iletişim ve yorumları inceleyin.';
+if ($kurum) {
+    $meta_type = trim((string) ($kurum['kurum_type'] ?? 'Kurum'));
+    if ($meta_type === '') {
+        $meta_type = 'Kurum';
+    }
+    $meta_loc = trim(implode(' ', array_filter([
+        trim((string) ($kurum['ilce'] ?? '')),
+        trim((string) ($kurum['sehir'] ?? '')),
+    ])));
+    $meta_title = $kurum_adi;
+    if ($meta_loc !== '') {
+        $meta_title .= ' | ' . $meta_loc . ' En İyi ' . $meta_type;
+    } else {
+        $meta_title .= ' | En İyi ' . $meta_type;
+    }
+    $meta_title .= ' | Oyunevleri.com';
+    $meta_desc = $kurum_adi . ' için adres, iletişim, galeri ve yorumları inceleyin.';
+    if ($meta_loc !== '') {
+        $meta_desc = $kurum_adi . ' - ' . $meta_loc . ' bölgesinde ' . $meta_type . ' arayanlar için detaylar, fiyatlar ve yorumlar.';
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?php echo htmlspecialchars($kurum_adi, ENT_QUOTES, 'UTF-8'); ?> | Oyunevleri.com</title>
+    <title><?php echo htmlspecialchars($meta_title, ENT_QUOTES, 'UTF-8'); ?></title>
+    <meta name="description" content="<?php echo htmlspecialchars($meta_desc, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php if (!empty($canonical_url)) { ?>
+        <link rel="canonical" href="<?php echo htmlspecialchars($canonical_url, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php } ?>
     <?php require_once("includes/analytics.php"); ?>
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -116,6 +188,18 @@ if ($kurum) {
         }
         header {
             padding: 22px 0 12px;
+        }
+        .breadcrumb {
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 6px;
+        }
+        .breadcrumb a {
+            color: var(--muted);
+            text-decoration: none;
+        }
+        .breadcrumb span {
+            margin: 0 6px;
         }
         .nav {
             display: flex;
@@ -380,6 +464,15 @@ if ($kurum) {
 <body>
     <?php $public_nav_active = 'storage'; $public_login_next = $next_url; require_once("includes/public_header.php"); ?>
 
+    <?php if (!empty($breadcrumb_items)) { ?>
+        <div class="container breadcrumb">
+            <?php foreach ($breadcrumb_items as $i => $crumb) { ?>
+                <a href="<?php echo htmlspecialchars($crumb['url'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($crumb['name'], ENT_QUOTES, 'UTF-8'); ?></a>
+                <?php if ($i < count($breadcrumb_items) - 1) { ?><span>›</span><?php } ?>
+            <?php } ?>
+        </div>
+    <?php } ?>
+
     <section class="container hero">
             <div class="gallery">
                 <div class="gallery-main">
@@ -637,5 +730,95 @@ if ($kurum) {
         })();
     </script>
     <?php } ?>
+    <?php
+    if (!empty($kurum)) {
+        $schema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'LocalBusiness',
+            'name' => $kurum['kurum_adi'] ?? '',
+            'url' => $canonical_url !== '' ? $canonical_url : '',
+            'telephone' => $kurum['telefon'] ?? '',
+            'address' => [
+                '@type' => 'PostalAddress',
+                'streetAddress' => $kurum['adres'] ?? '',
+                'addressLocality' => $kurum['ilce'] ?? '',
+                'addressRegion' => $kurum['sehir'] ?? '',
+                'addressCountry' => 'TR',
+            ],
+        ];
+
+        if (!empty($galeri)) {
+            $images = [];
+            foreach ($galeri as $g) {
+                if (!empty($g['gorsel_yol'])) {
+                    $images[] = $g['gorsel_yol'];
+                }
+                if (count($images) >= 5) { break; }
+            }
+            if (!empty($images)) {
+                $schema['image'] = $images;
+            }
+        }
+
+        if ($avg_puan > 0 && $yorum_sayisi > 0) {
+            $schema['aggregateRating'] = [
+                '@type' => 'AggregateRating',
+                'ratingValue' => $avg_puan,
+                'reviewCount' => $yorum_sayisi,
+            ];
+        }
+
+        if (!empty($yorumlar)) {
+            $reviews = [];
+            foreach ($yorumlar as $yr) {
+                if (empty($yr['puan'])) { continue; }
+                $reviews[] = [
+                    '@type' => 'Review',
+                    'author' => [
+                        '@type' => 'Person',
+                        'name' => $yr['veli_adi'] ?? 'Veli',
+                    ],
+                    'reviewRating' => [
+                        '@type' => 'Rating',
+                        'ratingValue' => (int) $yr['puan'],
+                        'bestRating' => 5,
+                    ],
+                    'reviewBody' => $yr['yorum'] ?? '',
+                    'datePublished' => !empty($yr['tarih']) ? date('c', strtotime($yr['tarih'])) : '',
+                ];
+                if (count($reviews) >= 3) { break; }
+            }
+            if (!empty($reviews)) {
+                $schema['review'] = $reviews;
+            }
+        }
+
+        $schema_json = json_encode($schema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($schema_json) {
+            echo '<script type="application/ld+json">' . $schema_json . '</script>';
+        }
+    }
+    ?>
+    <?php
+    if (!empty($breadcrumb_items)) {
+        $breadcrumb_schema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'BreadcrumbList',
+            'itemListElement' => [],
+        ];
+        foreach ($breadcrumb_items as $idx => $crumb) {
+            $breadcrumb_schema['itemListElement'][] = [
+                '@type' => 'ListItem',
+                'position' => $idx + 1,
+                'name' => $crumb['name'],
+                'item' => $crumb['url'],
+            ];
+        }
+        $breadcrumb_json = json_encode($breadcrumb_schema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($breadcrumb_json) {
+            echo '<script type="application/ld+json">' . $breadcrumb_json . '</script>';
+        }
+    }
+    ?>
 </body>
 </html>

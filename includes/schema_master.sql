@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS kurumlar (
     id INT PRIMARY KEY AUTO_INCREMENT,
     kurum_kodu VARCHAR(20) UNIQUE,
     kurum_adi VARCHAR(255),
+    slug VARCHAR(255),
     kurum_type VARCHAR(50),
     kurum_db_adi VARCHAR(100) DEFAULT 'oyunev_kurum',
     sehir VARCHAR(100),

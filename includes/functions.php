@@ -160,6 +160,56 @@ function site_admin_log_ekle($islem, $hedef_id = null, $detay = null, $hedef_tur
     }
 }
 
+// SEO uyumlu slug olusturur.
+function seo_slugify($text) {
+    $text = trim((string) $text);
+    if ($text === '') {
+        return '';
+    }
+    $map = [
+        'Ç' => 'c', 'ç' => 'c',
+        'Ğ' => 'g', 'ğ' => 'g',
+        'İ' => 'i', 'I' => 'i', 'ı' => 'i',
+        'Ö' => 'o', 'ö' => 'o',
+        'Ş' => 's', 'ş' => 's',
+        'Ü' => 'u', 'ü' => 'u',
+    ];
+    $text = strtr($text, $map);
+    if (function_exists('iconv')) {
+        $converted = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text);
+        if ($converted !== false) {
+            $text = $converted;
+        }
+    }
+    $text = strtolower($text);
+    $text = preg_replace('/[^a-z0-9]+/i', '-', $text);
+    $text = trim($text, '-');
+    $text = preg_replace('/-+/', '-', $text);
+    return $text;
+}
+
+// Kurum slug degeri üretir.
+function kurum_slug_uret($kurum_adi) {
+    $slug = seo_slugify($kurum_adi);
+    return $slug !== '' ? $slug : 'kurum';
+}
+
+// Kurum icin SEO URL olusturur.
+function kurum_seo_url($kurum, $base = '') {
+    $sehir = seo_slugify($kurum['sehir'] ?? '');
+    $ilce = seo_slugify($kurum['ilce'] ?? '');
+    $slug = trim((string) ($kurum['slug'] ?? ''));
+    if ($slug === '') {
+        $slug = kurum_slug_uret($kurum['kurum_adi'] ?? '');
+    }
+    if ($sehir === '' || $ilce === '' || $slug === '') {
+        $id = (int) ($kurum['id'] ?? 0);
+        return $id > 0 ? ($base . 'store.php?id=' . $id) : ($base . 'store.php');
+    }
+    $prefix = $base !== '' ? rtrim($base, '/') : '';
+    return $prefix . '/' . $sehir . '/' . $ilce . '/' . $slug;
+}
+
 // Site admin girisi zorunludur.
 function site_admin_giris_zorunlu() {
     if (!site_admin_giris_var_mi()) {

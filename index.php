@@ -1957,7 +1957,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'veli_
                                     Güvenilir oyun evleri ile tanışın.
                                 <?php } ?>
                             </p>
-                            <a class="btn btn-outline" href="store.php?id=<?php echo (int) $kurum['id']; ?>">Detayı Gör</a>
+                            <?php $seo_url = kurum_seo_url($kurum); ?>
+                            <a class="btn btn-outline" href="<?php echo htmlspecialchars($seo_url, ENT_QUOTES, 'UTF-8'); ?>">Detayı Gör</a>
                         </div>
                     <?php } ?>
                 <?php } ?>

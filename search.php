@@ -1,6 +1,7 @@
 <?php
 // www.oyunevleri.com listing page
 require_once("includes/config.php");
+require_once("includes/functions.php");
 
 $sehir = trim($_GET['sehir'] ?? '');
 $ilce = trim($_GET['ilce'] ?? '');
@@ -14,12 +15,24 @@ $bahceli = !empty($_GET['hizmet_bahceli']) ? 1 : 0;
 $kamera = !empty($_GET['hizmet_guvenlik']) ? 1 : 0;
 $ingilizce = !empty($_GET['hizmet_ingilizce']) ? 1 : 0;
 $sort = trim($_GET['sort'] ?? 'kayit');
+$meta_title = 'Oyunevleri.com | Listeleme';
+$meta_desc = 'Oyun evleri, anaokulları ve kreşleri şehir, ilçe ve yaş filtreleriyle karşılaştırın.';
 
 $yas_min = null;
 $yas_max = null;
 if (preg_match('/^(\d+)\-(\d+)$/', $yas_araligi, $m)) {
     $yas_min = (int) $m[1];
     $yas_max = (int) $m[2];
+}
+
+$meta_loc = trim(implode(' ', array_filter([$ilce, $sehir])));
+$meta_type = $kurum_type !== '' ? $kurum_type : 'Kurum';
+if ($meta_loc !== '') {
+    $meta_title = $meta_loc . ' En İyi ' . $meta_type . ' | Oyunevleri.com';
+    $meta_desc = $meta_loc . ' bölgesindeki ' . $meta_type . ' kurumlarını inceleyin, fiyat ve yorumları karşılaştırın.';
+} elseif ($kurum_type !== '') {
+    $meta_title = $kurum_type . ' Listesi | Oyunevleri.com';
+    $meta_desc = $kurum_type . ' kurumlarını filtreleyin, detaylara ulaşın.';
 }
 
 $where = ["k.durum = 1"];
@@ -112,7 +125,8 @@ $toplam = count($kurumlar);
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Oyunevleri.com | Listeleme</title>
+    <title><?php echo htmlspecialchars($meta_title, ENT_QUOTES, 'UTF-8'); ?></title>
+    <meta name="description" content="<?php echo htmlspecialchars($meta_desc, ENT_QUOTES, 'UTF-8'); ?>">
     <?php require_once("includes/analytics.php"); ?>
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -530,8 +544,9 @@ $toplam = count($kurumlar);
                                 </div>
                                 <div class="price"><?php echo $fiyat; ?></div>
                                 <div class="card-actions">
-                                    <a class="btn btn-outline" href="store.php?id=<?php echo (int) $kurum['id']; ?>">Detayı Gör</a>
-                                    <a class="btn btn-primary" href="store.php?id=<?php echo (int) $kurum['id']; ?>">Hızlı İletişim</a>
+                                    <?php $seo_url = kurum_seo_url($kurum); ?>
+                                    <a class="btn btn-outline" href="<?php echo htmlspecialchars($seo_url, ENT_QUOTES, 'UTF-8'); ?>">Detayı Gör</a>
+                                    <a class="btn btn-primary" href="<?php echo htmlspecialchars($seo_url, ENT_QUOTES, 'UTF-8'); ?>">Hızlı İletişim</a>
                                 </div>
                             </div>
                         </div>
