@@ -53,6 +53,31 @@ if (!empty($db_master)) {
 }
 
 $kurum_adi = $kurum ? $kurum['kurum_adi'] : 'Kurum bulunamadı';
+$kurum_web = '';
+$kurum_instagram = '';
+$kurum_map_url = '';
+if ($kurum) {
+    $raw_web = trim((string) ($kurum['web_site'] ?? ''));
+    if ($raw_web !== '') {
+        $kurum_web = (stripos($raw_web, 'http://') === 0 || stripos($raw_web, 'https://') === 0)
+            ? $raw_web
+            : 'https://' . $raw_web;
+    }
+    $raw_ig = trim((string) ($kurum['instagram'] ?? ''));
+    if ($raw_ig !== '') {
+        $kurum_instagram = (stripos($raw_ig, 'http://') === 0 || stripos($raw_ig, 'https://') === 0)
+            ? $raw_ig
+            : 'https://' . ltrim($raw_ig, '/');
+    }
+    $map_parts = array_filter([
+        trim((string) ($kurum['adres'] ?? '')),
+        trim((string) ($kurum['ilce'] ?? '')),
+        trim((string) ($kurum['sehir'] ?? '')),
+    ]);
+    if (!empty($map_parts)) {
+        $kurum_map_url = 'https://www.google.com/maps?q=' . urlencode(implode(', ', $map_parts)) . '&output=embed';
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="tr">
@@ -192,6 +217,38 @@ $kurum_adi = $kurum ? $kurum['kurum_adi'] : 'Kurum bulunamadı';
         .info-card h1 {
             margin: 0 0 8px;
             font-family: "Baloo 2", cursive;
+        }
+        .info-list {
+            display: grid;
+            gap: 8px;
+            margin-top: 12px;
+            font-size: 14px;
+            color: var(--muted);
+        }
+        .info-item b {
+            color: var(--ink);
+            font-weight: 700;
+            margin-right: 6px;
+        }
+        .info-item a {
+            color: #1d4ed8;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .info-item a:hover {
+            text-decoration: underline;
+        }
+        .map-box {
+            margin-top: 14px;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--stroke);
+            height: 220px;
+        }
+        .map-box iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
         }
         .tags {
             display: flex;
@@ -354,8 +411,12 @@ $kurum_adi = $kurum ? $kurum['kurum_adi'] : 'Kurum bulunamadı';
                     if ((int) $kurum['meb_onay'] === 1) { $tags[] = 'MEB Onaylı'; }
                     if ((int) $kurum['aile_sosyal_onay'] === 1) { $tags[] = 'Aile Sosyal'; }
                     if ((int) $kurum['hizmet_bahceli'] === 1) { $tags[] = 'Bahçeli'; }
+                    if ((int) ($kurum['hizmet_havuz'] ?? 0) === 1) { $tags[] = 'Havuz'; }
+                    if ((int) ($kurum['hizmet_guvenlik'] ?? 0) === 1) { $tags[] = 'Güvenlik'; }
                     if ((int) $kurum['hizmet_guvenlik_kamerasi'] === 1) { $tags[] = 'Kamera'; }
+                    if ((int) ($kurum['hizmet_yemek'] ?? 0) === 1) { $tags[] = 'Yemek'; }
                     if ((int) $kurum['hizmet_ingilizce'] === 1) { $tags[] = 'İngilizce'; }
+                    if (!empty($kurum['kurum_type'])) { $tags[] = $kurum['kurum_type']; }
                     foreach ($tags as $tag) { ?>
                         <span class="tag"><?php echo htmlspecialchars($tag, ENT_QUOTES, 'UTF-8'); ?></span>
                     <?php } ?>
@@ -386,6 +447,34 @@ $kurum_adi = $kurum ? $kurum['kurum_adi'] : 'Kurum bulunamadı';
                     </div>
                 <?php } ?>
             </div>
+            <?php if ($kurum) { ?>
+                <?php
+                $info_rows = [];
+                $info_rows['Kuruluş'] = !empty($kurum['kurulus_yili']) ? (string) $kurum['kurulus_yili'] : '';
+                $info_rows['Ücret Aralığı'] = !empty($kurum['ucret']) ? (string) $kurum['ucret'] : '';
+                $info_rows['Kapalı Alan'] = !empty($kurum['kapali_alan']) ? (string) $kurum['kapali_alan'] : '';
+                $info_rows['Açık Alan'] = !empty($kurum['acik_alan']) ? (string) $kurum['acik_alan'] : '';
+                ?>
+                <div class="info-list">
+                    <?php if ($kurum_web !== '') { ?>
+                        <div class="info-item"><b>Web:</b> <a href="<?php echo htmlspecialchars($kurum_web, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener">Web Sitesi</a></div>
+                    <?php } ?>
+                    <?php if ($kurum_instagram !== '') { ?>
+                        <div class="info-item"><b>Instagram:</b> <a href="<?php echo htmlspecialchars($kurum_instagram, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener">Instagram Profil</a></div>
+                    <?php } ?>
+                    <?php if (!empty($kurum['telefon'])) { ?>
+                        <div class="info-item"><b>Telefon:</b> <?php echo htmlspecialchars($kurum['telefon'], ENT_QUOTES, 'UTF-8'); ?></div>
+                    <?php } ?>
+                    <?php if (!empty($kurum['eposta'])) { ?>
+                        <div class="info-item"><b>E‑posta:</b> <?php echo htmlspecialchars($kurum['eposta'], ENT_QUOTES, 'UTF-8'); ?></div>
+                    <?php } ?>
+                    <?php foreach ($info_rows as $label => $value) { ?>
+                        <?php if ($value !== '') { ?>
+                            <div class="info-item"><b><?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?>:</b> <?php echo htmlspecialchars($value, ENT_QUOTES, 'UTF-8'); ?></div>
+                        <?php } ?>
+                    <?php } ?>
+                </div>
+            <?php } ?>
             <form class="quick-contact" id="quick-contact-form">
                 <input type="hidden" name="kurum_id" value="<?php echo (int) $kurum_id; ?>">
                 <input type="hidden" name="sayfa_url" value="<?php echo htmlspecialchars($_SERVER['REQUEST_URI'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
@@ -403,6 +492,16 @@ $kurum_adi = $kurum ? $kurum['kurum_adi'] : 'Kurum bulunamadı';
             <?php if ($yorum_sayisi > 0) { ?>
                 <div style="margin-top:10px;color:var(--muted);font-size:14px;">
                     Ortalama Puan: <?php echo $avg_puan; ?> (<?php echo $yorum_sayisi; ?> yorum)
+                </div>
+            <?php } ?>
+            <?php if ($kurum_map_url !== '') { ?>
+                <div class="map-box">
+                    <iframe
+                        loading="lazy"
+                        referrerpolicy="no-referrer-when-downgrade"
+                        src="<?php echo htmlspecialchars($kurum_map_url, ENT_QUOTES, 'UTF-8'); ?>"
+                        title="Harita">
+                    </iframe>
                 </div>
             <?php } ?>
         </div>

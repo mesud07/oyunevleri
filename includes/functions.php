@@ -122,6 +122,52 @@ function merkez_admin_mi() {
     return !empty($kullanici) && ($kullanici['yetki_seviyesi'] ?? '') === 'merkez_admin';
 }
 
+// Site admin girisi var mi kontrol eder.
+function site_admin_giris_var_mi() {
+    return !empty($_SESSION['site_admin_giris']) && !empty($_SESSION['site_admin']);
+}
+
+// Site admin yetkisi admin mi kontrol eder.
+function site_admin_admin_mi() {
+    return site_admin_giris_var_mi() && (($_SESSION['site_admin']['rol'] ?? '') === 'admin');
+}
+
+// Site admin log kaydi ekler.
+function site_admin_log_ekle($islem, $hedef_id = null, $detay = null, $hedef_tur = 'user') {
+    global $db_master;
+    if (empty($db_master) || !site_admin_giris_var_mi()) {
+        return false;
+    }
+    $admin_id = (int) ($_SESSION['site_admin']['id'] ?? 0);
+    if ($admin_id <= 0) {
+        return false;
+    }
+    try {
+        $stmt = $db_master->prepare("INSERT INTO site_admin_loglar (admin_id, hedef_tur, hedef_id, islem, detay, ip, user_agent)
+            VALUES (:admin_id, :hedef_tur, :hedef_id, :islem, :detay, :ip, :user_agent)");
+        return $stmt->execute([
+            'admin_id' => $admin_id,
+            'hedef_tur' => $hedef_tur,
+            'hedef_id' => $hedef_id !== null ? (int) $hedef_id : null,
+            'islem' => $islem,
+            'detay' => $detay,
+            'ip' => $_SERVER['REMOTE_ADDR'] ?? null,
+            'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? null,
+        ]);
+    } catch (Throwable $e) {
+        error_log('Site admin log hata: ' . $e->getMessage());
+        return false;
+    }
+}
+
+// Site admin girisi zorunludur.
+function site_admin_giris_zorunlu() {
+    if (!site_admin_giris_var_mi()) {
+        header("Location: site_admin_login.php");
+        exit;
+    }
+}
+
 // Kullanici yetkilerini session'a yukler.
 function kullanici_yetkileri_yukle($kullanici_id, $kurum_id) {
     global $db_master;

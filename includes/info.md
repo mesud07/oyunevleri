@@ -37,13 +37,23 @@ CREATE TABLE kurumlar (
     hakkimizda TEXT,
     telefon VARCHAR(20),
     eposta VARCHAR(100),
+    web_site VARCHAR(255),
+    instagram VARCHAR(255),
     meb_onay TINYINT DEFAULT 0,
     aile_sosyal_onay TINYINT DEFAULT 0,
     hizmet_bahceli TINYINT DEFAULT 0,
+    hizmet_havuz TINYINT DEFAULT 0,
+    hizmet_guvenlik TINYINT DEFAULT 0,
     hizmet_guvenlik_kamerasi TINYINT DEFAULT 0,
+    hizmet_yemek TINYINT DEFAULT 0,
     hizmet_ingilizce TINYINT DEFAULT 0,
     min_ay INT DEFAULT NULL, -- Pazaryeri hızlı filtre için
     max_ay INT DEFAULT NULL, -- Pazaryeri hızlı filtre için
+    kurulus_yili INT DEFAULT NULL,
+    ucret VARCHAR(100),
+    kapali_alan VARCHAR(50),
+    acik_alan VARCHAR(50),
+    ozellikler TEXT,
     durum TINYINT DEFAULT 1,
     kayit_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -98,6 +108,29 @@ CREATE TABLE kurum_galeri (
     gorsel_yol VARCHAR(255),
     sira INT DEFAULT 0,
     FOREIGN KEY (kurum_id) REFERENCES kurumlar(id)
+);
+
+CREATE TABLE site_admin_kullanicilar (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    ad_soyad VARCHAR(255),
+    kullanici_adi VARCHAR(100) UNIQUE,
+    sifre VARCHAR(255),
+    rol ENUM('admin','editor') DEFAULT 'admin',
+    aktif TINYINT DEFAULT 1,
+    olusturma_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE site_admin_loglar (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    admin_id INT,
+    hedef_tur ENUM('user','kurum') DEFAULT 'user',
+    hedef_id INT NULL,
+    islem VARCHAR(50),
+    detay TEXT NULL,
+    ip VARCHAR(45) NULL,
+    user_agent VARCHAR(255) NULL,
+    olusturma_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (admin_id) REFERENCES site_admin_kullanicilar(id)
 );
 
 CREATE TABLE kurum_egitmenler (
