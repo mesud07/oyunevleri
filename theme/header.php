@@ -75,6 +75,7 @@ if (!empty($db)) {
     <base href="<?php echo $base_href; ?>">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no">
+    <?php require_once __DIR__ . '/../includes/analytics.php'; ?>
     <title>Envar</title>
     <link rel="shortcut icon" href="theme/custom/favicon.svg">
     <link href="theme/layouts/horizontal-light-menu/css/light/loader.css" rel="stylesheet" type="text/css" />

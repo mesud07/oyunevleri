@@ -123,7 +123,7 @@ CREATE TABLE site_admin_kullanicilar (
 CREATE TABLE site_admin_loglar (
     id INT PRIMARY KEY AUTO_INCREMENT,
     admin_id INT,
-    hedef_tur ENUM('user','kurum') DEFAULT 'user',
+    hedef_tur ENUM('user','kurum','slider') DEFAULT 'user',
     hedef_id INT NULL,
     islem VARCHAR(50),
     detay TEXT NULL,
@@ -131,6 +131,18 @@ CREATE TABLE site_admin_loglar (
     user_agent VARCHAR(255) NULL,
     olusturma_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (admin_id) REFERENCES site_admin_kullanicilar(id)
+);
+
+CREATE TABLE site_slider (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    baslik VARCHAR(150),
+    aciklama TEXT,
+    gorsel_yol VARCHAR(255),
+    buton_etiket VARCHAR(50),
+    link_url VARCHAR(255),
+    sira INT DEFAULT 1,
+    aktif TINYINT DEFAULT 1,
+    olusturma_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE kurum_egitmenler (

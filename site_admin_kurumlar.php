@@ -8,6 +8,17 @@ if (empty($db_master)) {
     die('Master veritabani baglantisi bulunamadi.');
 }
 
+if (isset($_GET['galeri']) && $_GET['galeri'] === '1') {
+    $kid = (int) ($_GET['kurum_id'] ?? 0);
+    if ($kid <= 0) {
+        json_yanit(false, 'Kurum bilgisi eksik.');
+    }
+    $stmt = $db_master->prepare("SELECT id, gorsel_yol, sira FROM kurum_galeri WHERE kurum_id = :id ORDER BY sira ASC, id ASC");
+    $stmt->execute(['id' => $kid]);
+    $galeri = $stmt->fetchAll();
+    json_yanit(true, 'ok', ['galeri' => $galeri]);
+}
+
 function master_kurum_ozellik_var_mi($db_master) {
     static $cache = null;
     if ($cache !== null) {
@@ -73,6 +84,7 @@ $ozellik_kolon_var = master_kurum_ozellik_var_mi($db_master);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
+    $ajax = ($_POST['ajax'] ?? '') === '1';
     if ($action === 'toggle_durum' && $durum_id > 0) {
         if (!$is_admin) {
             $mesaj = 'Bu işlem için yetkiniz yok.';
@@ -92,6 +104,120 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 site_admin_log_ekle('kurum_durum', $durum_id, $yeni === 1 ? 'Kurum aktif edildi' : 'Kurum pasife alindi', 'kurum');
             }
         }
+    }
+    if ($action === 'galeri_ekle') {
+        $kid = (int) ($_POST['kurum_id'] ?? 0);
+        if ($kid <= 0) {
+            $ajax ? json_yanit(false, 'Kurum bilgisi eksik.') : ($mesaj = 'Kurum bilgisi eksik.');
+        }
+        if (empty($_FILES['gorsel']) || !is_array($_FILES['gorsel'])) {
+            $ajax ? json_yanit(false, 'Görsel dosyası zorunludur.') : ($mesaj = 'Görsel dosyası zorunludur.');
+        }
+
+        $files = $_FILES['gorsel'];
+        $names = $files['name'] ?? [];
+        if (!is_array($names)) {
+            $files = [
+                'name' => [$files['name']],
+                'type' => [$files['type']],
+                'tmp_name' => [$files['tmp_name']],
+                'error' => [$files['error']],
+                'size' => [$files['size']],
+            ];
+        }
+
+        $upload_base_dir = rtrim($GLOBALS['upload_base_dir'] ?? (__DIR__ . '/uploads'), '/');
+        $upload_base_url = rtrim($GLOBALS['upload_base_url'] ?? '/uploads', '/');
+        $upload_dir = $GLOBALS['galeri_upload_dir'] ?? ($upload_base_dir . '/kurum_galeri');
+        $upload_url_base = $GLOBALS['galeri_upload_url'] ?? ($upload_base_url . '/kurum_galeri');
+        if (!is_dir($upload_base_dir)) {
+            @mkdir($upload_base_dir, 0755, true);
+        }
+        if (!is_dir($upload_dir)) {
+            @mkdir($upload_dir, 0755, true);
+        }
+        if (!is_dir($upload_dir) || !is_writable($upload_dir)) {
+            $err = 'Yükleme dizini yazılabilir değil: ' . $upload_dir;
+            $ajax ? json_yanit(false, $err) : ($mesaj = $err);
+        }
+
+        $allowed_ext = ['jpg', 'jpeg', 'png'];
+        $allowed_mime = ['image/jpeg', 'image/png'];
+
+        $stmt = $db_master->prepare("SELECT COALESCE(MAX(sira),0) FROM kurum_galeri WHERE kurum_id = :id");
+        $stmt->execute(['id' => $kid]);
+        $sira = (int) $stmt->fetchColumn() + 1;
+
+        $added = 0;
+        foreach ($files['name'] as $idx => $name) {
+            $file_error = $files['error'][$idx] ?? UPLOAD_ERR_NO_FILE;
+            if ($file_error !== UPLOAD_ERR_OK) {
+                continue;
+            }
+            $ext = strtolower(pathinfo($name ?? '', PATHINFO_EXTENSION));
+            if (!in_array($ext, $allowed_ext, true)) {
+                continue;
+            }
+            $tmp_name = $files['tmp_name'][$idx] ?? '';
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mime = $finfo ? finfo_file($finfo, $tmp_name) : '';
+            if ($finfo) {
+                finfo_close($finfo);
+            }
+            if (!in_array($mime, $allowed_mime, true)) {
+                continue;
+            }
+            $filename = 'kurum_' . $kid . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+            $target_path = $upload_dir . '/' . $filename;
+            if (!move_uploaded_file($tmp_name, $target_path)) {
+                continue;
+            }
+            $gorsel_yol = rtrim($upload_url_base, '/') . '/' . $filename;
+            $stmt = $db_master->prepare("INSERT INTO kurum_galeri (kurum_id, gorsel_yol, sira)
+                VALUES (:kurum_id, :gorsel_yol, :sira)");
+            $ok = $stmt->execute([
+                'kurum_id' => $kid,
+                'gorsel_yol' => $gorsel_yol,
+                'sira' => $sira,
+            ]);
+            if ($ok) {
+                $added++;
+                $sira++;
+            }
+        }
+        if ($added > 0) {
+            site_admin_log_ekle('kurum_galeri_ekle', $kid, 'Galeri görseli eklendi.', 'kurum');
+            $ajax ? json_yanit(true, 'Görseller eklendi.') : ($mesaj = 'Görseller eklendi.');
+        }
+        $ajax ? json_yanit(false, 'Görsel eklenemedi.') : ($mesaj = 'Görsel eklenemedi.');
+    }
+    if ($action === 'galeri_sil') {
+        $galeri_id = (int) ($_POST['galeri_id'] ?? 0);
+        $kid = (int) ($_POST['kurum_id'] ?? 0);
+        if ($galeri_id <= 0 || $kid <= 0) {
+            $ajax ? json_yanit(false, 'Galeri bilgisi eksik.') : ($mesaj = 'Galeri bilgisi eksik.');
+        }
+        if (!$is_admin) {
+            $ajax ? json_yanit(false, 'Bu işlem için yetkiniz yok.') : ($mesaj = 'Bu işlem için yetkiniz yok.');
+        }
+        $stmt = $db_master->prepare("SELECT gorsel_yol FROM kurum_galeri WHERE id = :id AND kurum_id = :kurum_id");
+        $stmt->execute(['id' => $galeri_id, 'kurum_id' => $kid]);
+        $row = $stmt->fetch();
+        if ($row) {
+            $gorsel_yol = (string) ($row['gorsel_yol'] ?? '');
+            $filename = basename($gorsel_yol);
+            $upload_dir = $GLOBALS['galeri_upload_dir'] ?? '';
+            if ($upload_dir !== '' && $filename !== '') {
+                $target = rtrim($upload_dir, '/') . '/' . $filename;
+                if (is_file($target)) {
+                    @unlink($target);
+                }
+            }
+        }
+        $db_master->prepare("DELETE FROM kurum_galeri WHERE id = :id AND kurum_id = :kurum_id")
+            ->execute(['id' => $galeri_id, 'kurum_id' => $kid]);
+        site_admin_log_ekle('kurum_galeri_sil', $kid, 'Galeri görseli silindi.', 'kurum');
+        $ajax ? json_yanit(true, 'Görsel silindi.') : ($mesaj = 'Görsel silindi.');
     }
     if ($action === 'save') {
         $id = (int) ($_POST['id'] ?? 0);
@@ -205,6 +331,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($ok) {
                     $mesaj = 'Kurum güncellendi.';
                     $mesaj_tipi = 'success';
+                    site_admin_log_ekle('kurum_guncelle', $id, 'Kurum güncellendi.', 'kurum');
                     $edit_id = 0;
                     $kurum_form = array_map(function () { return ''; }, $kurum_form);
                 } else {
@@ -264,6 +391,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($ok) {
                     $mesaj = 'Kurum eklendi.';
                     $mesaj_tipi = 'success';
+                    $new_id = (int) $db_master->lastInsertId();
+                    site_admin_log_ekle('kurum_ekle', $new_id, 'Yeni kurum eklendi.', 'kurum');
                     $kurum_form = array_map(function () { return ''; }, $kurum_form);
                 } else {
                     $mesaj = 'Kurum eklenemedi.';
@@ -309,6 +438,7 @@ $kurum_list = $stmt->fetchAll();
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Site Admin - Kurumlar</title>
+    <?php require_once("includes/analytics.php"); ?>
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -337,6 +467,10 @@ $kurum_list = $stmt->fetchAll();
         .badge { display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; }
         .badge.active { background:#e7f6ed; color:#1f7a46; }
         .badge.passive { background:#f3f4f6; color:#6b7280; }
+        .gallery-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(120px,1fr)); gap:10px; margin-top:10px; }
+        .gallery-item { border:1px solid var(--stroke); border-radius:12px; overflow:hidden; background:#fff; }
+        .gallery-item img { width:100%; height:90px; object-fit:cover; display:block; }
+        .gallery-item .actions { padding:6px; text-align:center; }
         .modal-backdrop {
             position: fixed;
             inset: 0;
@@ -378,6 +512,7 @@ $kurum_list = $stmt->fetchAll();
         <header>
             <h1>Site Admin - Kurum Yönetimi</h1>
             <div class="d-flex">
+                <a class="btn light" href="site_admin_slider.php">Mobil Slider</a>
                 <a class="btn light" href="site_admin_kullanicilar.php">Kullanıcılar</a>
                 <button class="btn primary" type="button" id="kurumYeniBtn">Yeni Kurum</button>
                 <a class="btn light" href="site_admin_kurumlar.php">Yenile</a>
@@ -551,6 +686,15 @@ $kurum_list = $stmt->fetchAll();
                     <label><input type="checkbox" name="hizmet_ingilizce" id="kurum_ingilizce" value="1"> İngilizce</label>
                     <label><input type="checkbox" name="durum" id="kurum_durum" value="1" checked> Aktif</label>
                 </div>
+                <div class="field" style="margin-top:16px;">
+                    <label>Kurum Galerisi</label>
+                    <input type="file" id="galeri_input" multiple accept="image/*">
+                    <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+                        <button class="btn light" type="button" id="galeriUploadBtn">Görsel Yükle</button>
+                        <small id="galeriMsg" style="color:var(--muted);"></small>
+                    </div>
+                    <div class="gallery-grid" id="galeriList"></div>
+                </div>
                 <div style="margin-top:16px;">
                     <button class="btn primary" type="submit" id="kurumKaydetBtn">Kaydet</button>
                 </div>
@@ -564,6 +708,10 @@ $kurum_list = $stmt->fetchAll();
             var closeBtn = document.getElementById('kurumModalClose');
             var newBtn = document.getElementById('kurumYeniBtn');
             var title = document.getElementById('kurumModalTitle');
+            var galeriList = document.getElementById('galeriList');
+            var galeriInput = document.getElementById('galeri_input');
+            var galeriUploadBtn = document.getElementById('galeriUploadBtn');
+            var galeriMsg = document.getElementById('galeriMsg');
 
             function setValue(id, value) {
                 var el = document.getElementById(id);
@@ -586,6 +734,56 @@ $kurum_list = $stmt->fetchAll();
                 if (modal) {
                     modal.classList.remove('is-open');
                 }
+            }
+            function renderGaleri(items) {
+                if (!galeriList) { return; }
+                galeriList.innerHTML = '';
+                if (!items || !items.length) {
+                    galeriList.innerHTML = '<div style="color:var(--muted);font-size:13px;">Henüz görsel yok.</div>';
+                    return;
+                }
+                items.forEach(function(item) {
+                    var wrap = document.createElement('div');
+                    wrap.className = 'gallery-item';
+                    var img = document.createElement('img');
+                    img.src = item.gorsel_yol;
+                    img.alt = 'Görsel';
+                    var actions = document.createElement('div');
+                    actions.className = 'actions';
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'btn light';
+                    btn.textContent = 'Sil';
+                    btn.addEventListener('click', function() {
+                        if (!confirm('Görsel silinsin mi?')) { return; }
+                        var fd = new FormData();
+                        fd.append('action', 'galeri_sil');
+                        fd.append('galeri_id', item.id);
+                        fd.append('kurum_id', document.getElementById('kurum_id').value);
+                        fd.append('ajax', '1');
+                        fetch('site_admin_kurumlar.php', { method: 'POST', body: fd })
+                            .then(function(r) { return r.json(); })
+                            .then(function(res) {
+                                galeriMsg.textContent = res.mesaj || '';
+                                loadGaleri(document.getElementById('kurum_id').value);
+                            });
+                    });
+                    actions.appendChild(btn);
+                    wrap.appendChild(img);
+                    wrap.appendChild(actions);
+                    galeriList.appendChild(wrap);
+                });
+            }
+            function loadGaleri(kurumId) {
+                if (!kurumId || parseInt(kurumId,10) <= 0) {
+                    renderGaleri([]);
+                    return;
+                }
+                fetch('site_admin_kurumlar.php?galeri=1&kurum_id=' + encodeURIComponent(kurumId))
+                    .then(function(r) { return r.json(); })
+                    .then(function(res) {
+                        renderGaleri(res.galeri || []);
+                    });
             }
             if (closeBtn) {
                 closeBtn.addEventListener('click', closeModal);
@@ -621,6 +819,8 @@ $kurum_list = $stmt->fetchAll();
                     setCheck('kurum_yemek', 0);
                     setCheck('kurum_ingilizce', 0);
                     setCheck('kurum_durum', 1);
+                    if (galeriMsg) { galeriMsg.textContent = 'Görsel eklemek için önce kurumu kaydedin.'; }
+                    loadGaleri(0);
                     openModal();
                 });
             }
@@ -658,6 +858,8 @@ $kurum_list = $stmt->fetchAll();
                     setCheck('kurum_yemek', data.hizmet_yemek || 0);
                     setCheck('kurum_ingilizce', data.hizmet_ingilizce || 0);
                     setCheck('kurum_durum', data.durum || 0);
+                    if (galeriMsg) { galeriMsg.textContent = ''; }
+                    loadGaleri(data.id || 0);
                     openModal();
                 });
             });
@@ -666,6 +868,35 @@ $kurum_list = $stmt->fetchAll();
                     closeModal();
                 }
             });
+
+            if (galeriUploadBtn) {
+                galeriUploadBtn.addEventListener('click', function() {
+                    var kurumId = document.getElementById('kurum_id').value;
+                    if (!kurumId || parseInt(kurumId,10) <= 0) {
+                        if (galeriMsg) { galeriMsg.textContent = 'Önce kurumu kaydedin.'; }
+                        return;
+                    }
+                    if (!galeriInput || !galeriInput.files || galeriInput.files.length === 0) {
+                        if (galeriMsg) { galeriMsg.textContent = 'Lütfen görsel seçin.'; }
+                        return;
+                    }
+                    var fd = new FormData();
+                    fd.append('action', 'galeri_ekle');
+                    fd.append('kurum_id', kurumId);
+                    fd.append('ajax', '1');
+                    Array.prototype.forEach.call(galeriInput.files, function(file) {
+                        fd.append('gorsel[]', file);
+                    });
+                    if (galeriMsg) { galeriMsg.textContent = 'Yükleniyor...'; }
+                    fetch('site_admin_kurumlar.php', { method: 'POST', body: fd })
+                        .then(function(r) { return r.json(); })
+                        .then(function(res) {
+                            if (galeriMsg) { galeriMsg.textContent = res.mesaj || ''; }
+                            if (galeriInput) { galeriInput.value = ''; }
+                            loadGaleri(kurumId);
+                        });
+                });
+            }
 
             <?php if ($edit_id > 0) { ?>
             openModal();
@@ -700,6 +931,8 @@ $kurum_list = $stmt->fetchAll();
             setCheck('kurum_yemek', <?php echo (int) $kurum_form['hizmet_yemek']; ?>);
             setCheck('kurum_ingilizce', <?php echo (int) $kurum_form['hizmet_ingilizce']; ?>);
             setCheck('kurum_durum', <?php echo (int) $kurum_form['durum']; ?>);
+            if (galeriMsg) { galeriMsg.textContent = ''; }
+            loadGaleri(<?php echo (int) $edit_id; ?>);
             <?php } ?>
         })();
     </script>

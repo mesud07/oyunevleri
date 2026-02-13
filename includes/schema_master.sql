@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS site_admin_kullanicilar (
 CREATE TABLE IF NOT EXISTS site_admin_loglar (
     id INT PRIMARY KEY AUTO_INCREMENT,
     admin_id INT,
-    hedef_tur ENUM('user','kurum') DEFAULT 'user',
+    hedef_tur ENUM('user','kurum','slider') DEFAULT 'user',
     hedef_id INT NULL,
     islem VARCHAR(50),
     detay TEXT NULL,
@@ -111,6 +111,18 @@ CREATE TABLE IF NOT EXISTS site_admin_loglar (
     user_agent VARCHAR(255) NULL,
     olusturma_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (admin_id) REFERENCES site_admin_kullanicilar(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
+
+CREATE TABLE IF NOT EXISTS site_slider (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    baslik VARCHAR(150),
+    aciklama TEXT,
+    gorsel_yol VARCHAR(255),
+    buton_etiket VARCHAR(50),
+    link_url VARCHAR(255),
+    sira INT DEFAULT 1,
+    aktif TINYINT DEFAULT 1,
+    olusturma_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 
 CREATE TABLE IF NOT EXISTS kurum_egitmenler (

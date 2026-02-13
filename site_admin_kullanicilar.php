@@ -155,6 +155,7 @@ if ($is_admin) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Site Admin - Kullanıcılar</title>
+    <?php require_once("includes/analytics.php"); ?>
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -190,6 +191,7 @@ if ($is_admin) {
             <h1>Site Admin Kullanıcıları</h1>
             <div class="d-flex">
                 <a class="btn light" href="site_admin_kurumlar.php">Kurumlar</a>
+                <a class="btn light" href="site_admin_slider.php">Mobil Slider</a>
                 <a class="btn primary" href="site_admin_logout.php">Çıkış</a>
             </div>
         </header>

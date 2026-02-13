@@ -6,12 +6,14 @@ require_once("includes/functions.php");
 $sehirler = [];
 $ilceler = [];
 $kurum_turleri = [];
+$sehirler_by_type = [];
 $kurum_sayisi = 0;
 $yorum_sayisi = 0;
 $ortalama_puan = 0;
 $onecikanlar = [];
 $modal_hata = '';
 $kurum_type = trim($_GET['kurum_type'] ?? '');
+$slider_items = [];
 
 if (!empty($db_master)) {
     $sehirler = $db_master->query("SELECT DISTINCT sehir FROM kurumlar WHERE durum = 1 AND sehir IS NOT NULL AND sehir <> '' ORDER BY sehir")->fetchAll(PDO::FETCH_COLUMN);
@@ -37,10 +39,75 @@ if (!empty($db_master)) {
     $stmt = $db_master->prepare($sql);
     $stmt->execute();
     $onecikanlar = $stmt->fetchAll();
+
+    $stmt = $db_master->prepare("SELECT DISTINCT kurum_type, sehir
+        FROM kurumlar
+        WHERE durum = 1 AND kurum_type IS NOT NULL AND kurum_type <> '' AND sehir IS NOT NULL AND sehir <> ''
+        ORDER BY sehir");
+    $stmt->execute();
+    $type_rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($type_rows as $row) {
+        $type = trim($row['kurum_type'] ?? '');
+        $sehir = trim($row['sehir'] ?? '');
+        if ($type === '' || $sehir === '') { continue; }
+        if (!isset($sehirler_by_type[$type])) {
+            $sehirler_by_type[$type] = [];
+        }
+        $sehirler_by_type[$type][] = $sehir;
+    }
+    foreach ($sehirler_by_type as $type => $list) {
+        $list = array_values(array_unique($list));
+        sort($list);
+        $sehirler_by_type[$type] = $list;
+    }
+
+    try {
+        $stmt = $db_master->query("SELECT id, baslik, aciklama, gorsel_yol, buton_etiket, link_url
+            FROM site_slider
+            WHERE aktif = 1
+            ORDER BY sira ASC, id ASC");
+        $slider_items = $stmt->fetchAll();
+        $slider_items = array_values(array_filter($slider_items, function ($row) {
+            return !empty($row['gorsel_yol']);
+        }));
+    } catch (Throwable $e) {
+        $slider_items = [];
+    }
 }
 
 $kurum_turleri_default = ['Oyun Evi', 'Anaokulu', 'Kreş'];
 $kurum_turleri = array_values(array_unique(array_filter(array_merge($kurum_turleri, $kurum_turleri_default))));
+
+$type_color_map = [];
+$type_desc_map = [];
+foreach ($kurum_turleri as $tur) {
+    $key = function_exists('mb_strtolower') ? mb_strtolower($tur, 'UTF-8') : strtolower($tur);
+    $color = '#ff8a65';
+    $desc = 'Bölgenizdeki ' . $tur . ' kurumlarını inceleyin.';
+    if (strpos($key, 'anaokul') !== false) {
+        $color = '#5aa7ff';
+        $desc = 'Bölgenizdeki anaokullarına dair tüm bilgileri inceleyin.';
+    } elseif (strpos($key, 'oyun') !== false) {
+        $color = '#6fd3c5';
+        $desc = 'Bölgenizdeki oyun evi ve atölyeleri keşfedin.';
+    } elseif (strpos($key, 'kre') !== false) {
+        $color = '#ff8a65';
+        $desc = 'Bölgenizdeki kreşleri zaman kaybetmeden keşfedin.';
+    } else {
+        $color = '#ffd36e';
+    }
+    $type_color_map[$tur] = $color;
+    $type_desc_map[$tur] = $desc;
+}
+
+$type_first_letter = function ($text) {
+    $text = trim((string) $text);
+    if ($text === '') { return '•'; }
+    if (function_exists('mb_substr')) {
+        return mb_strtoupper(mb_substr($text, 0, 1, 'UTF-8'), 'UTF-8');
+    }
+    return strtoupper(substr($text, 0, 1));
+};
 
 $kurum_sayisi = $kurum_sayisi > 0 ? $kurum_sayisi : 120;
 $yorum_sayisi = $yorum_sayisi > 0 ? $yorum_sayisi : 3000;
@@ -83,6 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'veli_
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Oyunevleri.com | Şehir seç, yaş seç, eğlenceyi bul</title>
+    <?php require_once("includes/analytics.php"); ?>
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -215,6 +283,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'veli_
             align-items: center;
         }
 
+        .hero-content {
+            max-width: 760px;
+        }
+
+        .hero-content .search-card,
+        .hero-content .stats,
+        .hero-content .type-discovery {
+            width: 100%;
+        }
+
         .hero h1 {
             font-family: "Baloo 2", cursive;
             font-size: 48px;
@@ -266,6 +344,261 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'veli_
             padding: 18px;
             box-shadow: var(--shadow);
             border: 1px solid var(--stroke);
+        }
+
+        .mobile-slider {
+            display: none;
+            padding: 18px 0 0;
+        }
+
+        .slider-shell {
+            position: relative;
+            overflow: hidden;
+            border-radius: 22px;
+            box-shadow: var(--shadow);
+        }
+
+        .slider-track {
+            display: flex;
+            transition: transform 0.45s ease;
+            will-change: transform;
+        }
+
+        .slider-slide {
+            min-width: 100%;
+        }
+
+        .slider-card {
+            position: relative;
+            display: block;
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .slider-image {
+            width: 100%;
+            height: 220px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .slider-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.35) 65%, rgba(0,0,0,0.55) 100%);
+            display: flex;
+            align-items: flex-end;
+            padding: 16px 18px;
+        }
+
+        .slider-title {
+            font-family: "Baloo 2", cursive;
+            font-size: 20px;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+
+        .slider-text {
+            margin: 0 0 10px;
+            color: rgba(255,255,255,0.85);
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .slider-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: #fff;
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .slider-dots {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .slider-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            border: none;
+            background: #d1d5db;
+            cursor: pointer;
+        }
+
+        .slider-dot.is-active {
+            background: var(--primary);
+        }
+
+        .type-discovery {
+            margin-top: 22px;
+        }
+
+        .type-list {
+            background: #fff;
+            border-radius: 18px;
+            border: 1px solid var(--stroke);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .type-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 16px;
+            border-bottom: 1px solid rgba(31,41,55,0.08);
+            text-decoration: none;
+            color: var(--ink);
+            background: #fff;
+            cursor: pointer;
+            text-align: left;
+            width: 100%;
+            border: none;
+        }
+
+        .type-item:last-child {
+            border-bottom: none;
+        }
+
+        .type-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+        }
+
+        .type-title {
+            font-size: 16px;
+        }
+
+        .type-desc {
+            display: none;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .type-cta {
+            display: none;
+            margin-top: auto;
+            padding: 10px 14px;
+            border-radius: 14px;
+            border: 1px solid #e2e8f0;
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 13px;
+            background: #fff;
+        }
+
+        .type-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .type-arrow {
+            width: 20px;
+            height: 20px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8;
+            border: 1px solid rgba(148,163,184,0.4);
+        }
+
+        .type-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 9999;
+        }
+
+        .type-modal.is-open {
+            display: flex;
+        }
+
+        .type-modal-card {
+            width: 100%;
+            max-width: 420px;
+            background: #fff;
+            border-radius: 22px;
+            padding: 18px 18px 8px;
+            box-shadow: 0 20px 45px rgba(31,41,55,0.2);
+            border: 1px solid rgba(31,41,55,0.08);
+        }
+
+        .type-modal-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .type-modal-head h3 {
+            margin: 0;
+            font-family: "Baloo 2", cursive;
+            font-size: 20px;
+        }
+
+        .type-modal-close {
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            border: 1px solid var(--stroke);
+            background: #fff;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .type-city-list {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            max-height: 60vh;
+            overflow: auto;
+            padding-bottom: 10px;
+        }
+
+        .type-city-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 6px;
+            text-decoration: none;
+            color: var(--ink);
+            border-bottom: 1px solid rgba(31,41,55,0.08);
+        }
+
+        .type-city-row:last-child {
+            border-bottom: none;
+        }
+
+        .type-empty {
+            padding: 14px 4px;
+            color: var(--muted);
+            font-size: 14px;
         }
 
         .search-grid {
@@ -696,6 +1029,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'veli_
             border: 1px solid var(--stroke);
         }
 
+        .cta-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
         footer {
             padding: 30px 0 60px;
             color: var(--muted);
@@ -709,17 +1048,89 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'veli_
             .cta { flex-direction: column; align-items: flex-start; }
             .nav { flex-direction: column; align-items: flex-start; }
             .nav-links { gap: 16px; }
+            .type-discovery { grid-template-columns: 1fr; }
+            .type-list {
+                display: flex;
+                background: #fff;
+                border-radius: 18px;
+                border: 1px solid var(--stroke);
+            }
+            .type-item {
+                flex-direction: row;
+                align-items: center;
+                border-bottom: 1px solid rgba(31,41,55,0.08);
+            }
+            .type-left {
+                flex-direction: row;
+                align-items: center;
+            }
+            .type-arrow { display: inline-flex; }
+            .type-desc, .type-cta { display: none; }
+            .mobile-slider { display: block; }
         }
 
         @media (max-width: 600px) {
             .search-grid { grid-template-columns: 1fr; }
             .hero h1 { font-size: 36px; }
+            .hero { padding-top: 26px; }
             .month-grid,
             .month-head {
                 grid-template-columns: 1fr;
             }
             .hero-ctas { flex-direction: column; align-items: stretch; }
             .hero-cta-btn { width: 100%; justify-content: center; }
+            .type-discovery { grid-template-columns: 1fr; }
+            .slider-image { height: 200px; }
+        }
+
+        @media (min-width: 981px) {
+            .type-discovery {
+                grid-template-columns: 1fr;
+            }
+            .type-list {
+                background: transparent;
+                border: none;
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 18px;
+                overflow: visible;
+            }
+            .type-item {
+                border: 1px solid var(--stroke);
+                border-radius: 20px;
+                padding: 20px;
+                flex-direction: column;
+                align-items: center;
+                gap: 12px;
+                text-align: center;
+                box-shadow: 0 14px 26px rgba(31,41,55,0.08);
+            }
+            .type-left {
+                flex-direction: column;
+                align-items: center;
+                gap: 12px;
+            }
+            .type-title {
+                font-size: 17px;
+            }
+            .type-icon {
+                width: 56px;
+                height: 56px;
+                border-radius: 18px;
+                font-size: 22px;
+            }
+            .type-desc {
+                display: block;
+                text-align: center;
+            }
+            .type-cta {
+                display: inline-flex;
+                justify-content: center;
+                width: 100%;
+            }
+            .type-arrow {
+                display: none;
+            }
         }
         <?php require_once("includes/public_header.css.php"); ?>
     </style>
@@ -727,9 +1138,102 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'veli_
 <body>
     <?php $public_nav_active = 'home'; require_once("includes/public_header.php"); ?>
 
+    <?php if (!empty($slider_items)) { ?>
+        <section class="mobile-slider">
+            <div class="container">
+                <div class="slider-shell" data-mobile-slider>
+                    <div class="slider-track" data-slider-track>
+                        <?php foreach ($slider_items as $index => $slide) {
+                            $baslik = trim($slide['baslik'] ?? '');
+                            $aciklama = trim($slide['aciklama'] ?? '');
+                            $gorsel = trim($slide['gorsel_yol'] ?? '');
+                            $buton = trim($slide['buton_etiket'] ?? '');
+                            $link = trim($slide['link_url'] ?? '');
+                            $card_open = $link !== '' ? "<a class=\"slider-card\" href=\"" . htmlspecialchars($link, ENT_QUOTES, 'UTF-8') . "\">" : "<div class=\"slider-card\">";
+                            $card_close = $link !== '' ? "</a>" : "</div>";
+                            ?>
+                            <div class="slider-slide" data-slide>
+                                <?php echo $card_open; ?>
+                                    <img class="slider-image" src="<?php echo htmlspecialchars($gorsel, ENT_QUOTES, 'UTF-8'); ?>" alt="<?php echo htmlspecialchars($baslik !== '' ? $baslik : 'Slider görseli', ENT_QUOTES, 'UTF-8'); ?>">
+                                    <div class="slider-overlay">
+                                        <div>
+                                            <?php if ($baslik !== '') { ?>
+                                                <div class="slider-title"><?php echo htmlspecialchars($baslik, ENT_QUOTES, 'UTF-8'); ?></div>
+                                            <?php } ?>
+                                            <?php if ($aciklama !== '') { ?>
+                                                <p class="slider-text"><?php echo htmlspecialchars($aciklama, ENT_QUOTES, 'UTF-8'); ?></p>
+                                            <?php } ?>
+                                            <?php if ($buton !== '') { ?>
+                                                <span class="slider-button"><?php echo htmlspecialchars($buton, ENT_QUOTES, 'UTF-8'); ?></span>
+                                            <?php } ?>
+                                        </div>
+                                    </div>
+                                <?php echo $card_close; ?>
+                            </div>
+                        <?php } ?>
+                    </div>
+                </div>
+                <div class="slider-dots" data-slider-dots>
+                    <?php foreach ($slider_items as $index => $slide) { ?>
+                        <button class="slider-dot <?php echo $index === 0 ? 'is-active' : ''; ?>" type="button" data-slider-dot="<?php echo (int) $index; ?>"></button>
+                    <?php } ?>
+                </div>
+            </div>
+        </section>
+        <script>
+            (function () {
+                var slider = document.querySelector('[data-mobile-slider]');
+                if (!slider) { return; }
+                var track = slider.querySelector('[data-slider-track]');
+                var slides = slider.querySelectorAll('[data-slide]');
+                var dots = document.querySelectorAll('[data-slider-dot]');
+                if (!track || slides.length === 0) { return; }
+                var index = 0;
+                var timer = null;
+
+                function setActive(i) {
+                    index = i;
+                    track.style.transform = 'translateX(' + (-100 * index) + '%)';
+                    dots.forEach(function (dot) { dot.classList.remove('is-active'); });
+                    if (dots[index]) { dots[index].classList.add('is-active'); }
+                }
+
+                function next() {
+                    var nextIndex = index + 1;
+                    if (nextIndex >= slides.length) { nextIndex = 0; }
+                    setActive(nextIndex);
+                }
+
+                function start() {
+                    if (timer) { clearInterval(timer); }
+                    timer = setInterval(next, 5000);
+                }
+
+                dots.forEach(function (dot) {
+                    dot.addEventListener('click', function () {
+                        var i = parseInt(dot.getAttribute('data-slider-dot'), 10);
+                        if (!Number.isNaN(i)) {
+                            setActive(i);
+                            start();
+                        }
+                    });
+                });
+
+                slider.addEventListener('touchstart', function () {
+                    if (timer) { clearInterval(timer); }
+                });
+                slider.addEventListener('touchend', function () {
+                    start();
+                });
+
+                start();
+            })();
+        </script>
+    <?php } ?>
+
     <section class="hero">
         <div class="container hero-wrap">
-            <div>
+            <div class="hero-content">
                 <?php if (!empty($_SESSION['flash_basarili'])) { ?>
                     <div class="alert success" style="margin-bottom:16px;">
                         <?php echo htmlspecialchars($_SESSION['flash_basarili'], ENT_QUOTES, 'UTF-8'); ?>
@@ -814,6 +1318,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'veli_
                 <div class="bubble one">MEB Onaylı</div>
                 <div class="bubble two">Bahçeli • Güvenlik Kamerası</div>
                 <div class="bubble three">İngilizce Oyun Grupları</div>
+            </div>
+        </div>
+        <div class="container">
+            <div class="type-discovery">
+                <div class="type-list">
+                    <?php foreach ($kurum_turleri as $tur) {
+                        $color = $type_color_map[$tur] ?? '#ff8a65';
+                        $letter = $type_first_letter($tur);
+                        $desc = $type_desc_map[$tur] ?? ('Bölgenizdeki ' . $tur . ' kurumlarını inceleyin.');
+                        ?>
+                        <button class="type-item" type="button" data-type-select="<?php echo htmlspecialchars($tur, ENT_QUOTES, 'UTF-8'); ?>">
+                            <span class="type-left">
+                                <span class="type-icon" style="background: <?php echo htmlspecialchars($color, ENT_QUOTES, 'UTF-8'); ?>">
+                                    <?php echo htmlspecialchars($letter, ENT_QUOTES, 'UTF-8'); ?>
+                                </span>
+                                <span class="type-title"><?php echo htmlspecialchars($tur, ENT_QUOTES, 'UTF-8'); ?></span>
+                            </span>
+                            <span class="type-desc"><?php echo htmlspecialchars($desc, ENT_QUOTES, 'UTF-8'); ?></span>
+                            <span class="type-cta">İNCELE</span>
+                            <span class="type-arrow">›</span>
+                        </button>
+                    <?php } ?>
+                </div>
             </div>
         </div>
     </section>
@@ -1466,10 +1993,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'veli_
         <div class="container">
             <div class="cta">
                 <div>
-                    <h2>Oyun evinizi görünür yapın</h2>
-                    <p class="lead">Pazaryerinde yer alın, yeni velilere ulaşın.</p>
+                    <h2>Yeni işletmelere danışmanlık</h2>
+                    <p class="lead">Açılış, konumlandırma ve pazarlama desteğiyle yanınızdayız.</p>
                 </div>
-                <a class="btn btn-primary" href="#">Kurumu Kaydet</a>
+                <div class="cta-actions">
+                    <a class="btn btn-primary" href="firma_kayit.php?tip=danismanlik">Danışmanlık Al</a>
+                    <a class="btn btn-outline" href="firma_kayit.php?tip=basvuru">Yeni İşletme Başvurusu</a>
+                </div>
             </div>
         </div>
     </section>
@@ -1479,6 +2009,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'veli_
             <div>Oyunevleri.com • Güvenli, onaylı ve eğlenceli oyun grupları</div>
         </div>
     </footer>
+
+    <div class="type-modal" data-type-modal>
+        <div class="type-modal-card">
+            <div class="type-modal-head">
+                <h3 data-type-title>İl Seçiniz</h3>
+                <button class="type-modal-close" type="button" data-type-close>×</button>
+            </div>
+            <div class="type-city-list" data-type-city-list></div>
+        </div>
+    </div>
+    <script>
+        (function () {
+            var typeCities = <?php echo json_encode($sehirler_by_type, JSON_UNESCAPED_UNICODE); ?>;
+            var modal = document.querySelector('[data-type-modal]');
+            var titleEl = document.querySelector('[data-type-title]');
+            var listEl = document.querySelector('[data-type-city-list]');
+            var closeBtn = document.querySelector('[data-type-close]');
+            if (!modal || !titleEl || !listEl) { return; }
+
+            function closeModal() {
+                modal.classList.remove('is-open');
+                document.body.style.overflow = '';
+            }
+
+            function openModal(type) {
+                titleEl.textContent = type + ' için İl Seçiniz';
+                listEl.innerHTML = '';
+                var cities = typeCities[type] || [];
+                if (!cities.length) {
+                    var empty = document.createElement('div');
+                    empty.className = 'type-empty';
+                    empty.textContent = 'Bu tür için şehir bulunamadı.';
+                    listEl.appendChild(empty);
+                } else {
+                    cities.forEach(function (city) {
+                        var row = document.createElement('a');
+                        row.className = 'type-city-row';
+                        row.href = 'search.php?kurum_type=' + encodeURIComponent(type) + '&sehir=' + encodeURIComponent(city);
+                        row.innerHTML = '<span>' + city + '</span><span>›</span>';
+                        listEl.appendChild(row);
+                    });
+                }
+                modal.classList.add('is-open');
+                document.body.style.overflow = 'hidden';
+            }
+
+            document.querySelectorAll('[data-type-select]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var type = btn.getAttribute('data-type-select');
+                    if (!type) { return; }
+                    openModal(type);
+                });
+            });
+
+            if (closeBtn) {
+                closeBtn.addEventListener('click', closeModal);
+            }
+            modal.addEventListener('click', function (e) {
+                if (e.target === modal) {
+                    closeModal();
+                }
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && modal.classList.contains('is-open')) {
+                    closeModal();
+                }
+            });
+        })();
+    </script>
 
     <?php if ($profil_modal_goster) { ?>
         <div class="modal-overlay is-open" id="profilModal">
