@@ -423,7 +423,7 @@ A. Giriş ve Kurum Seçim Sayfası
 User Flow: Kurum Kodu + K_Adi + Şifre -> Başarılı -> `kurum_id` session'a yazılır -> (Eğer Merkez Adminse) Şube Seçim Ekranı -> Dashboard.
 
 B. Yönetici Dashboard (İstatistik)
-UI/UX: Kartlar halinde (Widgets); Günlük toplam çocuk sayısı, Aylık Ciro, Bekleyen İptaller, 48 Saat Kuralına takılanlar.
+UI/UX: Kartlar halinde (Widgets); Günlük toplam çocuk sayısı, Aylık Ciro, Bekleyen İptaller, 24 Saat Kuralına takılanlar.
 
 İşlem: AJAX ile anlık veri filtreleme (Bugün/Bu Hafta).
 
@@ -455,7 +455,7 @@ Sistem çocuğun ayını hesaplar; yaş sınırına uymayan grupları pasifize e
 
 Veli uygun grubu seçer -> Modal onay ekranı açılır -> AJAX ile hak_kontrol yapılır -> Onaylanırsa bakiye düşer.
 
-Akış 2: İptal ve 48 Saat Kuralı
+Akış 2: İptal ve 24 Saat Kuralı
 Veli "Rezervasyonlarım" sayfasına girer -> "İptal Et" butonuna tıklar.
 
 AJAX İstek: PHP, seans saatine olan farkı kontrol eder.
@@ -473,7 +473,7 @@ Yönetici onayı: "Bekleyen iptaller" ekranında onayla/iade veya reddet aksiyon
 * **Modal Kullanımı:** Tüm ekleme ve güncelleme işlemleri modal üzerinden yapılacaktır.
 * **Kurum Filtre:** Ortak DB kullanildigi icin tum SELECT/INSERT/UPDATE islemlerinde `kurum_id` zorunludur.
 * **Oturum & Parola:** PHP session kullanılacak. Parola doğrulama `password_verify`, kayıt/güncelleme `password_hash` ile yapılacak.
-* **48 Saat Kuralı (Dinamik):** İptal butonuna tıklandığında AJAX ile PHP'ye sorgu gider; `sistem_ayarlar` tablosundaki `iptal_kural_saat` değeri kullanılır. Varsayılan 48.
+* **24 Saat Kuralı (Dinamik):** İptal butonuna tıklandığında AJAX ile PHP'ye sorgu gider; `sistem_ayarlar` tablosundaki `iptal_kural_saat` değeri kullanılır. Varsayılan 24.
 * **Hak Dondurma / Süre Uzatma:** `veli_hak_dondurma` tablosu ile takip edilir. Aktif dondurma varsa rezervasyon bloklanır. Süre uzatma `veliler.hak_gecerlilik_bitis` alanı güncellenerek yapılır.
 * **Dosya Yukleme:** Sadece `materyal_havuzu` için dosya yüklenir. Yetkili roller: `egitmen`, `sube_admin`, `merkez_admin`. Yukleme dizini: `/uploads/materyaller/` (proje root). Izinli tipler: PDF, JPG, PNG.
 
@@ -512,7 +512,7 @@ A. Giriş ve Kurum Seçim Sayfası
 User Flow: Kurum Kodu + K_Adi + Şifre -> Başarılı -> `kurum_id` session'a yazılır -> (Eğer Merkez Adminse) Şube Seçim Ekranı -> Dashboard.
 
 B. Yönetici Dashboard (İstatistik)
-UI/UX: Kartlar halinde (Widgets); Günlük toplam çocuk sayısı, Aylık Ciro, Bekleyen İptaller, 48 Saat Kuralına takılanlar.
+UI/UX: Kartlar halinde (Widgets); Günlük toplam çocuk sayısı, Aylık Ciro, Bekleyen İptaller, 24 Saat Kuralına takılanlar.
 
 İşlem: AJAX ile anlık veri filtreleme (Bugün/Bu Hafta).
 
@@ -534,7 +534,7 @@ Sistem çocuğun ayını hesaplar; yaş sınırına uymayan grupları pasifize e
 
 Veli uygun grubu seçer -> Modal onay ekranı açılır -> AJAX ile hak_kontrol yapılır -> Onaylanırsa bakiye düşer.
 
-Akış 2: İptal ve 48 Saat Kuralı
+Akış 2: İptal ve 24 Saat Kuralı
 Veli "Rezervasyonlarım" sayfasına girer -> "İptal Et" butonuna tıklar.
 
 AJAX İstek: PHP, seans saatine olan farkı kontrol eder.

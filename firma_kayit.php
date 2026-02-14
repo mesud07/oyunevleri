@@ -1,4 +1,17 @@
 <?php
+if (php_sapi_name() !== 'cli') {
+    $req_uri = $_SERVER['REQUEST_URI'] ?? '';
+    if (strpos($req_uri, 'firma_kayit.php') !== false) {
+        $query = $_SERVER['QUERY_STRING'] ?? '';
+        $target = '/firma-basvuru';
+        if ($query !== '') {
+            $target .= '?' . $query;
+        }
+        header('Location: ' . $target, true, 301);
+        exit;
+    }
+}
+
 require_once("includes/config.php");
 require_once("includes/functions.php");
 $public_nav_active = '';

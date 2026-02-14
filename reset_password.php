@@ -1,5 +1,15 @@
 <?php
 require_once('includes/config.php');
+if (php_sapi_name() !== 'cli') {
+    $req_uri = $_SERVER['REQUEST_URI'] ?? '';
+    if (strpos($req_uri, 'reset_password.php') !== false) {
+        $query = $_SERVER['QUERY_STRING'] ?? '';
+        $target = '/sifre-yenile';
+        if ($query !== '') { $target .= '?' . $query; }
+        header('Location: ' . $target, true, 301);
+        exit;
+    }
+}
 
 $token = trim($_GET['token'] ?? ($_POST['token'] ?? ''));
 $hata = '';
@@ -186,7 +196,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $hata === '') {
         <div class="container nav">
             <a class="logo" href="index.php">Oyunevleri.com</a>
             <div>
-                <a class="btn btn-outline" href="login.php">Giriş Yap</a>
+                <a class="btn btn-outline" href="/login">Giriş Yap</a>
             </div>
         </div>
     </header>
@@ -203,9 +213,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $hata === '') {
             <?php } ?>
             <?php if ($basari !== '') { ?>
                 <div class="alert success"><?php echo $basari; ?></div>
-                <a class="btn btn-primary" href="login.php">Giriş Yap</a>
+                <a class="btn btn-primary" href="/login">Giriş Yap</a>
             <?php } else { ?>
-                <form method="post" action="reset_password.php">
+                <form method="post" action="/sifre-yenile">
                     <input type="hidden" name="token" value="<?php echo htmlspecialchars($token, ENT_QUOTES, 'UTF-8'); ?>">
                     <div class="field">
                         <label>Yeni Şifre</label>

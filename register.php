@@ -1,6 +1,16 @@
 <?php
 // Veli kayit ekrani
 require_once("includes/config.php");
+if (php_sapi_name() !== 'cli') {
+    $req_uri = $_SERVER['REQUEST_URI'] ?? '';
+    if (strpos($req_uri, 'register.php') !== false) {
+        $query = $_SERVER['QUERY_STRING'] ?? '';
+        $target = '/kayit';
+        if ($query !== '') { $target .= '?' . $query; }
+        header('Location: ' . $target, true, 301);
+        exit;
+    }
+}
 
 $hata = '';
 $basari = '';
@@ -246,7 +256,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="container nav">
             <a class="logo" href="index.php">Oyunevleri.com</a>
             <div>
-                <a class="btn btn-outline" href="login.php?next=<?php echo urlencode($next_param); ?>">Giriş Yap</a>
+                <a class="btn btn-outline" href="/login?next=<?php echo urlencode($next_param); ?>">Giriş Yap</a>
             </div>
         </div>
     </header>
@@ -261,7 +271,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php if ($hata !== '') { ?>
                 <div class="alert"><?php echo $hata; ?></div>
             <?php } ?>
-            <form method="post" action="register.php">
+            <form method="post" action="/kayit">
                 <input type="hidden" name="next" value="<?php echo htmlspecialchars($next_param, ENT_QUOTES, 'UTF-8'); ?>">
                 <div class="field">
                     <label>Ad Soyad</label>

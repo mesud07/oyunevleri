@@ -6,7 +6,7 @@ $veli_ad = $veli_giris ? ($_SESSION['veli']['ad_soyad'] ?? 'Profil') : '';
 $next_query = $public_login_next !== '' ? '?next=' . urlencode($public_login_next) : '';
 $nav_items = [
     ['key' => 'home', 'label' => 'Anasayfa', 'href' => 'index.php'],
-    ['key' => 'storage', 'label' => 'Kurumlar', 'href' => 'search.php'],
+    ['key' => 'storage', 'label' => 'Kurumlar', 'href' => '/kurumlar'],
 ];
 ?>
 <header class="public-header">
@@ -19,7 +19,7 @@ $nav_items = [
                         <path d="M22 6l-10 7L2 6"></path>
                     </svg>
                 </span>
-                <a href="mailto:iletisim@oyunevleri.com">iletisim@oyunevleri.com</a>
+                <a href="#" data-mail-user="iletisim" data-mail-domain="oyunevleri.com">iletisim [at] oyunevleri.com</a>
             </div>
             <div class="public-topbar-right">
                 <span>Takip Edin:</span>
@@ -65,15 +65,15 @@ $nav_items = [
                         <span><?php echo htmlspecialchars($veli_ad, ENT_QUOTES, 'UTF-8'); ?></span>
                     </button>
                     <div class="profile-menu" data-profile-menu>
-                        <a href="profilim.php">Profilim</a>
-                        <a href="grup_bilgilerim.php">Grup Bilgilerim</a>
+                        <a href="/profil">Profilim</a>
+                        <a href="/grup-bilgilerim">Grup Bilgilerim</a>
                         <a href="index.php#grup-takvimim">Grup Takvimim</a>
                         <a href="logout.php">Çıkış Yap</a>
                     </div>
                 </div>
             <?php } else { ?>
-                <a class="public-btn ghost" href="login.php<?php echo $next_query; ?>">Giriş Yap</a>
-                <a class="public-btn primary" href="register.php<?php echo $next_query; ?>">Kayıt Ol</a>
+                <a class="public-btn ghost" href="/login<?php echo $next_query; ?>">Giriş Yap</a>
+                <a class="public-btn primary" href="/kayit<?php echo $next_query; ?>">Kayıt Ol</a>
     <?php } ?>
         </div>
     </div>
@@ -109,6 +109,17 @@ $nav_items = [
                 if (!wrap.contains(e.target)) {
                     menu.classList.remove('is-open');
                 }
+            });
+        });
+
+        document.querySelectorAll('[data-mail-user]').forEach(function (el) {
+            var user = el.getAttribute('data-mail-user') || '';
+            var domain = el.getAttribute('data-mail-domain') || '';
+            if (user === '' || domain === '') { return; }
+            el.textContent = user + ' [at] ' + domain;
+            el.addEventListener('click', function (e) {
+                e.preventDefault();
+                window.location.href = 'mailto:' + user + '@' + domain;
             });
         });
     })();

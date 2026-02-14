@@ -113,9 +113,13 @@ $canonical_url = $base . '/' . $lokasyon_slug . '-' . $kategori_slug;
 
 $breadcrumb = [
     ['name' => 'Anasayfa', 'url' => $base . '/'],
-    ['name' => $loc_label, 'url' => $base . '/search.php?sehir=' . urlencode($sehir) . ($ilce !== '' ? '&ilce=' . urlencode($ilce) : '')],
+    ['name' => $loc_label, 'url' => $base . '/kurumlar?sehir=' . urlencode($sehir) . ($ilce !== '' ? '&ilce=' . urlencode($ilce) : '')],
     ['name' => $kategori_label, 'url' => $canonical_url],
 ];
+$og_title = $meta_title;
+$og_desc = $meta_desc;
+$og_url = $canonical_url;
+$og_image = $base !== '' ? ($base . '/assets/og-default.png') : '/assets/og-default.png';
 ?>
 <!doctype html>
 <html lang="tr">
@@ -123,8 +127,6 @@ $breadcrumb = [
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?php echo htmlspecialchars($meta_title, ENT_QUOTES, 'UTF-8'); ?></title>
-    <meta name="description" content="<?php echo htmlspecialchars($meta_desc, ENT_QUOTES, 'UTF-8'); ?>">
-    <link rel="canonical" href="<?php echo htmlspecialchars($canonical_url, ENT_QUOTES, 'UTF-8'); ?>">
     <?php require_once("includes/analytics.php"); ?>
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">

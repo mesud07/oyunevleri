@@ -10,7 +10,7 @@ $veliler = [];
 $ogrenciler = [];
 $seanslar = [];
 $rezervasyonlar = [];
-$iptal_kural_saat = (int) sistem_ayar_get('iptal_kural_saat', $kurum_id, 48);
+$iptal_kural_saat = (int) sistem_ayar_get('iptal_kural_saat', $kurum_id, 24);
 
 if (!empty($db) && $kurum_id > 0) {
     $stmt = $db->prepare("SELECT id, ad_soyad, telefon FROM veliler WHERE kurum_id = :kurum_id ORDER BY ad_soyad");
@@ -73,7 +73,7 @@ if (!empty($db) && $kurum_id > 0) {
                             <div class="d-flex justify-content-between align-items-center">
                                 <div class="w-info">
                                     <h6 class="value">İptal Kuralı (Saat)</h6>
-                                    <small class="text-muted">Varsayılan: 48 saat</small>
+                                    <small class="text-muted">Varsayılan: 24 saat</small>
                                 </div>
                                 <div class="d-flex align-items-center gap-2">
                                     <input type="number" min="1" class="form-control" id="iptal_kural_saat" value="<?php echo (int) $iptal_kural_saat; ?>" style="max-width: 120px;">

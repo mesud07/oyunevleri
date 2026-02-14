@@ -1,5 +1,15 @@
 <?php
 require_once('includes/config.php');
+if (php_sapi_name() !== 'cli') {
+    $req_uri = $_SERVER['REQUEST_URI'] ?? '';
+    if (strpos($req_uri, 'forgot_password.php') !== false) {
+        $query = $_SERVER['QUERY_STRING'] ?? '';
+        $target = '/sifre-sifirla';
+        if ($query !== '') { $target .= '?' . $query; }
+        header('Location: ' . $target, true, 301);
+        exit;
+    }
+}
 
 $hata = '';
 $basari = '';
@@ -112,7 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($ok) {
                 $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
                 $base_path = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
-                $reset_link = $scheme . '://' . $_SERVER['HTTP_HOST'] . $base_path . '/reset_password.php?token=' . urlencode($token);
+                $reset_link = $scheme . '://' . $_SERVER['HTTP_HOST'] . $base_path . '/sifre-yenile?token=' . urlencode($token);
 
                 $subject = 'Şifre Sıfırlama';
                 $message = "
@@ -270,7 +280,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="container nav">
             <a class="logo" href="index.php">Oyunevleri.com</a>
             <div>
-                <a class="btn btn-outline" href="login.php">Giriş Yap</a>
+                <a class="btn btn-outline" href="/login">Giriş Yap</a>
             </div>
         </div>
     </header>
@@ -288,7 +298,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php if ($basari !== '') { ?>
                 <div class="alert success"><?php echo $basari; ?></div>
             <?php } ?>
-            <form method="post" action="forgot_password.php">
+            <form method="post" action="/sifre-sifirla">
                 <div class="field">
                     <label>E-posta</label>
                     <input type="email" name="email" value="<?php echo htmlspecialchars($email, ENT_QUOTES, 'UTF-8'); ?>" required>

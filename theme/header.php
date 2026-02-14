@@ -444,7 +444,7 @@ if (!empty($db)) {
                     
 
                     <li class="menu" data-module="kurum_takvim">
-                        <a href="modules/kurum/kurum_takvimi.php" aria-expanded="false" class="dropdown-toggle">
+                        <a href="modules/dashboard.php#kurum-takvimi" aria-expanded="false" class="dropdown-toggle">
                             <div class="">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-calendar">
                                     <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>

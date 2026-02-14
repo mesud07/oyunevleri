@@ -1319,7 +1319,7 @@ switch ($islem) {
             json_yanit(false, 'Rezervasyon iptal edilemez.');
         }
 
-        $kural_saat = (int) sistem_ayar_get('iptal_kural_saat', $kurum_id, 48);
+        $kural_saat = (int) sistem_ayar_get('iptal_kural_saat', $kurum_id, 24);
         $kalan_saat = seans_iptal_kalan_saat($rez['seans_baslangic']);
 
         if ($kalan_saat < $kural_saat && $onay !== 1) {
@@ -1368,7 +1368,7 @@ switch ($islem) {
             $sebep = htmlspecialchars($iptal_sebebi, ENT_QUOTES, 'UTF-8');
 
             $durum_text = $kalan_saat < $kural_saat
-                ? 'Rezervasyon iptal edildi. 48 saat kuralı nedeniyle hak iadesi yapılmayacaktır.'
+                ? 'Rezervasyon iptal edildi. 24 saat kuralı nedeniyle hak iadesi yapılmayacaktır.'
                 : 'Rezervasyon iptal talebi alındı ve onay bekliyor.';
 
             $subject = "Rezervasyon İptal Talebi - {$kurum_adi}";
@@ -1797,48 +1797,68 @@ switch ($islem) {
             json_yanit(false, 'Materyal bilgileri eksik.');
         }
 
-        $dosya = $_FILES['dosya'];
-        if ($dosya['error'] !== UPLOAD_ERR_OK) {
-            json_yanit(false, 'Dosya yuklenemedi.');
+        $files = $_FILES['dosya'];
+        if (!is_array($files['name'])) {
+            $files = [
+                'name' => [$files['name']],
+                'type' => [$files['type']],
+                'tmp_name' => [$files['tmp_name']],
+                'error' => [$files['error']],
+                'size' => [$files['size']],
+            ];
         }
 
-        $ext = strtolower(pathinfo($dosya['name'], PATHINFO_EXTENSION));
         $izinli = ['pdf', 'jpg', 'jpeg', 'png'];
-        if (!in_array($ext, $izinli, true)) {
-            json_yanit(false, 'Dosya tipi desteklenmiyor.');
-        }
-
         $upload_dir = __DIR__ . '/uploads/materyaller/';
         if (!is_dir($upload_dir)) {
             mkdir($upload_dir, 0755, true);
         }
 
-        $safe_name = dosya_adi_temizle(pathinfo($dosya['name'], PATHINFO_FILENAME));
-        $hedef = $upload_dir . time() . '_' . $safe_name . '.' . $ext;
-        if (!move_uploaded_file($dosya['tmp_name'], $hedef)) {
-            json_yanit(false, 'Dosya kaydedilemedi.');
+        $insert = $db->prepare("INSERT INTO materyal_havuzu (kurum_id, materyal_adi, kazanimlar, materyal_dosya, yukleyen_kullanici_id)
+            VALUES (:kurum_id, :materyal_adi, :kazanimlar, :materyal_dosya, :yukleyen)");
+
+        $added = 0;
+        foreach ($files['name'] as $idx => $name) {
+            $error = $files['error'][$idx] ?? UPLOAD_ERR_NO_FILE;
+            if ($error !== UPLOAD_ERR_OK) {
+                continue;
+            }
+            $ext = strtolower(pathinfo($name ?? '', PATHINFO_EXTENSION));
+            if (!in_array($ext, $izinli, true)) {
+                continue;
+            }
+            $tmp_name = $files['tmp_name'][$idx] ?? '';
+            $safe_name = dosya_adi_temizle(pathinfo($name ?? '', PATHINFO_FILENAME));
+            $hedef = $upload_dir . time() . '_' . bin2hex(random_bytes(3)) . '_' . $safe_name . '.' . $ext;
+            if (!move_uploaded_file($tmp_name, $hedef)) {
+                continue;
+            }
+            $rel_path = 'uploads/materyaller/' . basename($hedef);
+            $ok = $insert->execute([
+                'kurum_id' => $kurum_id,
+                'materyal_adi' => $materyal_adi,
+                'kazanimlar' => $kazanimlar,
+                'materyal_dosya' => $rel_path,
+                'yukleyen' => aktif_kullanici_id(),
+            ]);
+            if ($ok) {
+                $added++;
+            }
         }
 
-        $rel_path = 'uploads/materyaller/' . basename($hedef);
-        $stmt = $db->prepare("INSERT INTO materyal_havuzu (kurum_id, materyal_adi, kazanimlar, materyal_dosya, yukleyen_kullanici_id)
-            VALUES (:kurum_id, :materyal_adi, :kazanimlar, :materyal_dosya, :yukleyen)");
-        $ok = $stmt->execute([
-            'kurum_id' => $kurum_id,
-            'materyal_adi' => $materyal_adi,
-            'kazanimlar' => $kazanimlar,
-            'materyal_dosya' => $rel_path,
-            'yukleyen' => aktif_kullanici_id(),
-        ]);
-        json_yanit((bool) $ok, $ok ? 'Materyal yuklendi.' : 'Materyal kaydedilemedi.');
+        json_yanit($added > 0, $added > 0 ? 'Materyaller yüklendi.' : 'Materyal kaydedilemedi.');
 
     case 'dashboard_ozet':
         $filter = $_POST['filter'] ?? 'today';
-        $filter = in_array($filter, ['today', 'week'], true) ? $filter : 'today';
+        $filter = in_array($filter, ['today', 'week', 'month'], true) ? $filter : 'today';
         $start = new DateTime('today');
         $end = new DateTime('today 23:59:59');
         if ($filter === 'week') {
             $start = new DateTime('monday this week');
             $end = new DateTime('sunday this week 23:59:59');
+        } elseif ($filter === 'month') {
+            $start = new DateTime('first day of this month 00:00:00');
+            $end = new DateTime('last day of this month 23:59:59');
         }
         $start_str = $start->format('Y-m-d H:i:s');
         $end_str = $end->format('Y-m-d H:i:s');
@@ -1962,7 +1982,7 @@ switch ($islem) {
         }
 
         $doluluk_oran = $kontenjan_toplam > 0 ? round(($rezervasyon_sayisi / $kontenjan_toplam) * 100, 1) : 0;
-        $filter_label = $filter === 'week' ? 'Bu Hafta' : 'Bugün';
+        $filter_label = $filter === 'week' ? 'Bu Hafta' : ($filter === 'month' ? 'Bu Ay' : 'Bugün');
 
         json_yanit(true, 'ok', [
             'filter_label' => $filter_label,

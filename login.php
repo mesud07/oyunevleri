@@ -1,5 +1,15 @@
 <?php
 require_once "includes/config.php";
+if (php_sapi_name() !== 'cli') {
+    $req_uri = $_SERVER['REQUEST_URI'] ?? '';
+    if (strpos($req_uri, 'login.php') !== false) {
+        $query = $_SERVER['QUERY_STRING'] ?? '';
+        $target = '/login';
+        if ($query !== '') { $target .= '?' . $query; }
+        header('Location: ' . $target, true, 301);
+        exit;
+    }
+}
 $hata_mesaji = '';
 $hata_tipi = '';
 $login_tipi = $_POST['login_tipi'] ?? ($_GET['login_tipi'] ?? 'veli');
@@ -355,7 +365,7 @@ if ($login_tipi === 'veli' && !empty($_POST['kimlik']) && !empty($_POST['sifre']
                     <div class="alert"><?php echo $hata_mesaji; ?></div>
                 <?php } ?>
 
-                <form method="post" action="login.php">
+                <form method="post" action="/login">
                     <input type="hidden" name="login_tipi" value="veli">
                     <input type="hidden" name="next" value="<?php echo htmlspecialchars($next_param, ENT_QUOTES, 'UTF-8'); ?>">
                     <div class="field">
@@ -370,18 +380,18 @@ if ($login_tipi === 'veli' && !empty($_POST['kimlik']) && !empty($_POST['sifre']
                 </form>
 
                 <div class="toggle" style="margin-top:10px;">
-                    <a href="forgot_password.php" style="color:var(--primary-dark);font-weight:600;text-decoration:none;">Şifremi Unuttum</a>
+                    <a href="/sifre-sifirla" style="color:var(--primary-dark);font-weight:600;text-decoration:none;">Şifremi Unuttum</a>
                 </div>
 
                 <div class="toggle" style="margin-top:10px;">
-                    Hesabın yok mu? <a href="register.php?next=<?php echo urlencode($next_param); ?>" style="color:var(--primary-dark);font-weight:600;text-decoration:none;">Kayıt Ol</a>
+                    Hesabın yok mu? <a href="/kayit?next=<?php echo urlencode($next_param); ?>" style="color:var(--primary-dark);font-weight:600;text-decoration:none;">Kayıt Ol</a>
                 </div>
 
                 <?php if (!empty($google_client_id)) { ?>
                     <div style="margin-top:14px;text-align:center;">
                         <div id="g_id_onload"
                              data-client_id="<?php echo htmlspecialchars($google_client_id, ENT_QUOTES, 'UTF-8'); ?>"
-                             data-login_uri="google_login.php?next=<?php echo urlencode($next_param); ?>"
+                             data-login_uri="/google-login?next=<?php echo urlencode($next_param); ?>"
                              data-auto_prompt="false"></div>
                         <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline" data-text="signin_with" data-shape="pill"></div>
                     </div>
@@ -401,7 +411,7 @@ if ($login_tipi === 'veli' && !empty($_POST['kimlik']) && !empty($_POST['sifre']
                     <div class="alert"><?php echo $hata_mesaji; ?></div>
                 <?php } ?>
 
-                <form method="post" action="login.php">
+                <form method="post" action="/login">
                     <input type="hidden" name="login_tipi" value="yonetici">
                     <input type="hidden" name="next" value="<?php echo htmlspecialchars($next_param, ENT_QUOTES, 'UTF-8'); ?>">
                     <?php if (empty($_GET['c'])) { ?>

@@ -19,6 +19,7 @@ $veli_giris = !empty($_SESSION['veli_giris']) && !empty($_SESSION['veli']);
 $next_url = $_SERVER['REQUEST_URI'] ?? 'store.php';
 $canonical_url = '';
 $breadcrumb_items = [];
+$base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? '');
 
 if (!empty($db_master)) {
     if ($kurum_id > 0) {
@@ -39,8 +40,7 @@ if (!empty($db_master)) {
         $kurum_id = (int) $kurum['id'];
 
         $canonical_url = '';
-        $base = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? '');
-        $canonical_url = kurum_seo_url($kurum, $base);
+        $canonical_url = kurum_seo_url($kurum, $base_url);
         if ($slug_param !== '' && $seo_sehir !== '' && $seo_ilce !== '') {
             $current_sehir = seo_slugify($kurum['sehir'] ?? '');
             $current_ilce = seo_slugify($kurum['ilce'] ?? '');
@@ -52,24 +52,24 @@ if (!empty($db_master)) {
             }
         }
 
-        $breadcrumb_items[] = ['name' => 'Anasayfa', 'url' => $base . '/'];
+        $breadcrumb_items[] = ['name' => 'Anasayfa', 'url' => $base_url . '/'];
         $sehir_label = trim((string) ($kurum['sehir'] ?? ''));
         $ilce_label = trim((string) ($kurum['ilce'] ?? ''));
         if ($sehir_label !== '') {
             $breadcrumb_items[] = [
                 'name' => $sehir_label,
-                'url' => $base . '/search.php?sehir=' . urlencode($sehir_label),
+                'url' => $base_url . '/kurumlar?sehir=' . urlencode($sehir_label),
             ];
         }
         if ($ilce_label !== '') {
             $breadcrumb_items[] = [
                 'name' => $ilce_label,
-                'url' => $base . '/search.php?sehir=' . urlencode($sehir_label) . '&ilce=' . urlencode($ilce_label),
+                'url' => $base_url . '/kurumlar?sehir=' . urlencode($sehir_label) . '&ilce=' . urlencode($ilce_label),
             ];
         }
         $breadcrumb_items[] = [
             'name' => $kurum['kurum_adi'] ?? 'Kurum',
-            'url' => $canonical_url !== '' ? $canonical_url : ($base . '/store.php?id=' . $kurum_id),
+            'url' => $canonical_url !== '' ? $canonical_url : ($base_url . '/store.php?id=' . $kurum_id),
         ];
 
         $stmt = $db_master->prepare("SELECT gorsel_yol FROM kurum_galeri WHERE kurum_id = :kurum_id ORDER BY sira ASC, id ASC");
@@ -146,6 +146,19 @@ if ($kurum) {
         $meta_desc = $kurum_adi . ' - ' . $meta_loc . ' bölgesinde ' . $meta_type . ' arayanlar için detaylar, fiyatlar ve yorumlar.';
     }
 }
+$og_title = $meta_title;
+$og_desc = $meta_desc;
+$og_url = $canonical_url;
+$og_type = 'business.business';
+$og_image = '';
+if (!empty($galeri) && !empty($galeri[0]['gorsel_yol'])) {
+    $og_image = $galeri[0]['gorsel_yol'];
+    if (!preg_match('#^https?://#', $og_image) && $base_url !== '') {
+        $og_image = rtrim($base_url, '/') . '/' . ltrim($og_image, '/');
+    }
+} else {
+    $og_image = $base_url !== '' ? ($base_url . '/assets/og-default.png') : '/assets/og-default.png';
+}
 ?>
 <!DOCTYPE html>
 <html lang="tr">
@@ -153,10 +166,6 @@ if ($kurum) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?php echo htmlspecialchars($meta_title, ENT_QUOTES, 'UTF-8'); ?></title>
-    <meta name="description" content="<?php echo htmlspecialchars($meta_desc, ENT_QUOTES, 'UTF-8'); ?>">
-    <?php if (!empty($canonical_url)) { ?>
-        <link rel="canonical" href="<?php echo htmlspecialchars($canonical_url, ENT_QUOTES, 'UTF-8'); ?>">
-    <?php } ?>
     <?php require_once("includes/analytics.php"); ?>
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">

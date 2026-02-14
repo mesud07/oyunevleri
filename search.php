@@ -17,6 +17,7 @@ $ingilizce = !empty($_GET['hizmet_ingilizce']) ? 1 : 0;
 $sort = trim($_GET['sort'] ?? 'kayit');
 $meta_title = 'Oyunevleri.com | Listeleme';
 $meta_desc = 'Oyun evleri, anaokulları ve kreşleri şehir, ilçe ve yaş filtreleriyle karşılaştırın.';
+$canonical_url = '';
 
 $yas_min = null;
 $yas_max = null;
@@ -34,6 +35,23 @@ if ($meta_loc !== '') {
     $meta_title = $kurum_type . ' Listesi | Oyunevleri.com';
     $meta_desc = $kurum_type . ' kurumlarını filtreleyin, detaylara ulaşın.';
 }
+
+$base = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? '');
+if ($base !== '') {
+    $params = [];
+    if ($sehir !== '') { $params['sehir'] = $sehir; }
+    if ($ilce !== '') { $params['ilce'] = $ilce; }
+    if ($kurum_type !== '') { $params['kurum_type'] = $kurum_type; }
+    if ($yas_araligi !== '') { $params['yas_araligi'] = $yas_araligi; }
+    $canonical_url = $base . '/search.php';
+    if (!empty($params)) {
+        $canonical_url .= '?' . http_build_query($params);
+    }
+}
+$og_title = $meta_title;
+$og_desc = $meta_desc;
+$og_url = $canonical_url;
+$og_image = $base !== '' ? ($base . '/assets/og-default.png') : '/assets/og-default.png';
 
 $where = ["k.durum = 1"];
 $params = [];
@@ -126,7 +144,6 @@ $toplam = count($kurumlar);
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?php echo htmlspecialchars($meta_title, ENT_QUOTES, 'UTF-8'); ?></title>
-    <meta name="description" content="<?php echo htmlspecialchars($meta_desc, ENT_QUOTES, 'UTF-8'); ?>">
     <?php require_once("includes/analytics.php"); ?>
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -427,7 +444,7 @@ $toplam = count($kurumlar);
 
     <section class="container layout">
         <aside class="filters">
-            <form method="get" action="search.php">
+            <form method="get" action="/kurumlar">
             <h3>Filtreler</h3>
             <div class="group">
                 <label>Fiyat Aralığı</label>
@@ -487,7 +504,7 @@ $toplam = count($kurumlar);
         <div>
             <div class="results-header">
                 <h1>Kurumlar</h1>
-                <select onchange="location.href='search.php?<?php echo htmlspecialchars(http_build_query(array_merge($_GET, ['sort' => ''])), ENT_QUOTES, 'UTF-8'); ?>'.replace('sort=', 'sort=' + this.value)">
+                <select onchange="location.href='/kurumlar?<?php echo htmlspecialchars(http_build_query(array_merge($_GET, ['sort' => ''])), ENT_QUOTES, 'UTF-8'); ?>'.replace('sort=', 'sort=' + this.value)">
                     <option value="kayit" <?php echo $sort === 'kayit' ? 'selected' : ''; ?>>En Yeni</option>
                     <option value="puan" <?php echo $sort === 'puan' ? 'selected' : ''; ?>>En Yüksek Puan</option>
                     <option value="fiyat" <?php echo $sort === 'fiyat' ? 'selected' : ''; ?>>Fiyata Göre</option>

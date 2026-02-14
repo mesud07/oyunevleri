@@ -1,5 +1,47 @@
 <?php
+$session_lifetime = (int)($_ENV['SESSION_LIFETIME'] ?? (60 * 60 * 24 * 30)); // 30 gun
+$session_samesite = $_ENV['SESSION_SAMESITE'] ?? 'Lax';
+$session_domain = $_ENV['SESSION_DOMAIN'] ?? '';
+$session_secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+    || (!empty($_SERVER['SERVER_PORT']) && (int) $_SERVER['SERVER_PORT'] === 443);
+
+ini_set('session.gc_maxlifetime', (string) $session_lifetime);
+ini_set('session.cookie_lifetime', (string) $session_lifetime);
+ini_set('session.use_strict_mode', '1');
+ini_set('session.use_only_cookies', '1');
+ini_set('session.cookie_httponly', '1');
+ini_set('session.cookie_secure', $session_secure ? '1' : '0');
+ini_set('session.cookie_samesite', $session_samesite);
+
+if (PHP_VERSION_ID >= 70300) {
+    session_set_cookie_params([
+        'lifetime' => $session_lifetime,
+        'path' => '/',
+        'domain' => $session_domain,
+        'secure' => $session_secure,
+        'httponly' => true,
+        'samesite' => $session_samesite,
+    ]);
+} else {
+    session_set_cookie_params($session_lifetime, '/', $session_domain, $session_secure, true);
+}
+
 session_start();
+if (session_status() === PHP_SESSION_ACTIVE && !headers_sent()) {
+    $session_expire = time() + $session_lifetime;
+    if (PHP_VERSION_ID >= 70300) {
+        setcookie(session_name(), session_id(), [
+            'expires' => $session_expire,
+            'path' => '/',
+            'domain' => $session_domain,
+            'secure' => $session_secure,
+            'httponly' => true,
+            'samesite' => $session_samesite,
+        ]);
+    } else {
+        setcookie(session_name(), session_id(), $session_expire, '/', $session_domain, $session_secure, true);
+    }
+}
 
 // sirasi farkediyor...
 date_default_timezone_set("Europe/Istanbul");

@@ -23,7 +23,7 @@ $kurum_seanslar = [];
 $takvim = [];
 $ay_hucreler = [];
 $ay_etiket = '';
-$iptal_kural_saat = 48;
+$iptal_kural_saat = 24;
 $veli_rez_map = [];
 $veli_rez_by_student = [];
 $aktif_ogrenci_id = 0;
@@ -36,7 +36,7 @@ if (!empty($db) && $veli_kurum_id > 0) {
     $veli_row = $stmt->fetch();
     $veli_bakiye = (int) ($veli_row['bakiye_hak'] ?? 0);
     $veli_hak_bitis = $veli_row['hak_gecerlilik_bitis'] ?? '';
-    $iptal_kural_saat = (int) sistem_ayar_get('iptal_kural_saat', $veli_kurum_id, 48);
+    $iptal_kural_saat = (int) sistem_ayar_get('iptal_kural_saat', $veli_kurum_id, 24);
 
     $stmt = $db->prepare("SELECT id, ad_soyad, dogum_tarihi, saglik_notlari
         FROM ogrenciler

@@ -1,6 +1,11 @@
 RewriteOptions inherit
 Options -Indexes
 RewriteEngine On
+RewriteCond %{HTTP_HOST} !^localhost(:[0-9]+)?$ [NC]
+RewriteCond %{HTTP_HOST} !^127\.0\.0\.1(:[0-9]+)?$ [NC]
+RewriteCond %{HTTP_HOST} !^\[::1\](:[0-9]+)?$ [NC]
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 # RewriteCond %{HTTPS} off
 # RewriteRule .* 	http://%{HTTP_HOST}%{REQUEST_URI} 	[L,R=301]
 # RewriteCond %{HTTP_HOST} !^www\.
@@ -15,10 +20,23 @@ RewriteRule ^logout$        logout.php	    [L,QSA]
 RewriteRule ^dashboard$	    index.php	    [L,QSA]
 RewriteRule ^index$		    index.php	    [L,QSA]
 RewriteRule ^ajax$		    ajax.php	    [L,QSA]
+RewriteRule ^giris/?$       login.php      [L,QSA]
+RewriteRule ^kayit/?$       register.php   [L,QSA]
+RewriteRule ^kurumlar/?$    search.php     [L,QSA]
+RewriteRule ^arama/?$       search.php     [L,QSA]
+RewriteRule ^profil/?$      profilim.php   [L,QSA]
+RewriteRule ^grup-bilgilerim/?$ grup_bilgilerim.php [L,QSA]
+RewriteRule ^sifre-sifirla/?$ forgot_password.php [L,QSA]
+RewriteRule ^sifre-yenile/?$ reset_password.php [L,QSA]
+RewriteRule ^google-login/?$ google_login.php [L,QSA]
 
 RewriteRule ^sitemap\.xml$  sitemap.php    [L,QSA]
 RewriteRule ^robots\.txt$   robots.php     [L,QSA]
 RewriteRule ^([a-z0-9-]+)-(anaokulu|kres|oyun-gruplari|oyun-evi|oyun-evleri)$ category.php?lokasyon=$1&kategori=$2 [L,QSA]
+RewriteRule ^firma-basvuru/?$ firma_kayit.php [L,QSA]
+RewriteRule ^firma-kayit/?$ firma_kayit.php [L,QSA]
+RewriteRule ^firma-basvuru/([0-9]+)/?$ firma_kayit.php?id=$1 [L,QSA]
+RewriteRule ^firma-kayit/([0-9]+)/?$ firma_kayit.php?id=$1 [L,QSA]
 
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

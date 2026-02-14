@@ -7,6 +7,7 @@ require_once(__DIR__ . '/../../theme/header.php');
 
 $kurum_id = aktif_kurum_id();
 $materyaller = [];
+$gruplu_materyaller = [];
 $kullanici_map = [];
 $yetkili = materyal_yukleme_yetkili_mi();
 
@@ -22,6 +23,35 @@ if (!empty($db_master) && $kurum_id > 0) {
     foreach ($stmt->fetchAll() as $row) {
         $kullanici_map[(int) $row['id']] = $row['kullanici_adi'];
     }
+}
+
+if (!empty($materyaller)) {
+    foreach ($materyaller as $mat) {
+        $adi = trim((string) ($mat['materyal_adi'] ?? ''));
+        $kazanim = trim((string) ($mat['kazanimlar'] ?? ''));
+        $yukleyen_id = (int) ($mat['yukleyen_kullanici_id'] ?? 0);
+        $key = strtolower($adi) . '|' . $kazanim . '|' . $yukleyen_id;
+        if (!isset($gruplu_materyaller[$key])) {
+            $gruplu_materyaller[$key] = [
+                'materyal_adi' => $adi,
+                'kazanimlar' => $kazanim,
+                'yukleyen_id' => $yukleyen_id,
+                'yukleyen' => $kullanici_map[$yukleyen_id] ?? '-',
+                'yukleme_tarihi' => $mat['yukleme_tarihi'] ?? null,
+                'dosyalar' => [],
+            ];
+        }
+        if (!empty($mat['yukleme_tarihi'])) {
+            if (empty($gruplu_materyaller[$key]['yukleme_tarihi']) ||
+                strtotime($mat['yukleme_tarihi']) > strtotime((string) $gruplu_materyaller[$key]['yukleme_tarihi'])) {
+                $gruplu_materyaller[$key]['yukleme_tarihi'] = $mat['yukleme_tarihi'];
+            }
+        }
+        if (!empty($mat['materyal_dosya'])) {
+            $gruplu_materyaller[$key]['dosyalar'][] = $mat['materyal_dosya'];
+        }
+    }
+    $gruplu_materyaller = array_values($gruplu_materyaller);
 }
 ?>
 
@@ -63,7 +93,8 @@ if (!empty($db_master) && $kurum_id > 0) {
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label">Dosya</label>
-                                        <input type="file" class="form-control" name="dosya" required>
+                                        <input type="file" class="form-control" name="dosya[]" multiple required>
+                                        <small class="text-muted">Birden fazla dosya seçebilirsiniz.</small>
                                     </div>
                                 </div>
                                 <div class="mt-3">
@@ -95,7 +126,7 @@ if (!empty($db_master) && $kurum_id > 0) {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                    <?php if (empty($materyaller)) { ?>
+                                    <?php if (empty($gruplu_materyaller)) { ?>
                                         <tr>
                                             <td>Materyal bulunamadı.</td>
                                             <td></td>
@@ -104,15 +135,28 @@ if (!empty($db_master) && $kurum_id > 0) {
                                             <td></td>
                                         </tr>
                                     <?php } else { ?>
-                                        <?php foreach ($materyaller as $mat) { ?>
+                                        <?php foreach ($gruplu_materyaller as $mat) { ?>
                                             <tr>
-                                                <td><?php echo htmlspecialchars($mat['materyal_adi'], ENT_QUOTES, 'UTF-8'); ?></td>
-                                                <td><?php echo htmlspecialchars($mat['kazanimlar'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
-                                                <td><?php echo htmlspecialchars($kullanici_map[(int) ($mat['yukleyen_kullanici_id'] ?? 0)] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
-                                                <td><?php echo htmlspecialchars(date('d.m.Y H:i', strtotime($mat['yukleme_tarihi'])), ENT_QUOTES, 'UTF-8'); ?></td>
                                                 <td>
-                                                    <?php if (!empty($mat['materyal_dosya'])) { ?>
-                                                        <a href="<?php echo htmlspecialchars($mat['materyal_dosya'], ENT_QUOTES, 'UTF-8'); ?>" target="_blank">İndir</a>
+                                                    <?php echo htmlspecialchars($mat['materyal_adi'], ENT_QUOTES, 'UTF-8'); ?>
+                                                    <?php if (!empty($mat['dosyalar'])) { ?>
+                                                        <span class="badge bg-info ms-2"><?php echo count($mat['dosyalar']); ?> dosya</span>
+                                                    <?php } ?>
+                                                </td>
+                                                <td><?php echo htmlspecialchars($mat['kazanimlar'] !== '' ? $mat['kazanimlar'] : '-', ENT_QUOTES, 'UTF-8'); ?></td>
+                                                <td><?php echo htmlspecialchars($mat['yukleyen'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
+                                                <td>
+                                                    <?php echo !empty($mat['yukleme_tarihi'])
+                                                        ? htmlspecialchars(date('d.m.Y H:i', strtotime($mat['yukleme_tarihi'])), ENT_QUOTES, 'UTF-8')
+                                                        : '-'; ?>
+                                                </td>
+                                                <td>
+                                                    <?php if (!empty($mat['dosyalar'])) { ?>
+                                                        <div class="d-flex flex-column gap-1">
+                                                            <?php foreach ($mat['dosyalar'] as $idx => $path) { ?>
+                                                                <a href="<?php echo htmlspecialchars($path, ENT_QUOTES, 'UTF-8'); ?>" target="_blank">Dosya <?php echo $idx + 1; ?></a>
+                                                            <?php } ?>
+                                                        </div>
                                                     <?php } else { ?>
                                                         -
                                                     <?php } ?>

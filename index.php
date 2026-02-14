@@ -113,6 +113,15 @@ $kurum_sayisi = $kurum_sayisi > 0 ? $kurum_sayisi : 120;
 $yorum_sayisi = $yorum_sayisi > 0 ? $yorum_sayisi : 3000;
 $ortalama_puan = $ortalama_puan > 0 ? round($ortalama_puan, 1) : 4.8;
 
+$base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? '');
+$canonical_url = $base_url !== '' ? rtrim($base_url, '/') . '/' : '';
+$meta_title = 'Oyunevleri.com | Şehir seç, yaş seç, eğlenceyi bul';
+$meta_desc = $kurum_sayisi . "+ kurum, " . $yorum_sayisi . "+ kullanıcı yorumu ve " . $ortalama_puan . "/5 memnuniyet puanı ile en iyi anaokulu, kreş ve oyun gruplarını keşfedin.";
+$og_title = $meta_title;
+$og_desc = $meta_desc;
+$og_url = $canonical_url;
+$og_image = $base_url !== '' ? ($base_url . '/assets/og-default.png') : '/assets/og-default.png';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'veli_ogrenci_hizli_ekle') {
     $veli = $_SESSION['veli'] ?? null;
     $veli_id = (int) ($veli['id'] ?? 0);
@@ -1244,12 +1253,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'veli_
                 <p>Oyun evlerini, anaokullarını ve kreşleri tek ekrandan keşfet, güvenli ve onaylı kurumları filtrele, hızlıca iletişime geç.</p>
 
                 <div class="hero-ctas">
-                    <a class="hero-cta-btn primary" href="firma_kayit.php">Firmalar için Kayıt Olma Sayfası</a>
-                    <a class="hero-cta-btn secondary" href="register.php">Veliler için Abone Olma Sayfası</a>
+                    <a class="hero-cta-btn primary" href="/firma-basvuru">Firmalar için Kayıt Olma Sayfası</a>
+                    <a class="hero-cta-btn secondary" href="/kayit">Veliler için Abone Olma Sayfası</a>
                 </div>
 
                 <div class="search-card">
-                    <form method="get" action="search.php">
+                    <form method="get" action="/kurumlar">
                         <div class="search-grid">
                             <div class="field">
                                 <label>Şehir</label>
@@ -1355,7 +1364,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'veli_
     $kurum_seanslar = [];
     $veli_ogrenciler = [];
     $ogrenci_yaslar = [];
-    $iptal_kural_saat = 48;
+$iptal_kural_saat = 24;
     $veli_katilim_seans = [];
     $veli_rez_map = [];
     $veli_rez_by_student = [];
@@ -1372,7 +1381,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'veli_
         $veli_row = $stmt->fetch();
         $veli_bakiye = (int) ($veli_row['bakiye_hak'] ?? 0);
         $veli_hak_bitis = $veli_row['hak_gecerlilik_bitis'] ?? '';
-        $iptal_kural_saat = (int) sistem_ayar_get('iptal_kural_saat', $veli_kurum_id, 48);
+        $iptal_kural_saat = (int) sistem_ayar_get('iptal_kural_saat', $veli_kurum_id, 24);
 
         $sql = "SELECT r.id, r.durum, r.iptal_onay, s.seans_baslangic, g.grup_adi
                 FROM rezervasyonlar r
@@ -1998,8 +2007,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'veli_
                     <p class="lead">Açılış, konumlandırma ve pazarlama desteğiyle yanınızdayız.</p>
                 </div>
                 <div class="cta-actions">
-                    <a class="btn btn-primary" href="firma_kayit.php?tip=danismanlik">Danışmanlık Al</a>
-                    <a class="btn btn-outline" href="firma_kayit.php?tip=basvuru">Yeni İşletme Başvurusu</a>
+                    <a class="btn btn-primary" href="/firma-basvuru?tip=danismanlik">Danışmanlık Al</a>
+                    <a class="btn btn-outline" href="/firma-basvuru?tip=basvuru">Yeni İşletme Başvurusu</a>
                 </div>
             </div>
         </div>
@@ -2047,7 +2056,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'veli_
                     cities.forEach(function (city) {
                         var row = document.createElement('a');
                         row.className = 'type-city-row';
-                        row.href = 'search.php?kurum_type=' + encodeURIComponent(type) + '&sehir=' + encodeURIComponent(city);
+                        row.href = '/kurumlar?kurum_type=' + encodeURIComponent(type) + '&sehir=' + encodeURIComponent(city);
                         row.innerHTML = '<span>' + city + '</span><span>›</span>';
                         listEl.appendChild(row);
                     });
@@ -2104,7 +2113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'veli_
                     <?php } ?>
                     <div class="modal-actions">
                         <button class="btn btn-outline" type="button" id="profilModalKapat">Daha sonra</button>
-                        <a class="btn btn-outline" href="profilim.php">Profilime Git</a>
+                        <a class="btn btn-outline" href="/profil">Profilime Git</a>
                         <button class="btn btn-primary" type="submit">Öğrenciyi Ekle</button>
                     </div>
                 </form>

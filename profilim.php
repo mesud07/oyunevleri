@@ -3,7 +3,7 @@ require_once("includes/config.php");
 require_once("includes/functions.php");
 
 if (empty($_SESSION['veli_giris']) || empty($_SESSION['veli']['id'])) {
-    header('Location: login.php');
+    header('Location: /login');
     exit;
 }
 
