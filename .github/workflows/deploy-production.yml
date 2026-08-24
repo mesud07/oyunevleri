@@ -9,7 +9,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy to app.talyakids.com
+    name: Deploy to app.oyunevleri.com
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -36,23 +36,26 @@ jobs:
 
       - name: Validate FTP settings
         env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER || vars.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME || vars.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR || vars.FTP_SERVER_DIR }}
         run: |
-          if [ -z "$FTP_PASSWORD" ]; then
-            echo "Eksik secret: FTP_PASSWORD"
+          if [ -z "$FTP_SERVER" ] || [ -z "$FTP_USERNAME" ] || [ -z "$FTP_PASSWORD" ] || [ -z "$FTP_SERVER_DIR" ]; then
+            echo "Eksik FTP ayari: FTP_SERVER, FTP_USERNAME, FTP_PASSWORD ve FTP_SERVER_DIR zorunludur"
             exit 1
           fi
 
       - name: Deploy with FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ${{ secrets.FTP_SERVER || vars.FTP_SERVER || 'ftp.talyakids.com' }}
-          username: ${{ secrets.FTP_USERNAME || vars.FTP_USERNAME || 'talyakidsmesud@app.talyakids.com' }}
+          server: ${{ secrets.FTP_SERVER || vars.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME || vars.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           port: ${{ secrets.FTP_PORT || vars.FTP_PORT || 21 }}
           protocol: ftp
           local-dir: ./
-          server-dir: ${{ secrets.FTP_SERVER_DIR || vars.FTP_SERVER_DIR || '/app.talyakids.com/' }}
+          server-dir: ${{ secrets.FTP_SERVER_DIR || vars.FTP_SERVER_DIR }}
           exclude: |
             **/.git*
             **/.git*/**
