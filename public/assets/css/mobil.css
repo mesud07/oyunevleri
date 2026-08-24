@@ -85,6 +85,15 @@
   .sidebar-collapsed .menu button::before {
     content: none;
   }
+  .sidebar-collapsed .menu-icon {
+    width: 20px;
+    height: 20px;
+    flex-basis: 20px;
+    margin-right: 10px;
+  }
+  .sidebar-collapsed .menu-label {
+    display: inline;
+  }
   .sidebar-collapsed .menu-group > button::after {
     display: block;
   }

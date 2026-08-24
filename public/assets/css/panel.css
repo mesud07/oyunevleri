@@ -162,6 +162,15 @@ button, input, select, textarea { font: inherit; }
   font-weight: 800;
   text-align: left;
 }
+.menu-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  margin-right: 10px;
+}
+.menu-label {
+  min-width: 0;
+}
 .menu a:hover,
 .menu a.is-active,
 .menu button:hover,
@@ -240,10 +249,16 @@ button, input, select, textarea { font: inherit; }
 }
 .sidebar-collapsed .menu a::before,
 .sidebar-collapsed .menu button::before {
-  content: attr(data-short);
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0;
+  content: none;
+}
+.sidebar-collapsed .menu-icon {
+  width: 22px;
+  height: 22px;
+  flex-basis: 22px;
+  margin-right: 0;
+}
+.sidebar-collapsed .menu-label {
+  display: none;
 }
 .sidebar-collapsed .menu-group > button::after {
   display: none;
