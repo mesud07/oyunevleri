@@ -309,6 +309,43 @@ button, input, select, textarea { font: inherit; }
 .table-link:hover {
   text-decoration: underline;
 }
+.student-table-row {
+  cursor: pointer;
+}
+.student-table-row:hover td,
+.student-table-row:focus-visible td {
+  background: rgba(226, 244, 255, .55);
+}
+.student-table-row:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+.student-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.student-whatsapp-button {
+  width: 42px;
+  height: 42px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 42px;
+  border-radius: 50%;
+  color: #fff;
+  background: #25d366;
+  box-shadow: 0 8px 18px rgba(37, 211, 102, .22);
+}
+.student-whatsapp-button:hover {
+  color: #fff;
+  background: #1fba59;
+  transform: translateY(-1px);
+}
+.student-whatsapp-button svg {
+  width: 23px;
+  height: 23px;
+}
 .group-birthdate-field {
   display: flex;
   align-items: center;

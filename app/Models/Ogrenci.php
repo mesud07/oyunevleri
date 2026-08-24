@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace App\Models;
 use App\Core\Model;
+use DomainException;
 final class Ogrenci extends Model
 {
     public static function liste(string $arama = '', int $sayfa = 1, int $limit = 20): array
@@ -383,6 +384,23 @@ final class Ogrenci extends Model
         $db = self::db();
         $db->beginTransaction();
 
+        $veliId = (int) ($veri['veli_id'] ?? 0);
+        if ($veliId > 0) {
+            $veliKontrol = $db->prepare(
+                'SELECT ov.ogrenci_id
+                 FROM ogrenci_velileri ov
+                 INNER JOIN veliler v ON v.id = ov.veli_id AND v.kurum_id = ov.kurum_id
+                 WHERE ov.kurum_id = :kurum_id AND ov.veli_id = :veli_id
+                 LIMIT 1
+                 FOR UPDATE'
+            );
+            $veliKontrol->execute(['kurum_id' => self::kurumId(), 'veli_id' => $veliId]);
+            if ($veliKontrol->fetchColumn()) {
+                $db->rollBack();
+                throw new DomainException('Bu telefon numarasi baska bir ogrenci kaydinda kullaniliyor.');
+            }
+        }
+
         $stmt = $db->prepare(
             'INSERT INTO ogrenciler
              (kurum_id, ad, soyad, dogum_tarihi, cinsiyet, kayit_tarihi, durum, acil_durum_kisi, acil_durum_telefon, saglik_bilgisi, alerji_bilgisi, ozel_durum_notu, yonetici_notu, ogretmen_notu, olusturulma_tarihi)
@@ -407,7 +425,6 @@ final class Ogrenci extends Model
         ]);
 
         $ogrenciId = (int) $db->lastInsertId();
-        $veliId = (int) ($veri['veli_id'] ?? 0);
         if ($veliId > 0) {
             $bagla = $db->prepare(
                 'INSERT INTO ogrenci_velileri (kurum_id, ogrenci_id, veli_id, birincil_mi, acil_durum_mu)
@@ -424,48 +441,86 @@ final class Ogrenci extends Model
     {
         Veli::iletisimReferansiKolonunuHazirla();
         $db = self::db();
-        $db->beginTransaction();
-
         $veli = $veri['veli'];
-        $veliId = self::veliBulVeyaKaydet($veli);
-
         $ogrenci = $veri['ogrenci'];
-        $ogrenciStmt = $db->prepare(
-            'INSERT INTO ogrenciler
-             (kurum_id, ad, soyad, tc_kimlik_no, dogum_tarihi, cinsiyet, kayit_tarihi, durum, acil_durum_kisi, acil_durum_telefon, saglik_bilgisi, alerji_bilgisi, ozel_durum_notu, vasi_ad_soyad, vasi_tc_kimlik_no, vasi_telefon, yonetici_notu, ogretmen_notu, olusturulma_tarihi)
-             VALUES
-             (:kurum_id, :ad, :soyad, :tc_kimlik_no, :dogum_tarihi, :cinsiyet, :kayit_tarihi, :durum, :acil_durum_kisi, :acil_durum_telefon, :saglik_bilgisi, :alerji_bilgisi, :ozel_durum_notu, :vasi_ad_soyad, :vasi_tc_kimlik_no, :vasi_telefon, :yonetici_notu, :ogretmen_notu, NOW())'
-        );
-        $ogrenciStmt->execute([
-            'kurum_id' => self::kurumId(),
-            'ad' => $ogrenci['ad'],
-            'soyad' => $ogrenci['soyad'],
-            'tc_kimlik_no' => $ogrenci['tc_kimlik_no'] ?: null,
-            'dogum_tarihi' => $ogrenci['dogum_tarihi'] ?: null,
-            'cinsiyet' => $ogrenci['cinsiyet'] ?: 'belirtilmedi',
-            'kayit_tarihi' => $ogrenci['kayit_tarihi'] ?: date('Y-m-d'),
-            'durum' => 'aktif',
-            'acil_durum_kisi' => $ogrenci['acil_durum_kisi'] ?: null,
-            'acil_durum_telefon' => $ogrenci['acil_durum_telefon'] ?: null,
-            'saglik_bilgisi' => $ogrenci['saglik_bilgisi'] ?: null,
-            'alerji_bilgisi' => $ogrenci['alerji_bilgisi'] ?: null,
-            'ozel_durum_notu' => $ogrenci['ozel_durum_notu'] ?: null,
-            'vasi_ad_soyad' => $ogrenci['vasi_ad_soyad'] ?: null,
-            'vasi_tc_kimlik_no' => $ogrenci['vasi_tc_kimlik_no'] ?: null,
-            'vasi_telefon' => $ogrenci['vasi_telefon'] ?: null,
-            'yonetici_notu' => $ogrenci['yonetici_notu'] ?: null,
-            'ogretmen_notu' => $ogrenci['ogretmen_notu'] ?: null,
-        ]);
-        $ogrenciId = (int) $db->lastInsertId();
+        $telefonlar = array_values(array_unique(array_filter(array_map(
+            static fn(string $telefon): string => self::telefonRakamlari($telefon),
+            [
+                (string) ($veli['telefon'] ?? ''),
+                (string) ($veli['yedek_telefon'] ?? ''),
+                (string) ($ogrenci['vasi_telefon'] ?? ''),
+                (string) ($ogrenci['acil_durum_telefon'] ?? ''),
+            ]
+        ))));
+        sort($telefonlar);
 
-        $bagla = $db->prepare(
-            'INSERT INTO ogrenci_velileri (kurum_id, ogrenci_id, veli_id, birincil_mi, acil_durum_mu)
-             VALUES (:kurum_id, :ogrenci_id, :veli_id, 1, 1)'
-        );
-        $bagla->execute(['kurum_id' => self::kurumId(), 'ogrenci_id' => $ogrenciId, 'veli_id' => $veliId]);
+        $kilitler = [];
+        try {
+            foreach ($telefonlar as $telefon) {
+                $kilit = 'ogrenci-telefon-' . self::kurumId() . '-' . substr(hash('sha256', $telefon), 0, 32);
+                $kilitStmt = $db->prepare('SELECT GET_LOCK(:kilit, 5)');
+                $kilitStmt->execute(['kilit' => $kilit]);
+                if ((int) $kilitStmt->fetchColumn() !== 1) {
+                    throw new \RuntimeException('Telefon kontrolu su anda tamamlanamadi. Lutfen tekrar deneyin.');
+                }
+                $kilitler[] = $kilit;
+            }
 
-        $db->commit();
-        return $ogrenciId;
+            $db->beginTransaction();
+            foreach ($telefonlar as $telefon) {
+                if (self::telefonEslesmeleri($telefon) !== []) {
+                    throw new DomainException('Bu telefon numarasi baska bir ogrenci kaydinda kullaniliyor.');
+                }
+            }
+
+            $veliId = self::veliBulVeyaKaydet($veli);
+            $ogrenciStmt = $db->prepare(
+                'INSERT INTO ogrenciler
+                 (kurum_id, ad, soyad, tc_kimlik_no, dogum_tarihi, cinsiyet, kayit_tarihi, durum, acil_durum_kisi, acil_durum_telefon, saglik_bilgisi, alerji_bilgisi, ozel_durum_notu, vasi_ad_soyad, vasi_tc_kimlik_no, vasi_telefon, yonetici_notu, ogretmen_notu, olusturulma_tarihi)
+                 VALUES
+                 (:kurum_id, :ad, :soyad, :tc_kimlik_no, :dogum_tarihi, :cinsiyet, :kayit_tarihi, :durum, :acil_durum_kisi, :acil_durum_telefon, :saglik_bilgisi, :alerji_bilgisi, :ozel_durum_notu, :vasi_ad_soyad, :vasi_tc_kimlik_no, :vasi_telefon, :yonetici_notu, :ogretmen_notu, NOW())'
+            );
+            $ogrenciStmt->execute([
+                'kurum_id' => self::kurumId(),
+                'ad' => $ogrenci['ad'],
+                'soyad' => $ogrenci['soyad'],
+                'tc_kimlik_no' => $ogrenci['tc_kimlik_no'] ?: null,
+                'dogum_tarihi' => $ogrenci['dogum_tarihi'] ?: null,
+                'cinsiyet' => $ogrenci['cinsiyet'] ?: 'belirtilmedi',
+                'kayit_tarihi' => $ogrenci['kayit_tarihi'] ?: date('Y-m-d'),
+                'durum' => 'aktif',
+                'acil_durum_kisi' => $ogrenci['acil_durum_kisi'] ?: null,
+                'acil_durum_telefon' => $ogrenci['acil_durum_telefon'] ?: null,
+                'saglik_bilgisi' => $ogrenci['saglik_bilgisi'] ?: null,
+                'alerji_bilgisi' => $ogrenci['alerji_bilgisi'] ?: null,
+                'ozel_durum_notu' => $ogrenci['ozel_durum_notu'] ?: null,
+                'vasi_ad_soyad' => $ogrenci['vasi_ad_soyad'] ?: null,
+                'vasi_tc_kimlik_no' => $ogrenci['vasi_tc_kimlik_no'] ?: null,
+                'vasi_telefon' => $ogrenci['vasi_telefon'] ?: null,
+                'yonetici_notu' => $ogrenci['yonetici_notu'] ?: null,
+                'ogretmen_notu' => $ogrenci['ogretmen_notu'] ?: null,
+            ]);
+            $ogrenciId = (int) $db->lastInsertId();
+
+            $bagla = $db->prepare(
+                'INSERT INTO ogrenci_velileri (kurum_id, ogrenci_id, veli_id, birincil_mi, acil_durum_mu)
+                 VALUES (:kurum_id, :ogrenci_id, :veli_id, 1, 1)'
+            );
+            $bagla->execute(['kurum_id' => self::kurumId(), 'ogrenci_id' => $ogrenciId, 'veli_id' => $veliId]);
+
+            $db->commit();
+            return $ogrenciId;
+        } catch (\Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        } finally {
+            foreach (array_reverse($kilitler) as $kilit) {
+                $kilitStmt = $db->prepare('SELECT RELEASE_LOCK(:kilit)');
+                $kilitStmt->execute(['kilit' => $kilit]);
+            }
+        }
     }
 
     private static function telefonIleVeliId(string $telefon): int

@@ -250,22 +250,27 @@ final class OgrenciController extends Controller
             return;
         }
 
-        $id = Ogrenci::ekle([
-            'ad' => trim((string) $data['ad']),
-            'soyad' => trim((string) $data['soyad']),
-            'dogum_tarihi' => trim((string) ($data['dogum_tarihi'] ?? '')),
-            'cinsiyet' => trim((string) ($data['cinsiyet'] ?? 'belirtilmedi')),
-            'kayit_tarihi' => trim((string) ($data['kayit_tarihi'] ?? date('Y-m-d'))),
-            'durum' => trim((string) ($data['durum'] ?? 'aktif')),
-            'veli_id' => (int) ($data['veli_id'] ?? 0),
-            'acil_durum_kisi' => trim((string) ($data['acil_durum_kisi'] ?? '')),
-            'acil_durum_telefon' => trim((string) ($data['acil_durum_telefon'] ?? '')),
-            'saglik_bilgisi' => trim((string) ($data['saglik_bilgisi'] ?? '')),
-            'alerji_bilgisi' => trim((string) ($data['alerji_bilgisi'] ?? '')),
-            'ozel_durum_notu' => trim((string) ($data['ozel_durum_notu'] ?? '')),
-            'yonetici_notu' => trim((string) ($data['yonetici_notu'] ?? '')),
-            'ogretmen_notu' => trim((string) ($data['ogretmen_notu'] ?? '')),
-        ]);
+        try {
+            $id = Ogrenci::ekle([
+                'ad' => trim((string) $data['ad']),
+                'soyad' => trim((string) $data['soyad']),
+                'dogum_tarihi' => trim((string) ($data['dogum_tarihi'] ?? '')),
+                'cinsiyet' => trim((string) ($data['cinsiyet'] ?? 'belirtilmedi')),
+                'kayit_tarihi' => trim((string) ($data['kayit_tarihi'] ?? date('Y-m-d'))),
+                'durum' => trim((string) ($data['durum'] ?? 'aktif')),
+                'veli_id' => (int) ($data['veli_id'] ?? 0),
+                'acil_durum_kisi' => trim((string) ($data['acil_durum_kisi'] ?? '')),
+                'acil_durum_telefon' => trim((string) ($data['acil_durum_telefon'] ?? '')),
+                'saglik_bilgisi' => trim((string) ($data['saglik_bilgisi'] ?? '')),
+                'alerji_bilgisi' => trim((string) ($data['alerji_bilgisi'] ?? '')),
+                'ozel_durum_notu' => trim((string) ($data['ozel_durum_notu'] ?? '')),
+                'yonetici_notu' => trim((string) ($data['yonetici_notu'] ?? '')),
+                'ogretmen_notu' => trim((string) ($data['ogretmen_notu'] ?? '')),
+            ]);
+        } catch (\DomainException $e) {
+            Response::json(['basari' => false, 'mesaj' => $e->getMessage(), 'hatalar' => []], 409);
+            return;
+        }
 
         Response::json(['basari' => true, 'mesaj' => 'Ogrenci kaydi olusturuldu.', 'veri' => ['id' => $id]], 201);
     }
@@ -313,8 +318,9 @@ final class OgrenciController extends Controller
             return;
         }
 
-        $id = Ogrenci::veliIleEkle([
-            'ogrenci' => [
+        try {
+            $id = Ogrenci::veliIleEkle([
+                'ogrenci' => [
                 'ad' => $ogrenciAd,
                 'soyad' => $ogrenciSoyad,
                 'tc_kimlik_no' => trim((string) ($data['ogrenci_tc_kimlik_no'] ?? '')),
@@ -331,8 +337,8 @@ final class OgrenciController extends Controller
                 'vasi_telefon' => $this->telefonFormatla((string) ($data['vasi_telefon'] ?? '')),
                 'yonetici_notu' => '',
                 'ogretmen_notu' => '',
-            ],
-            'veli' => [
+                ],
+                'veli' => [
                 'ad' => $veliAd,
                 'soyad' => $veliSoyad,
                 'tc_kimlik_no' => trim((string) ($data['veli_tc_kimlik_no'] ?? '')),
@@ -346,8 +352,16 @@ final class OgrenciController extends Controller
                 'adres' => trim((string) ($data['adres'] ?? '')),
                 'iletisim_referansi' => trim((string) ($data['veli_iletisim_referansi'] ?? '')),
                 'notlar' => trim((string) ($data['veli_aciklama'] ?? '')),
-            ],
-        ]);
+                ],
+            ]);
+        } catch (\DomainException $e) {
+            Response::json([
+                'basari' => false,
+                'mesaj' => $e->getMessage(),
+                'hatalar' => ['veli_telefon' => 'Bu numara kayitli. Mevcut ogrenci profilinden devam edin.'],
+            ], 409);
+            return;
+        }
 
         Response::json(['basari' => true, 'mesaj' => 'Ogrenci ve veli kaydi olusturuldu.', 'veri' => ['id' => $id]], 201);
     }
@@ -365,6 +379,27 @@ final class OgrenciController extends Controller
         if ($id < 1 || !Ogrenci::profil($id)) {
             Response::json(['basari' => false, 'mesaj' => 'Ogrenci bulunamadi.', 'hatalar' => []], 404);
             return;
+        }
+
+        $profilTelefonlari = [
+            $this->telefonFormatla((string) ($data['veli_telefon'] ?? '')),
+            $this->telefonFormatla((string) ($data['veli_yedek_telefon'] ?? '')),
+            $this->telefonFormatla((string) ($data['vasi_telefon'] ?? '')),
+            $this->telefonFormatla((string) ($data['acil_durum_telefon'] ?? '')),
+        ];
+        foreach (array_unique(array_filter($profilTelefonlari)) as $profilTelefonu) {
+            $baskaOgrenciler = array_filter(
+                Ogrenci::telefonEslesmeleri($profilTelefonu),
+                static fn(array $eslesme): bool => (int) ($eslesme['id'] ?? 0) !== $id
+            );
+            if ($baskaOgrenciler !== []) {
+                Response::json([
+                    'basari' => false,
+                    'mesaj' => 'Bu telefon numarasi baska bir ogrenci kaydinda kullaniliyor.',
+                    'hatalar' => ['veli_telefon' => 'Her telefon numarasi yalnizca bir ogrenciye eklenebilir.'],
+                ], 409);
+                return;
+            }
         }
 
         Ogrenci::profilGuncelle($id, [
