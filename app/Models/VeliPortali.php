@@ -32,7 +32,6 @@ final class VeliPortali extends Model
         foreach ($cocuklar as &$cocuk) {
             $ogrenciId = (int) $cocuk['id'];
             $cocuk['randevular'] = self::randevular($ogrenciId, $kurumId);
-            $cocuk['tema_etkinlikleri'] = self::temaEtkinlikleri($ogrenciId, $kurumId);
         }
         unset($cocuk);
 
@@ -117,38 +116,4 @@ final class VeliPortali extends Model
         return $stmt->fetchAll();
     }
 
-    private static function temaEtkinlikleri(int $ogrenciId, int $kurumId): array
-    {
-        if (!self::tabloVarMi('student_activity_records') || !self::tabloVarMi('theme_activities') || !self::tabloVarMi('weekly_themes')) {
-            return [];
-        }
-
-        $stmt = self::db()->prepare(
-            'SELECT sar.completed_at, sar.source_type,
-                    ta.title AS activity_title, ta.description AS activity_description,
-                    wt.title AS theme_title, wt.description AS theme_description,
-                    wt.week_start, wt.week_end,
-                    GROUP_CONCAT(DISTINCT ag.name ORDER BY ag.sort_order ASC SEPARATOR ", ") AS age_groups
-             FROM student_activity_records sar
-             INNER JOIN ogrenciler o ON o.id = sar.student_id AND o.kurum_id = :kurum_id
-             INNER JOIN theme_activities ta ON ta.id = sar.activity_id
-             INNER JOIN weekly_themes wt ON wt.id = ta.theme_id
-             LEFT JOIN weekly_theme_age_groups wtag ON wtag.theme_id = wt.id
-             LEFT JOIN age_groups ag ON ag.id = wtag.age_group_id
-             WHERE sar.student_id = :ogrenci_id
-             GROUP BY sar.id, sar.completed_at, sar.source_type, ta.title, ta.description,
-                      wt.title, wt.description, wt.week_start, wt.week_end
-             ORDER BY sar.completed_at DESC, sar.id DESC
-             LIMIT 50'
-        );
-        $stmt->execute(['ogrenci_id' => $ogrenciId, 'kurum_id' => $kurumId]);
-
-        return $stmt->fetchAll();
-    }
-
-    private static function tabloVarMi(string $tablo): bool
-    {
-        $stmt = self::db()->query('SHOW TABLES LIKE ' . self::db()->quote($tablo));
-        return $stmt && (bool) $stmt->fetchColumn();
-    }
 }

@@ -281,6 +281,7 @@ function renderHizmetTable(target, rows) {
     return;
   }
 
+  const canManage = target.getAttribute('data-can-manage-services') === '1';
   const tbody = rows.map((row, index) => `
     <tr>
       <td>${index + 1}</td>
@@ -290,7 +291,7 @@ function renderHizmetTable(target, rows) {
       <td>${escapeHtml(row.toplam_normal_hak)}</td>
       <td>${escapeHtml(row.toplam_telafi_hak)}</td>
       <td><span class="status-pill">${String(row.aktif) === '1' ? 'Aktif' : 'Pasif'}</span></td>
-      <td>
+      ${canManage ? `<td>
         <button
           class="btn btn-ghost"
           type="button"
@@ -308,7 +309,7 @@ function renderHizmetTable(target, rows) {
           type="button"
           data-delete-service="${escapeHtml(row.id)}"
         >Sil</button>
-      </td>
+      </td>` : ''}
     </tr>
   `).join('');
 
@@ -323,7 +324,7 @@ function renderHizmetTable(target, rows) {
           <th>Normal Hak</th>
           <th>Telafi Hakki</th>
           <th>Durum</th>
-          <th>Islem</th>
+          ${canManage ? '<th>Islem</th>' : ''}
         </tr>
       </thead>
       <tbody>${tbody}</tbody>

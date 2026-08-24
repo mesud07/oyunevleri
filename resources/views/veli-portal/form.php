@@ -17,12 +17,6 @@ $uzunTarihGoster = static function (?string $tarih): string {
     $zaman = strtotime($tarih);
     return $zaman ? date('d.m.Y', $zaman) . ' ' . $gunler[(int) date('w', $zaman)] : $tarih;
 };
-$haftaAraligiGoster = static function (?string $baslangic, ?string $bitis): string {
-    if (!$baslangic || !$bitis) {
-        return '-';
-    }
-    return tarih_goster($baslangic) . ' - ' . tarih_goster($bitis);
-};
 $ayHesapla = static function (?string $dogumTarihi): ?int {
     if (!$dogumTarihi) {
         return null;
@@ -52,7 +46,7 @@ $ayHesapla = static function (?string $dogumTarihi): ?int {
             </span>
             <h1>Veli Bilgi Ekranı</h1>
             <?php if (!empty($kurum)) : ?>
-                <p><?= e($kurum['ad']) ?> öğrencilerinin yaş, randevu ve etkinlik bilgilerini kayıtlı telefon numaranızla görüntüleyin.</p>
+                <p><?= e($kurum['ad']) ?> öğrencilerinin yaş ve randevu bilgilerini kayıtlı telefon numaranızla görüntüleyin.</p>
             <?php else : ?>
                 <p>Bu sayfaya kurumunuzun size ilettiği benzersiz veli portalı bağlantısıyla ulaşabilirsiniz.</p>
             <?php endif; ?>
@@ -85,7 +79,6 @@ $ayHesapla = static function (?string $dogumTarihi): ?int {
         <section class="parent-result-list">
             <?php foreach ($sonuc['cocuklar'] as $cocuk) : ?>
                 <article class="panel-card parent-child-card">
-                    <?php $tabId = 'parent-child-' . (int) ($cocuk['id'] ?? 0); ?>
                     <div class="parent-child-head">
                         <div>
                             <h2><?= e($cocuk['ad_soyad']) ?></h2>
@@ -98,15 +91,8 @@ $ayHesapla = static function (?string $dogumTarihi): ?int {
                         <span class="status-pill"><?= e($cocuk['durum'] ?: 'aktif') ?></span>
                     </div>
 
-                    <div class="parent-child-tabs">
-                        <input type="radio" id="<?= e($tabId) ?>-appointments" name="<?= e($tabId) ?>-tab" checked>
-                        <input type="radio" id="<?= e($tabId) ?>-activities" name="<?= e($tabId) ?>-tab">
-                        <div class="parent-tab-menu">
-                            <label for="<?= e($tabId) ?>-appointments">Randevular</label>
-                            <label for="<?= e($tabId) ?>-activities">Tema Etkinlikleri</label>
-                        </div>
-
-                        <section class="parent-tab-panel parent-appointments-panel">
+                    <div class="parent-child-content">
+                        <section class="parent-appointments-panel">
                             <div class="parent-section-title">
                                 <h3>Randevular</h3>
                                 <span>Planlanan ve gecmis randevular</span>
@@ -134,36 +120,6 @@ $ayHesapla = static function (?string $dogumTarihi): ?int {
                                         <?php endforeach; ?>
                                     </tbody>
                                 </table>
-                            </div>
-                        </section>
-
-                        <section class="parent-tab-panel parent-activities-panel">
-                            <div class="parent-section-title">
-                                <h3>Tema Etkinlikleri</h3>
-                                <span>Yapilan tema ve etkinlik icerikleri</span>
-                            </div>
-                            <div class="parent-activity-list">
-                                <?php if (empty($cocuk['tema_etkinlikleri'])) : ?>
-                                    <div class="parent-empty">Yapilan tema etkinligi bulunamadi.</div>
-                                <?php endif; ?>
-                                <?php foreach ($cocuk['tema_etkinlikleri'] as $etkinlik) : ?>
-                                    <article class="parent-activity-item">
-                                        <div>
-                                            <time><?= e(tarih_goster($etkinlik['completed_at'] ?? null)) ?></time>
-                                            <strong><?= e($etkinlik['theme_title'] ?? '-') ?></strong>
-                                            <span><?= e($haftaAraligiGoster($etkinlik['week_start'] ?? null, $etkinlik['week_end'] ?? null)) ?></span>
-                                        </div>
-                                        <div>
-                                            <h4><?= e($etkinlik['activity_title'] ?? '-') ?></h4>
-                                            <?php if (!empty($etkinlik['activity_description'])) : ?>
-                                                <p><?= nl2br(e($etkinlik['activity_description'])) ?></p>
-                                            <?php endif; ?>
-                                            <?php if (!empty($etkinlik['age_groups'])) : ?>
-                                                <small><?= e($etkinlik['age_groups']) ?></small>
-                                            <?php endif; ?>
-                                        </div>
-                                    </article>
-                                <?php endforeach; ?>
                             </div>
                         </section>
                     </div>
