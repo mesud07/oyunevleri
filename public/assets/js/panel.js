@@ -1,4 +1,26 @@
 document.addEventListener('click', async (event) => {
+  const portalCopyButton = event.target.closest('[data-parent-portal-copy]');
+  if (portalCopyButton) {
+    const portalInfo = portalCopyButton.closest('[data-parent-portal-info]');
+    const portalInput = portalInfo?.querySelector('[data-parent-portal-link]');
+    const portalMessage = portalInfo?.querySelector('[data-parent-portal-message]');
+    const portalUrl = portalInput?.value || '';
+
+    try {
+      await navigator.clipboard.writeText(portalUrl);
+      if (portalMessage) {
+        portalMessage.textContent = 'Bağlantı panoya kopyalandı.';
+      }
+    } catch (error) {
+      portalInput?.focus();
+      portalInput?.select();
+      if (portalMessage) {
+        portalMessage.textContent = 'Bağlantı seçildi; kopyalamak için Ctrl/Cmd+C kullanın.';
+      }
+    }
+    return;
+  }
+
   const button = event.target.closest('[data-demo-islem]');
   if (!button) {
     return;
@@ -18,6 +40,14 @@ document.addEventListener('click', async (event) => {
     if (sonucAlani) {
       sonucAlani.textContent = error.message;
     }
+  }
+});
+
+document.querySelectorAll('[data-parent-portal-info]').forEach((portalInfo) => {
+  const portalPath = portalInfo.getAttribute('data-parent-portal-path') || '';
+  const portalInput = portalInfo.querySelector('[data-parent-portal-link]');
+  if (portalInput && portalPath) {
+    portalInput.value = `${window.location.origin}${portalPath}`;
   }
 });
 

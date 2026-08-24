@@ -9,6 +9,8 @@ $grupKontenjanlari = $rapor['grup_kontenjanlari'] ?? [];
 $kayitYenilemeleri = $rapor['kayit_yenilemeleri'] ?? [];
 $kayitYenilemeTakvimi = $rapor['kayit_yenileme_takvimi'] ?? [];
 $dogumGunleri = $dogumGunleri ?? [];
+$veliPortalAnahtari = $veliPortalAnahtari ?? '';
+$veliPortalYolu = $veliPortalAnahtari !== '' ? '/veli-portal?k=' . rawurlencode($veliPortalAnahtari) : '';
 $gunAdlari = [
     1 => 'Pazartesi',
     2 => 'Sali',
@@ -43,6 +45,22 @@ $canSendSms = yetki_var('sms_gonder');
         </div>
     <?php endif; ?>
 </section>
+
+<?php if ($veliPortalYolu !== '') : ?>
+<section class="dashboard-portal-info" data-parent-portal-info data-parent-portal-path="<?= e($veliPortalYolu) ?>">
+    <div class="dashboard-portal-info-copy">
+        <span>Veli Bilgi Ekranı</span>
+        <strong>Velilerinizle paylaşacağınız kuruma özel bağlantı</strong>
+        <p>Bu bağlantıyı velilere göndererek telefon numaralarıyla öğrenci bilgilerine güvenli biçimde ulaşmalarını sağlayabilirsiniz.</p>
+    </div>
+    <div class="dashboard-portal-link-row">
+        <input type="text" readonly value="<?= e($veliPortalYolu) ?>" data-parent-portal-link aria-label="Veli bilgi ekranı bağlantısı">
+        <button class="btn btn-sky" type="button" data-parent-portal-copy>Bağlantıyı Kopyala</button>
+        <a class="btn btn-ghost" href="<?= e($veliPortalYolu) ?>" target="_blank" rel="noopener">Ekranı Aç</a>
+    </div>
+    <small class="dashboard-portal-message" data-parent-portal-message aria-live="polite"></small>
+</section>
+<?php endif; ?>
 
 <section class="stats-grid dashboard-summary-grid">
     <?php if ($canStudents) : ?><article class="stat-card"><span>Aktif Ogrenci</span><strong><?= e($ozet['ogrenci'] ?? 0) ?></strong></article><?php endif; ?>

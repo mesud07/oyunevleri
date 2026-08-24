@@ -97,6 +97,29 @@ final class Kurum extends Model
         return $kurum ?: null;
     }
 
+    public static function veliPortalAnahtari(int $kurumId): string
+    {
+        $stmt = self::db()->prepare('SELECT veli_portal_anahtari FROM kurumlar WHERE id = :id AND aktif = 1 LIMIT 1');
+        $stmt->execute(['id' => $kurumId]);
+        $anahtar = strtolower(trim((string) ($stmt->fetchColumn() ?: '')));
+        if (preg_match('/^[a-f0-9]{32}$/', $anahtar)) {
+            return $anahtar;
+        }
+
+        $yeniAnahtar = bin2hex(random_bytes(16));
+        $guncelle = self::db()->prepare(
+            'UPDATE kurumlar
+             SET veli_portal_anahtari = :anahtar
+             WHERE id = :id AND aktif = 1
+               AND (veli_portal_anahtari IS NULL OR veli_portal_anahtari = "")'
+        );
+        $guncelle->execute(['id' => $kurumId, 'anahtar' => $yeniAnahtar]);
+
+        $stmt->execute(['id' => $kurumId]);
+        $anahtar = strtolower(trim((string) ($stmt->fetchColumn() ?: '')));
+        return preg_match('/^[a-f0-9]{32}$/', $anahtar) ? $anahtar : '';
+    }
+
     public static function kurucuVarMi(int $kurumId): bool
     {
         $stmt = self::db()->prepare(

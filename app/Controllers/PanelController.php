@@ -9,6 +9,7 @@ use App\Core\Controller;
 use App\Core\Csrf;
 use App\Core\Response;
 use App\Core\Veritabani;
+use App\Models\Kurum;
 use App\Models\Rapor;
 use DateTimeImmutable;
 use PDO;
@@ -46,6 +47,7 @@ final class PanelController extends Controller
             'ozet' => $ozet,
             'rapor' => Rapor::sayfaVerisi(),
             'dogumGunleri' => $dogumGunleri,
+            'veliPortalAnahtari' => Kurum::veliPortalAnahtari($kurumId),
         ], 'panel');
     }
 
