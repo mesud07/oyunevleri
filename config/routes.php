@@ -38,6 +38,7 @@ return function (Router $router): void {
     $router->get('/panel/ogrenciler/profil', [OgrenciController::class, 'profil']);
     $router->get('/panel/ogrenciler/tema-etkinlikleri', [OgrenciController::class, 'temaEtkinlikleri']);
     $router->get('/panel/ogrenciler/kara-liste', [OgrenciController::class, 'karaListeSayfa']);
+    $router->get('/panel/ogrenciler/tedbir-listesi', [OgrenciController::class, 'karaListeSayfa']);
     $router->get('/panel/onam-formlari/pdf', [OnamFormuController::class, 'pdf']);
     $router->get('/panel/bekleyen-veliler', [BekleyenVeliController::class, 'sayfa']);
     $router->get('/panel/veliler', [VeliController::class, 'sayfa']);

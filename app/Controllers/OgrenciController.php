@@ -142,7 +142,7 @@ final class OgrenciController extends Controller
         }
 
         $this->view('panel/ogrenci-kara-liste', [
-            'baslik' => 'Ogrenci Kara Liste',
+            'baslik' => 'Öğrenci Tedbir Listesi',
             'aktif' => 'ogrenci-kara-liste',
             'kullanici' => Auth::user(),
             'csrf' => Csrf::token(),
@@ -204,7 +204,7 @@ final class OgrenciController extends Controller
             'olusturan_kullanici_id' => (int) (Auth::user()['id'] ?? 0),
         ]);
 
-        Response::json(['basari' => true, 'mesaj' => 'Ogrenci kara listeye eklendi.', 'veri' => ['id' => $id]], 201);
+        Response::json(['basari' => true, 'mesaj' => 'Öğrenci tedbir listesine eklendi.', 'veri' => ['id' => $id]], 201);
     }
 
     public function karaListeKaldir(): void
@@ -212,16 +212,16 @@ final class OgrenciController extends Controller
         $data = $GLOBALS['talya_ajax_data'] ?? [];
         $id = (int) ($data['id'] ?? 0);
         if ($id < 1) {
-            Response::json(['basari' => false, 'mesaj' => 'Kara liste kaydi gecersiz.', 'hatalar' => []], 422);
+            Response::json(['basari' => false, 'mesaj' => 'Tedbir listesi kaydı geçersiz.', 'hatalar' => []], 422);
             return;
         }
 
         if (!OgrenciKaraListe::pasifeAl($id)) {
-            Response::json(['basari' => false, 'mesaj' => 'Kara liste kaydi bulunamadi.', 'hatalar' => []], 404);
+            Response::json(['basari' => false, 'mesaj' => 'Tedbir listesi kaydı bulunamadı.', 'hatalar' => []], 404);
             return;
         }
 
-        Response::json(['basari' => true, 'mesaj' => 'Kara liste kaydi kaldirildi.', 'veri' => ['id' => $id]]);
+        Response::json(['basari' => true, 'mesaj' => 'Tedbir listesi kaydı kaldırıldı.', 'veri' => ['id' => $id]]);
     }
 
     public function sil(): void

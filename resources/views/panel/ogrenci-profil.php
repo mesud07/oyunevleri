@@ -134,7 +134,7 @@ $durumIkonu = static function (array $randevu): string {
         <span><?= e($yasMetni) ?></span>
         <span><?= e($ogrenci['cinsiyet'] ?? 'belirtilmedi') ?></span>
         <span><?= e($ogrenci['durum'] ?? '-') ?></span>
-        <?php if ($karaListeAktif) : ?><span class="is-danger">Kara listede</span><?php endif; ?>
+        <?php if ($karaListeAktif) : ?><span class="is-danger">Tedbir listesinde</span><?php endif; ?>
     </div>
     </div>
     <div class="appointment-toolbar-actions">
@@ -158,7 +158,7 @@ $durumIkonu = static function (array $randevu): string {
         <?php endif; ?>
         <?php if ($canEditStudent) : ?>
             <button class="btn btn-primary" type="button" data-open-consent-form>Onam Formu +</button>
-            <button class="btn btn-danger" type="button" data-open-dialog="#kara-liste-dialog">Kara Listeye Ekle</button>
+            <button class="btn btn-danger" type="button" data-open-dialog="#kara-liste-dialog">Tedbir Listesine Ekle</button>
             <button class="btn btn-ghost" type="button" data-open-profile-edit>Bilgileri Duzenle</button>
         <?php endif; ?>
         <?php if ($canCreateAppointment) : ?>
@@ -302,7 +302,7 @@ $durumIkonu = static function (array $randevu): string {
     <a class="is-active" href="#randevular" data-profile-anchor>Randevular</a>
     <a href="/panel/ogrenciler/tema-etkinlikleri?id=<?= e($ogrenci['id'] ?? '') ?>">Tema ve Etkinlikler</a>
     <button type="button" data-profile-section-tab="onam-formlari" aria-selected="false">Onam Formları</button>
-    <button type="button" data-profile-section-tab="kara-liste" aria-selected="false">Kara Liste Kayıtları</button>
+    <button type="button" data-profile-section-tab="kara-liste" aria-selected="false">Tedbir Listesi Kayıtları</button>
     <button type="button" data-profile-section-tab="gunluk-notlar" aria-selected="false">Günlük Not Akışı</button>
 </nav>
 
@@ -345,7 +345,7 @@ $durumIkonu = static function (array $randevu): string {
 <dialog class="appointment-dialog" id="kara-liste-dialog">
     <form method="dialog" class="appointment-dialog-form" data-blacklist-form>
         <div class="dialog-head">
-            <h2>Kara Liste Kaydi</h2>
+            <h2>Tedbir Listesi Kaydı</h2>
             <button type="button" data-close-dialog>x</button>
         </div>
         <input type="hidden" name="ogrenci_id" value="<?= e($ogrenci['id'] ?? '') ?>">
@@ -361,7 +361,7 @@ $durumIkonu = static function (array $randevu): string {
             </label>
             <label class="dialog-wide">
                 <span>Sebep</span>
-                <textarea name="sebep" rows="5" placeholder="Kara listeye alma sebebini yazin." required></textarea>
+                <textarea name="sebep" rows="5" placeholder="Tedbir listesine alma sebebini yazın." required></textarea>
             </label>
         </div>
         <div class="record-actions compact-actions">
@@ -682,19 +682,19 @@ $durumIkonu = static function (array $randevu): string {
 <section class="panel-card report-panel blacklist-panel" id="kara-liste" data-profile-section-panel="kara-liste" hidden>
     <div class="appointment-toolbar">
         <div>
-            <h2>Kara Liste Kayitlari</h2>
+            <h2>Tedbir Listesi Kayıtları</h2>
             <p>Bu ogrenci icin sebep ve kategori bazli takip kayitlari.</p>
         </div>
         <div class="appointment-toolbar-actions">
-            <a class="btn btn-ghost" href="/panel/ogrenciler/kara-liste">Tum Kara Liste</a>
+            <a class="btn btn-ghost" href="/panel/ogrenciler/tedbir-listesi">Tüm Tedbir Listesi</a>
             <?php if ($canEditStudent) : ?>
-                <button class="btn btn-danger" type="button" data-open-dialog="#kara-liste-dialog">Kara Listeye Ekle</button>
+                <button class="btn btn-danger" type="button" data-open-dialog="#kara-liste-dialog">Tedbir Listesine Ekle</button>
             <?php endif; ?>
         </div>
     </div>
     <div class="blacklist-timeline">
         <?php if (!$karaListeKayitlari) : ?>
-            <div class="empty-state">Bu ogrenci icin kara liste kaydi yok.</div>
+            <div class="empty-state">Bu öğrenci için tedbir listesi kaydı yok.</div>
         <?php endif; ?>
         <?php foreach ($karaListeKayitlari as $kayit) : ?>
             <article class="blacklist-item <?= (int) ($kayit['aktif'] ?? 0) === 1 ? 'is-active' : '' ?>">

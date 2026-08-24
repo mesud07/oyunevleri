@@ -445,7 +445,7 @@ function renderOgrenciTable(target, rows, paging = {}) {
       <td>${escapeHtml(row.kayit_tarihi || '-')}</td>
       <td>
         <span class="status-pill">${escapeHtml(row.durum || '-')}</span>
-        ${String(row.kara_liste_aktif || '0') === '1' ? '<span class="status-pill is-danger">Kara Liste</span>' : ''}
+        ${String(row.kara_liste_aktif || '0') === '1' ? '<span class="status-pill is-danger">Tedbir Listesi</span>' : ''}
       </td>
       <td class="student-row-actions">
         <button class="btn btn-danger" type="button" data-delete-student="${escapeHtml(row.id)}">Sil</button>
@@ -1117,7 +1117,7 @@ document.addEventListener('click', async (event) => {
   const blacklistRemove = event.target.closest('[data-blacklist-remove]');
   if (blacklistRemove) {
     const id = Number(blacklistRemove.getAttribute('data-blacklist-remove'));
-    if (!id || !window.confirm('Bu kara liste kaydi kaldirilsin mi?')) {
+    if (!id || !window.confirm('Bu tedbir listesi kaydı kaldırılsın mı?')) {
       return;
     }
     blacklistRemove.disabled = true;

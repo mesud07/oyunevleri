@@ -41,23 +41,23 @@ $asset = static function (string $path): string {
             <?php
             $odemeAktif = str_starts_with((string) ($aktif ?? ''), 'odemeler');
             $grupAktif = str_starts_with((string) ($aktif ?? ''), 'gruplar');
-            $ogrenciAktif = in_array((string) ($aktif ?? ''), ['ogrenciler', 'ogrenci-kara-liste', 'bekleyen-veliler'], true);
+            $ogrenciAktif = in_array((string) ($aktif ?? ''), ['ogrenciler', 'ogrenci-kara-liste', 'bekleyen-veliler', 'gunluk-kayitlar'], true);
             $programAktif = $grupAktif || in_array((string) ($aktif ?? ''), ['randevular'], true);
             $finansAktif = $odemeAktif || in_array((string) ($aktif ?? ''), ['paketler', 'raporlar', 'gelir-gider'], true);
-            $icerikAktif = in_array((string) ($aktif ?? ''), ['haftalik-temalar', 'gunluk-kayitlar'], true);
             $smsAktif = in_array((string) ($aktif ?? ''), ['sms', 'sms-raporlar'], true);
             $sistemAktif = (string) ($aktif ?? '') === 'kurumlar';
             $menuIzin = static fn(string $yetki): bool => yetki_var($yetki);
             ?>
             <nav class="menu">
                 <a class="<?= aktif_menu($aktif ?? '', 'genel-bakis') ?>" href="/panel" data-short="GB" title="Genel Bakis">Genel Bakis</a>
-                <?php if ($menuIzin('ogrenci_listele') || $menuIzin('bekleyen_veli_listele')) : ?>
+                <?php if ($menuIzin('ogrenci_listele') || $menuIzin('bekleyen_veli_listele') || $menuIzin('yoklama_listele')) : ?>
                     <div class="menu-group <?= $ogrenciAktif ? 'is-open' : '' ?>">
                         <button class="<?= $ogrenciAktif ? ' is-active' : '' ?>" type="button" data-menu-group-toggle data-short="OI" title="Ogrenci Islemleri" aria-expanded="<?= $ogrenciAktif ? 'true' : 'false' ?>">Ogrenci Islemleri</button>
                         <div class="submenu">
                             <?php if ($menuIzin('ogrenci_listele')) : ?><a class="<?= aktif_menu($aktif ?? '', 'ogrenciler') ?>" href="/panel/ogrenciler" data-short="OG" title="Ogrenciler">Ogrenciler</a><?php endif; ?>
-                            <?php if ($menuIzin('ogrenci_listele')) : ?><a class="<?= aktif_menu($aktif ?? '', 'ogrenci-kara-liste') ?>" href="/panel/ogrenciler/kara-liste" data-short="KL" title="Ogrenci Kara Liste">Kara Liste</a><?php endif; ?>
+                            <?php if ($menuIzin('ogrenci_listele')) : ?><a class="<?= aktif_menu($aktif ?? '', 'ogrenci-kara-liste') ?>" href="/panel/ogrenciler/tedbir-listesi" data-short="TL" title="Öğrenci Tedbir Listesi">Tedbir Listesi</a><?php endif; ?>
                             <?php if ($menuIzin('bekleyen_veli_listele')) : ?><a class="<?= aktif_menu($aktif ?? '', 'bekleyen-veliler') ?>" href="/panel/bekleyen-veliler" data-short="BV" title="Bekleyen Veliler">Bekleyen Veliler</a><?php endif; ?>
+                            <?php if ($menuIzin('yoklama_listele')) : ?><a class="<?= aktif_menu($aktif ?? '', 'gunluk-kayitlar') ?>" href="/panel/gunluk-kayitlar" data-short="GK" title="Günlük Kayıtlar">Günlük Kayıtlar</a><?php endif; ?>
                         </div>
                     </div>
                 <?php endif; ?>
@@ -81,15 +81,6 @@ $asset = static function (string $path): string {
                             <?php if ($menuIzin('odeme_listele')) : ?><a class="<?= aktif_menu($aktif ?? '', 'odemeler-kasalar') ?>" href="/panel/odemeler/kasalar" data-short="KS" title="Kasalar">Kasalar</a><?php endif; ?>
                             <?php if ($menuIzin('rapor_ozet')) : ?><a class="<?= aktif_menu($aktif ?? '', 'gelir-gider') ?>" href="/panel/finans/gelir-gider" data-short="GG" title="Gelir Gider Analizi">Gelir Gider Analizi</a><?php endif; ?>
                             <?php if ($menuIzin('rapor_ozet')) : ?><a class="<?= aktif_menu($aktif ?? '', 'raporlar') ?>" href="/panel/raporlar" data-short="RP" title="Raporlar">Raporlar</a><?php endif; ?>
-                        </div>
-                    </div>
-                <?php endif; ?>
-                <?php if ($menuIzin('tema_yonet') || $menuIzin('rapor_ozet')) : ?>
-                    <div class="menu-group <?= $icerikAktif ? 'is-open' : '' ?>">
-                        <button class="<?= $icerikAktif ? ' is-active' : '' ?>" type="button" data-menu-group-toggle data-short="IC" title="Icerik ve Takip" aria-expanded="<?= $icerikAktif ? 'true' : 'false' ?>">Icerik ve Takip</button>
-                        <div class="submenu">
-                            <?php if ($menuIzin('tema_yonet')) : ?><a class="<?= aktif_menu($aktif ?? '', 'haftalik-temalar') ?>" href="/panel/haftalik-temalar" data-short="HT" title="Haftalik Temalar">Haftalik Temalar</a><?php endif; ?>
-                            <?php if ($menuIzin('rapor_ozet')) : ?><a class="<?= aktif_menu($aktif ?? '', 'gunluk-kayitlar') ?>" href="/panel/gunluk-kayitlar" data-short="GN" title="Gunluk Kayitlar">Gunluk Kayitlar</a><?php endif; ?>
                         </div>
                     </div>
                 <?php endif; ?>
@@ -164,7 +155,7 @@ $asset = static function (string $path): string {
                 'odemeler-kasalar' => 'odeme_listele',
                 'randevular' => 'randevu_listele',
                 'haftalik-temalar' => 'tema_yonet',
-                'gunluk-kayitlar' => 'rapor_ozet',
+                'gunluk-kayitlar' => 'yoklama_listele',
                 'raporlar' => 'rapor_ozet',
                 'gelir-gider' => 'rapor_ozet',
                 'sms' => 'sms_goruntule',

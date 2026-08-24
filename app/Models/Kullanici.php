@@ -70,8 +70,7 @@ final class Kullanici extends Model
             ['kod' => 'paket_ekle', 'ad' => 'Paket ekle, duzenle', 'grup' => 'Hizmet', 'kategori' => 'islem', 'bolum' => 'Finans', 'aciklama' => 'Paket olusturma ve paket bilgilerini duzenleme yetkisi.'],
             ['kod' => 'odeme_ekle', 'ad' => 'Tahsilat, gider ve kasa islemleri', 'grup' => 'Finans', 'kategori' => 'islem', 'bolum' => 'Finans', 'aciklama' => 'Tahsilat yapma, gider ekleme ve kasa hareketleri olusturma.'],
 
-            ['kod' => 'tema_yonet', 'ad' => 'Icerik ve Takip menusu', 'grup' => 'Tema', 'kategori' => 'menu', 'bolum' => 'Icerik ve Takip', 'aciklama' => 'Haftalik temalar ve ilgili icerik ekranlarini acabilir.'],
-            ['kod' => 'yoklama_listele', 'ad' => 'Gunluk kayitlar / yoklama goruntuleme', 'grup' => 'Yoklama', 'kategori' => 'menu', 'bolum' => 'Icerik ve Takip', 'aciklama' => 'Gunluk kayit ve yoklama liste ekranlarini gorebilir.'],
+            ['kod' => 'yoklama_listele', 'ad' => 'Günlük kayıtlar / yoklama görüntüleme', 'grup' => 'Öğrenci', 'kategori' => 'menu', 'bolum' => 'Öğrenci İşlemleri', 'aciklama' => 'Günlük kayıt ve yoklama liste ekranlarını görebilir.'],
 
             ['kod' => 'sms_goruntule', 'ad' => 'SMS Yonetimi menusu', 'grup' => 'SMS', 'kategori' => 'menu', 'bolum' => 'SMS', 'aciklama' => 'SMS kayitlari ve gonderim ekranlarini gorebilir.'],
             ['kod' => 'sms_rapor_goruntule', 'ad' => 'SMS Raporlari menusu', 'grup' => 'SMS', 'kategori' => 'menu', 'bolum' => 'SMS', 'aciklama' => 'SMS rapor ekranlarini gorebilir.'],

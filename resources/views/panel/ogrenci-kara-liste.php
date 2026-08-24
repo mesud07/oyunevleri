@@ -7,7 +7,7 @@ $kategoriEtiketi = static fn(string $kategori): string => $kategoriler[$kategori
 
 <section class="page-head">
     <div>
-        <h1>Ogrenci Kara Liste</h1>
+        <h1>Öğrenci Tedbir Listesi</h1>
         <p>Tanisma dersi, habersiz gelmeme ve benzeri takip edilmesi gereken kayitlar.</p>
     </div>
     <a class="btn btn-primary" href="/panel/ogrenciler">Ogrenci Ara</a>
@@ -17,7 +17,7 @@ $kategoriEtiketi = static fn(string $kategori): string => $kategoriler[$kategori
     <?php if (!$tablolarHazir) : ?>
         <div class="info-box compact-info">
             <strong>Migration gerekli</strong>
-            <p>Kara liste tablosu henuz veritabaninda yok. Migration calistirildiktan sonra kayit eklenebilir.</p>
+            <p>Tedbir listesi tablosu henüz veritabanında yok. Migration çalıştırıldıktan sonra kayıt eklenebilir.</p>
         </div>
     <?php endif; ?>
 
@@ -36,7 +36,7 @@ $kategoriEtiketi = static fn(string $kategori): string => $kategoriler[$kategori
             </thead>
             <tbody>
                 <?php if (!$kayitlar) : ?>
-                    <tr><td colspan="7">Kara liste kaydi bulunamadi.</td></tr>
+                    <tr><td colspan="7">Tedbir listesi kaydı bulunamadı.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($kayitlar as $kayit) : ?>
                     <tr>

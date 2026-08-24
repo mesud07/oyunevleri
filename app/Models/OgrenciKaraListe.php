@@ -116,7 +116,7 @@ final class OgrenciKaraListe extends Model
     private static function tabloGerekli(): void
     {
         if (!self::tabloVarMi()) {
-            throw new \RuntimeException('ogrenci_kara_liste tablosu bulunamadi. Migration calistirilmadan kara liste kaydi yapilamaz.');
+            throw new \RuntimeException('Tedbir listesi tablosu bulunamadı. Migration çalıştırılmadan tedbir listesi kaydı yapılamaz.');
         }
     }
 }
