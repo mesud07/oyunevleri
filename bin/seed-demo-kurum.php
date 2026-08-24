@@ -46,13 +46,12 @@ $db->beginTransaction();
 
 try {
     $kurum = $db->prepare(
-        'INSERT INTO kurumlar (ad, kod, veli_portal_anahtari, aktif, olusturulma_tarihi)
-         VALUES (:ad, :kod, :anahtar, 1, NOW())'
+        'INSERT INTO kurumlar (ad, kod, aktif, olusturulma_tarihi)
+         VALUES (:ad, :kod, 1, NOW())'
     );
     $kurum->execute([
         'ad' => $kurumAdi,
         'kod' => $kurumKodu,
-        'anahtar' => bin2hex(random_bytes(16)),
     ]);
     $kurumId = (int) $db->lastInsertId();
 
@@ -65,9 +64,9 @@ try {
 
     $kullanici = $db->prepare(
         'INSERT INTO kullanicilar
-            (kurum_id, rol_id, ad, soyad, eposta, telefon, sifre, aktif, sistem_yoneticisi, olusturulma_tarihi)
+            (kurum_id, rol_id, ad, soyad, eposta, telefon, sifre, aktif, olusturulma_tarihi)
          VALUES
-            (:kurum_id, :rol_id, :ad, :soyad, :eposta, :telefon, :sifre, 1, 0, NOW())'
+            (:kurum_id, :rol_id, :ad, :soyad, :eposta, :telefon, :sifre, 1, NOW())'
     );
     $kullanici->execute([
         'kurum_id' => $kurumId,
