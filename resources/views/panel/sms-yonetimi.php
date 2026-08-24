@@ -275,7 +275,7 @@ $smsConnectionStatus = $smsConnectionStatus ?? [];
         </div>
         <div class="info-box">
             <strong>Bilgilendirme</strong>
-            <p>Sablon olustururken ya da guncellerken SMS iceriginde {klinik_adi} etiketinin bulunmasi zorunludur.</p>
+            <p>Sablon olustururken ya da guncellerken SMS iceriginde {kurum_adi} etiketinin bulunmasi zorunludur. Manuel SMS sablonu bu kuralin disindadir.</p>
             <p>NetGSM dokumaninda SMS metin sablonu onaylatmak icin public API bulunmuyor. Bu ekrandaki onay sureci uygulama icinde yonetilir; NetGSM tarafinda sadece onayli gonderici adlari sorgulanabilir.</p>
         </div>
         <div class="table-wrap definition-table" data-sms-template-table></div>
@@ -290,13 +290,14 @@ $smsConnectionStatus = $smsConnectionStatus ?? [];
         </div>
         <div class="info-box compact-info">
             <strong>Bilgilendirme</strong>
-            <p>Sablon iceriginde {klinik_adi} etiketi zorunludur. Reklam, tanitim ve kampanya icerikleri kullanmayin.</p>
-            <p><strong>Kullanilabilir Etiketler:</strong> {veli_adi}, {ogrenci_adi}, {hasta_adi}, {grup_adi}, {tarih}, {saat}, {bitis_saati}, {ogretmen_adi}, {uzman_adi}, {paket_adi}, {katilim_linki}, {odeme_tutari}, {kalan_borc}, {odeme_sozu_tarihi}, {kurum_adi}, {klinik_adi}, {kurum_telefonu}</p>
+            <p>Sablon iceriginde {kurum_adi} etiketi zorunludur. Manuel SMS sablonu bu kuralin disindadir. Reklam, tanitim ve kampanya icerikleri kullanmayin.</p>
+            <p><strong>Kullanilabilir Etiketler:</strong> {veli_adi}, {ogrenci_adi}, {hasta_adi}, {grup_adi}, {tarih}, {saat}, {bitis_saati}, {ogretmen_adi}, {uzman_adi}, {paket_adi}, {katilim_linki}, {randevu_listesi}, {eski_tarih}, {eski_saat}, {kaynak_tarih}, {kaynak_saat}, {odeme_tutari}, {kalan_borc}, {odeme_sozu_tarihi}, {kurum_adi}, {klinik_adi}, {kurum_telefonu}</p>
         </div>
         <div class="dialog-grid one-column">
+            <input type="hidden" name="id" value="0">
             <label><span>Sablon Anahtari</span><input name="anahtar" placeholder="randevu_olusturuldu" required></label>
             <label><span>Sablon Adi</span><input name="baslik" placeholder="Randevu Olusturuldu Sablonu" required></label>
-            <label><span>SMS Icerigi</span><textarea name="mesaj" rows="7" placeholder="Sayin {veli_adi}, {ogrenci_adi} icin {tarih} {saat} randevunuz olusturulmustur. {klinik_adi}" required></textarea></label>
+            <label><span>SMS Icerigi</span><textarea name="mesaj" rows="7" placeholder="Sayin {veli_adi}, {ogrenci_adi} icin {tarih} {saat} randevunuz olusturulmustur. {kurum_adi}" required></textarea></label>
             <small class="sms-char-count" data-template-char-count>Karakter Sayisi: 0</small>
             <input type="hidden" name="aktif" value="0">
             <input type="hidden" name="otomatik_gonderim" value="0">

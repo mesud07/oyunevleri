@@ -353,6 +353,29 @@ final class SmsKaydi extends Model
 
     public static function sablonKaydet(array $veri): int
     {
+        $id = (int) ($veri['id'] ?? 0);
+        if ($id > 0) {
+            $stmt = self::db()->prepare(
+                'UPDATE sms_sablonlari
+                 SET baslik = :baslik, mesaj = :mesaj, aktif = :aktif,
+                     otomatik_gonderim = :otomatik_gonderim, onay_durumu = :onay_durumu,
+                     onay_notu = :onay_notu, aciklama = :aciklama
+                 WHERE id = :id AND kurum_id = :kurum_id'
+            );
+            $stmt->execute([
+                'id' => $id,
+                'kurum_id' => self::kurumId(),
+                'baslik' => $veri['baslik'],
+                'mesaj' => $veri['mesaj'],
+                'aktif' => (int) ($veri['aktif'] ?? 1),
+                'otomatik_gonderim' => (int) ($veri['otomatik_gonderim'] ?? 0),
+                'onay_durumu' => $veri['onay_durumu'] ?? 'incelemede',
+                'onay_notu' => $veri['onay_notu'] ?? 'Sablon incelemeye alindi.',
+                'aciklama' => $veri['aciklama'] ?? null,
+            ]);
+            return $id;
+        }
+
         $stmt = self::db()->prepare(
             'INSERT INTO sms_sablonlari (kurum_id, anahtar, baslik, mesaj, aktif, otomatik_gonderim, onay_durumu, onay_notu, aciklama)
              VALUES (:kurum_id, :anahtar, :baslik, :mesaj, :aktif, :otomatik_gonderim, :onay_durumu, :onay_notu, :aciklama)

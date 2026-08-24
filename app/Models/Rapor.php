@@ -540,7 +540,7 @@ final class Rapor extends Model
              INNER JOIN (
                 SELECT ogrenci_id, MAX(id) AS son_paket_id
                 FROM paketler
-                WHERE kurum_id = :kurum_id_sub AND paket_durumu <> "iptal"
+                WHERE kurum_id = :kurum_id_sub AND paket_durumu = "aktif" AND toplam_normal_hak > 1
                 GROUP BY ogrenci_id
              ) sp ON sp.son_paket_id = p.id
              WHERE p.kurum_id = :kurum_id
@@ -581,7 +581,7 @@ final class Rapor extends Model
              INNER JOIN (
                 SELECT ogrenci_id, MAX(id) AS son_paket_id
                 FROM paketler
-                WHERE kurum_id = :kurum_id_sub AND paket_durumu <> "iptal"
+                WHERE kurum_id = :kurum_id_sub AND paket_durumu = "aktif" AND toplam_normal_hak > 1
                 GROUP BY ogrenci_id
              ) sp ON sp.son_paket_id = p.id
              WHERE p.kurum_id = :kurum_id
@@ -614,7 +614,7 @@ final class Rapor extends Model
              INNER JOIN (
                 SELECT ogrenci_id, MAX(id) AS son_paket_id
                 FROM paketler
-                WHERE kurum_id = :kurum_id_sub AND paket_durumu <> "iptal"
+                WHERE kurum_id = :kurum_id_sub AND paket_durumu = "aktif" AND toplam_normal_hak > 1
                 GROUP BY ogrenci_id
              ) sp ON sp.son_paket_id = p.id
              WHERE p.kurum_id = :kurum_id

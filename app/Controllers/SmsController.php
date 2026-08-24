@@ -498,14 +498,26 @@ final class SmsController extends Controller
             Response::json(['basari' => false, 'mesaj' => 'Sablon alanlari eksik.', 'hatalar' => $hatalar], 422);
             return;
         }
-        if (!str_contains((string) $data['mesaj'], '{klinik_adi}')) {
-            Response::json(['basari' => false, 'mesaj' => 'SMS iceriginde {klinik_adi} etiketi zorunludur.', 'hatalar' => ['mesaj' => '{klinik_adi} zorunlu.']], 422);
+        $anahtar = preg_replace('/[^a-z0-9_]/', '', mb_strtolower((string) $data['anahtar']));
+        $mesaj = trim((string) $data['mesaj']);
+        if ($anahtar === '') {
+            Response::json(['basari' => false, 'mesaj' => 'Sablon anahtari gecersiz.', 'hatalar' => ['anahtar' => 'Yalnizca kucuk harf, rakam ve alt cizgi kullanin.']], 422);
+            return;
+        }
+        $kurumEtiketiVar = str_contains($mesaj, '{kurum_adi}') || str_contains($mesaj, '{klinik_adi}');
+        if ($anahtar !== 'manuel_sms' && !$kurumEtiketiVar) {
+            Response::json([
+                'basari' => false,
+                'mesaj' => 'SMS iceriginde {kurum_adi} etiketi bulunmalidir.',
+                'hatalar' => ['mesaj' => '{kurum_adi} etiketi zorunlu.'],
+            ], 422);
             return;
         }
         $id = SmsKaydi::sablonKaydet([
-            'anahtar' => preg_replace('/[^a-z0-9_]/', '', mb_strtolower((string) $data['anahtar'])),
+            'id' => (int) ($data['id'] ?? 0),
+            'anahtar' => $anahtar,
             'baslik' => trim((string) $data['baslik']),
-            'mesaj' => trim((string) $data['mesaj']),
+            'mesaj' => $mesaj,
             'aktif' => (int) ($data['aktif'] ?? 1),
             'otomatik_gonderim' => (int) ($data['otomatik_gonderim'] ?? 0),
             'onay_durumu' => 'incelemede',

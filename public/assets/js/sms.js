@@ -286,6 +286,8 @@
   function openTemplateDialog(row = null) {
     if (!templateDialog || !templateForm) return;
     templateForm.reset();
+    const keyInput = templateForm.querySelector('[name="anahtar"]');
+    if (keyInput) keyInput.readOnly = Boolean(row);
     templateForm.querySelector('[name="aktif"]').value = '0';
     templateForm.querySelector('[name="otomatik_gonderim"]').value = '0';
     if (row) {
@@ -332,9 +334,9 @@
               <td>${escapeHtml(row.mesaj)}</td>
               <td>${templateStatus(row)}</td>
               <td class="action-cell">
-                <button class="mini-btn" type="button" data-template-edit='${escapeHtml(JSON.stringify(row))}'>...</button>
-                <button class="mini-btn" type="button" data-template-approve="${escapeHtml(row.anahtar)}">Onayla</button>
-                <button class="mini-btn danger" type="button" data-template-reject="${escapeHtml(row.anahtar)}">Reddet</button>
+                <button class="mini-btn" type="button" data-template-edit='${escapeHtml(JSON.stringify(row))}'>Duzenle</button>
+                ${row.onay_durumu !== 'kullanilabilir' ? `<button class="mini-btn" type="button" data-template-approve="${escapeHtml(row.anahtar)}">Onayla</button>` : ''}
+                ${row.onay_durumu !== 'reddedildi' ? `<button class="mini-btn danger" type="button" data-template-reject="${escapeHtml(row.anahtar)}">Reddet</button>` : ''}
               </td>
             </tr>
           `).join('')}
@@ -378,9 +380,10 @@
 
   templateForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
+    const templateKey = templateForm.querySelector('[name="anahtar"]')?.value || '';
     const message = templateForm.querySelector('[name="mesaj"]')?.value || '';
-    if (!message.includes('{klinik_adi}')) {
-      alert('SMS iceriginde {klinik_adi} etiketi bulunmalidir.');
+    if (templateKey !== 'manuel_sms' && !message.includes('{kurum_adi}') && !message.includes('{klinik_adi}')) {
+      alert('SMS iceriginde {kurum_adi} etiketi bulunmalidir.');
       return;
     }
     const button = templateForm.querySelector('button[type="submit"]');
