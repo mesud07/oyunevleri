@@ -1802,6 +1802,272 @@ body * {
   background-color: rgba(62, 126, 164, 0.16);
 }
 
+/* Koyu temada kendi beyaz zeminini tanimlayan sayfa bilesenleri */
+:root[data-theme="dark"] .report-card strong,
+:root[data-theme="dark"] .stat-card strong,
+:root[data-theme="dark"] .appointment-stat strong,
+:root[data-theme="dark"] .capacity-metrics strong {
+  color: #f1f7ff;
+}
+
+:root[data-theme="dark"] .report-card span,
+:root[data-theme="dark"] .stat-card span,
+:root[data-theme="dark"] .appointment-stat span,
+:root[data-theme="dark"] .capacity-metrics span {
+  color: #b4c2d3;
+}
+
+:root[data-theme="dark"] .weekly-info,
+:root[data-theme="dark"] .calendar-view-switch,
+:root[data-theme="dark"] .calendar-day-view-head,
+:root[data-theme="dark"] .calendar-day-row,
+:root[data-theme="dark"] .group-vacancy-controls,
+:root[data-theme="dark"] .package-price-panel,
+:root[data-theme="dark"] .inline-form-panel,
+:root[data-theme="dark"] .definition-card,
+:root[data-theme="dark"] .form-card,
+:root[data-theme="dark"] .nested-card,
+:root[data-theme="dark"] .assistant-heading {
+  border-color: var(--glass-border);
+  background: rgba(17, 29, 44, 0.9);
+  color: var(--ink);
+}
+
+:root[data-theme="dark"] .appointment-list-wrap table,
+:root[data-theme="dark"] .appointment-list-wrap .appointment-table,
+:root[data-theme="dark"] .fast-table-wrap table,
+:root[data-theme="dark"] .fast-table-wrap .weekly-program-table,
+:root[data-theme="dark"] .weekly-program-table-wrap,
+:root[data-theme="dark"] .weekly-program-table {
+  background: #111d2c;
+}
+
+:root[data-theme="dark"] .appointment-list-wrap th,
+:root[data-theme="dark"] .fast-table-wrap th,
+:root[data-theme="dark"] .weekly-program-table th {
+  border-color: rgba(147, 176, 204, 0.2);
+  background: #20344b;
+  color: #dce8f5;
+}
+
+:root[data-theme="dark"] .appointment-list-wrap td,
+:root[data-theme="dark"] .fast-table-wrap td,
+:root[data-theme="dark"] .weekly-program-table td,
+:root[data-theme="dark"] tbody td {
+  border-color: rgba(137, 164, 191, 0.14);
+  background: #121f2f;
+  color: #e6eef8;
+}
+
+:root[data-theme="dark"] .appointment-list-wrap tr:nth-child(even) td,
+:root[data-theme="dark"] .fast-table-wrap tr:nth-child(even) td,
+:root[data-theme="dark"] .weekly-program-table tr:nth-child(even) td,
+:root[data-theme="dark"] tbody tr:nth-child(even) td {
+  background: #18283a;
+}
+
+:root[data-theme="dark"] .appointment-list-wrap tbody tr:hover td,
+:root[data-theme="dark"] .fast-table-wrap tbody tr:hover td,
+:root[data-theme="dark"] tbody tr:hover td {
+  background: #223a51;
+}
+
+:root[data-theme="dark"] .weekly-program-table input,
+:root[data-theme="dark"] .weekly-program-table select,
+:root[data-theme="dark"] .appointment-toolbar-actions select,
+:root[data-theme="dark"] .dialog-grid input,
+:root[data-theme="dark"] .dialog-grid select,
+:root[data-theme="dark"] .dialog-grid textarea,
+:root[data-theme="dark"] .record-fields input,
+:root[data-theme="dark"] .record-fields select,
+:root[data-theme="dark"] .record-fields textarea {
+  border-color: rgba(151, 181, 208, 0.28);
+  background: #0c1725;
+  color: #edf5ff;
+}
+
+:root[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+:root[data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.3);
+  opacity: 0.85;
+}
+
+:root[data-theme="dark"] .weekly-actions button,
+:root[data-theme="dark"] .appointment-list-wrap .row-actions button,
+:root[data-theme="dark"] .fast-table-wrap button,
+:root[data-theme="dark"] .fast-table-wrap .btn,
+:root[data-theme="dark"] .fast-table-wrap .mini-btn {
+  border-color: rgba(145, 176, 205, 0.2);
+  background: #20344a;
+  color: #eaf3fd;
+}
+
+:root[data-theme="dark"] .weekly-actions button.is-assign {
+  color: #67e6c6;
+}
+
+:root[data-theme="dark"] .weekly-actions button.is-copy {
+  border-color: rgba(95, 196, 245, 0.24);
+  background: #19354b;
+  color: #82d4fb;
+}
+
+:root[data-theme="dark"] .weekly-sort-button::after {
+  background: rgba(82, 169, 216, 0.2);
+  color: #9fddfb;
+}
+
+:root[data-theme="dark"] .calendar-month,
+:root[data-theme="dark"] .calendar-week {
+  border-color: rgba(139, 169, 198, 0.2);
+  background: #111d2c;
+}
+
+:root[data-theme="dark"] .calendar-head,
+:root[data-theme="dark"] .calendar-day-popover-head {
+  border-color: rgba(139, 169, 198, 0.2);
+  background: #20344b;
+  color: #e5eef8;
+}
+
+:root[data-theme="dark"] .calendar-cell {
+  border-color: rgba(139, 169, 198, 0.17);
+  background: #121f2f;
+}
+
+:root[data-theme="dark"] .calendar-cell.is-muted {
+  background: #0d1825;
+}
+
+:root[data-theme="dark"] .calendar-cell.is-today {
+  background: #2b2b25;
+  box-shadow: inset 0 0 0 1px rgba(241, 193, 86, 0.22);
+}
+
+:root[data-theme="dark"] .calendar-date {
+  color: #b9c8d9;
+}
+
+:root[data-theme="dark"] .calendar-cell.is-muted .calendar-date {
+  color: #627286;
+}
+
+:root[data-theme="dark"] .calendar-event,
+:root[data-theme="dark"] .calendar-day-popover-event {
+  color: #f5f9ff;
+}
+
+:root[data-theme="dark"] .calendar-event.is-planned,
+:root[data-theme="dark"] .calendar-day-popover-event.is-planned {
+  background: #287eae;
+}
+
+:root[data-theme="dark"] .calendar-event.is-success,
+:root[data-theme="dark"] .calendar-day-popover-event.is-success {
+  background: #0f9f88;
+}
+
+:root[data-theme="dark"] .calendar-event.is-danger,
+:root[data-theme="dark"] .calendar-day-popover-event.is-danger {
+  background: #a83f59;
+}
+
+:root[data-theme="dark"] .calendar-event.is-dark,
+:root[data-theme="dark"] .calendar-day-popover-event.is-dark {
+  background: #263b52;
+}
+
+:root[data-theme="dark"] .calendar-event.is-makeup,
+:root[data-theme="dark"] .calendar-day-popover-event.is-makeup {
+  background: #6e51b9;
+}
+
+:root[data-theme="dark"] .calendar-more {
+  border-color: rgba(139, 169, 198, 0.18);
+  background: #23364b;
+  color: #dce8f6;
+}
+
+:root[data-theme="dark"] .appointment-context-menu button {
+  color: #e5eef8;
+}
+
+:root[data-theme="dark"] .appointment-context-menu button:hover {
+  background: #243b52;
+}
+
+:root[data-theme="dark"] .income-breakdown,
+:root[data-theme="dark"] .income-formula,
+:root[data-theme="dark"] .income-breakdown-summary article,
+:root[data-theme="dark"] .income-bar-row,
+:root[data-theme="dark"] .income-bar-row.is-excluded,
+:root[data-theme="dark"] .capacity-result {
+  border-color: rgba(145, 176, 205, 0.2);
+  background: #142234;
+  color: var(--ink);
+}
+
+:root[data-theme="dark"] .income-breakdown {
+  background: rgba(18, 31, 47, 0.92);
+}
+
+:root[data-theme="dark"] .income-breakdown-head h3,
+:root[data-theme="dark"] .income-formula strong,
+:root[data-theme="dark"] .income-formula em,
+:root[data-theme="dark"] .income-breakdown-summary strong,
+:root[data-theme="dark"] .income-bar-label strong,
+:root[data-theme="dark"] .capacity-calculator h3 {
+  color: #edf5ff;
+}
+
+:root[data-theme="dark"] .income-formula span,
+:root[data-theme="dark"] .income-breakdown-summary span,
+:root[data-theme="dark"] .income-bar-label span,
+:root[data-theme="dark"] .income-bar-values span,
+:root[data-theme="dark"] .income-bar-values em,
+:root[data-theme="dark"] .capacity-result span,
+:root[data-theme="dark"] .capacity-calculator small {
+  color: #aebed0;
+}
+
+:root[data-theme="dark"] .income-breakdown-summary em,
+:root[data-theme="dark"] .income-bar-values em,
+:root[data-theme="dark"] .capacity-result strong {
+  color: #5fdbc4;
+}
+
+:root[data-theme="dark"] .income-bar-track,
+:root[data-theme="dark"] .report-bar-row div {
+  background: #27394d;
+}
+
+:root[data-theme="dark"] .status-pill {
+  border-color: rgba(161, 188, 213, 0.22);
+  background: #293a4d;
+  color: #dbe6f2;
+  box-shadow: none;
+}
+
+:root[data-theme="dark"] .status-pill.is-planned {
+  background: rgba(47, 159, 232, 0.2);
+  color: #83cdfa;
+}
+
+:root[data-theme="dark"] .status-pill.is-success {
+  background: rgba(18, 189, 163, 0.18);
+  color: #67e3cc;
+}
+
+:root[data-theme="dark"] .status-pill.is-danger {
+  background: rgba(195, 49, 84, 0.22);
+  color: #ff9bae;
+}
+
+:root[data-theme="dark"] .status-pill.is-makeup {
+  background: rgba(124, 58, 237, 0.2);
+  color: #c4a8ff;
+}
+
 :root[data-theme="dark"] .dashboard-portal-info-copy p,
 :root[data-theme="dark"] .renewal-day-head span,
 :root[data-theme="dark"] .renewal-day-list span,
