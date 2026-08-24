@@ -11,6 +11,7 @@ $asset = static function (string $path): string {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= e($baslik ?? 'Panel') ?> | Oyun Evleri Yönetim Sistemi</title>
+    <script src="<?= e($asset('/assets/js/theme-init.js')) ?>"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -131,10 +132,22 @@ $asset = static function (string $path): string {
                     <p>Merhaba, <?= e(($kullanici['ad'] ?? '') . ' ' . ($kullanici['soyad'] ?? '')) ?></p>
                     <strong><?= e($kullanici['kurum_adi'] ?? 'Oyun Evleri Yönetim Sistemi') ?> / <?= e((int) ($kullanici['sistem_yoneticisi'] ?? 0) === 1 ? 'Sistem Yoneticisi' : ($kullanici['rol_adi'] ?? '')) ?></strong>
                 </div>
-                <form method="post" action="/cikis">
-                    <input type="hidden" name="csrf" value="<?= e($csrf ?? '') ?>">
-                    <button class="btn btn-ghost" type="submit">Cikis</button>
-                </form>
+                <div class="topbar-actions">
+                    <button class="btn btn-ghost theme-toggle" type="button" data-theme-toggle aria-pressed="false" aria-label="Koyu modu ac">
+                        <svg class="theme-toggle-moon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"></path>
+                        </svg>
+                        <svg class="theme-toggle-sun" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="4"></circle>
+                            <path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"></path>
+                        </svg>
+                        <span data-theme-label>Koyu Mod</span>
+                    </button>
+                    <form method="post" action="/cikis">
+                        <input type="hidden" name="csrf" value="<?= e($csrf ?? '') ?>">
+                        <button class="btn btn-ghost" type="submit">Cikis</button>
+                    </form>
+                </div>
             </header>
             <?php
             $sayfaYetkileri = [

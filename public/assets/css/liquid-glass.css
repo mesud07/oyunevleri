@@ -1533,3 +1533,321 @@ body * {
   text-align: center;
   line-height: 1.25;
 }
+
+/* Panel tema secici */
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.topbar-actions form {
+  margin: 0;
+}
+
+.theme-toggle svg {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 19px;
+}
+
+.theme-toggle-sun {
+  display: none;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --primary: #5fc4f5;
+  --primary-dark: #8bd5fa;
+  --ink: #edf5ff;
+  --muted: #aab8ca;
+  --line: rgba(151, 174, 201, 0.22);
+  --soft: rgba(20, 31, 46, 0.72);
+  --white: rgba(17, 27, 41, 0.88);
+  --danger: #ff8b80;
+  --shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
+  --glass-bg: rgba(20, 31, 46, 0.7);
+  --glass-bg-strong: rgba(25, 38, 55, 0.88);
+  --glass-border: rgba(166, 190, 218, 0.18);
+  --glass-inner: inset 0 1px 0 rgba(255, 255, 255, 0.07), inset 0 -16px 32px rgba(4, 11, 20, 0.16);
+}
+
+:root[data-theme="dark"],
+:root[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at 18% 8%, rgba(39, 119, 163, 0.2), transparent 34%),
+    radial-gradient(circle at 88% 10%, rgba(45, 89, 132, 0.18), transparent 28%),
+    linear-gradient(135deg, #0b121d 0%, #101a28 44%, #0b1420 100%);
+}
+
+:root[data-theme="dark"] body {
+  color: var(--ink);
+}
+
+:root[data-theme="dark"] body::before {
+  background:
+    linear-gradient(115deg, transparent 0 22%, rgba(91, 178, 225, 0.08) 34%, transparent 48%),
+    linear-gradient(180deg, rgba(108, 169, 205, 0.06), transparent 38%);
+  opacity: 1;
+}
+
+:root[data-theme="dark"] * {
+  scrollbar-color: rgba(137, 166, 194, 0.4) transparent;
+}
+
+:root[data-theme="dark"] .sidebar,
+:root[data-theme="dark"] .topbar,
+:root[data-theme="dark"] .auth-card,
+:root[data-theme="dark"] .stat-card,
+:root[data-theme="dark"] .panel-card,
+:root[data-theme="dark"] .record-card,
+:root[data-theme="dark"] .report-card,
+:root[data-theme="dark"] .appointment-stat,
+:root[data-theme="dark"] .appointment-shortcuts,
+:root[data-theme="dark"] .appointment-calendar-card,
+:root[data-theme="dark"] .weekly-program-card,
+:root[data-theme="dark"] .table-wrap,
+:root[data-theme="dark"] .definition-table,
+:root[data-theme="dark"] .renewal-day,
+:root[data-theme="dark"] .renewal-calendar-summary,
+:root[data-theme="dark"] .capacity-metrics article,
+:root[data-theme="dark"] .capacity-calculator,
+:root[data-theme="dark"] .appointment-dialog-form,
+:root[data-theme="dark"] .appointment-detail-card,
+:root[data-theme="dark"] .calendar-day-popover,
+:root[data-theme="dark"] .appointment-context-menu,
+:root[data-theme="dark"] .group-vacancy-summary article,
+:root[data-theme="dark"] .group-vacancy-day,
+:root[data-theme="dark"] .group-vacancy-slot,
+:root[data-theme="dark"] .group-student-item,
+:root[data-theme="dark"] .sms-template-dialog,
+:root[data-theme="dark"] .empty-table,
+:root[data-theme="dark"] .dashboard-portal-info,
+:root[data-theme="dark"] .info-box,
+:root[data-theme="dark"] .renewal-week,
+:root[data-theme="dark"] .renewal-item,
+:root[data-theme="dark"] .sms-report-summary article,
+:root[data-theme="dark"] .appointment-note-list article,
+:root[data-theme="dark"] .student-profile-hero,
+:root[data-theme="dark"] .definition-head,
+:root[data-theme="dark"] .user-role-matrix-section,
+:root[data-theme="dark"] .user-role-group,
+:root[data-theme="dark"] .user-role-option {
+  border-color: var(--glass-border);
+  background:
+    linear-gradient(145deg, rgba(28, 43, 61, 0.92), rgba(15, 26, 40, 0.76)),
+    rgba(17, 28, 42, 0.82);
+  color: var(--ink);
+  box-shadow: var(--glass-inner), var(--shadow);
+}
+
+:root[data-theme="dark"] .sidebar {
+  background:
+    linear-gradient(160deg, rgba(25, 39, 57, 0.96), rgba(13, 23, 36, 0.88)),
+    #101b2a;
+}
+
+:root[data-theme="dark"] .brand-mark,
+:root[data-theme="dark"] .auth-logo,
+:root[data-theme="dark"] .sidebar-toggle,
+:root[data-theme="dark"] .topbar-menu-button {
+  border-color: rgba(159, 190, 218, 0.18);
+  background: rgba(29, 45, 64, 0.74);
+  color: var(--ink);
+  box-shadow: var(--glass-inner), 0 18px 44px rgba(0, 0, 0, 0.2);
+}
+
+:root[data-theme="dark"] .menu a,
+:root[data-theme="dark"] .menu button,
+:root[data-theme="dark"] .submenu a {
+  color: rgba(232, 242, 253, 0.9);
+}
+
+:root[data-theme="dark"] .menu a:hover,
+:root[data-theme="dark"] .menu a.is-active,
+:root[data-theme="dark"] .menu button:hover,
+:root[data-theme="dark"] .menu button.is-active,
+:root[data-theme="dark"] .submenu a:hover,
+:root[data-theme="dark"] .submenu a.is-active {
+  border-color: rgba(115, 194, 237, 0.25);
+  background: rgba(56, 112, 148, 0.24);
+  color: #f5faff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 16px 36px rgba(0, 0, 0, 0.18);
+}
+
+:root[data-theme="dark"] .page-head h1,
+:root[data-theme="dark"] .record-titlebar h1,
+:root[data-theme="dark"] .report-panel h2,
+:root[data-theme="dark"] .panel-card h2,
+:root[data-theme="dark"] .record-card h2,
+:root[data-theme="dark"] .appointment-toolbar h2,
+:root[data-theme="dark"] .dialog-head h2,
+:root[data-theme="dark"] .user-role-matrix-head h3,
+:root[data-theme="dark"] .user-role-option strong,
+:root[data-theme="dark"] th {
+  color: var(--ink);
+}
+
+:root[data-theme="dark"] .page-head p,
+:root[data-theme="dark"] .topbar p,
+:root[data-theme="dark"] .brand small,
+:root[data-theme="dark"] .report-helper,
+:root[data-theme="dark"] .appointment-toolbar p,
+:root[data-theme="dark"] .muted,
+:root[data-theme="dark"] small,
+:root[data-theme="dark"] .user-role-option em,
+:root[data-theme="dark"] .user-role-matrix-head p,
+:root[data-theme="dark"] .user-role-group-head small {
+  color: var(--muted);
+}
+
+:root[data-theme="dark"] .main :where(h1, h2, h3, h4, label, td) {
+  color: var(--ink);
+}
+
+:root[data-theme="dark"] .main a:not(.btn):not(.status-pill) {
+  color: #79cdf6;
+}
+
+:root[data-theme="dark"] .btn,
+:root[data-theme="dark"] button,
+:root[data-theme="dark"] .mini-btn,
+:root[data-theme="dark"] .appointment-stat button,
+:root[data-theme="dark"] .weekly-actions button,
+:root[data-theme="dark"] .calendar-more,
+:root[data-theme="dark"] .record-actions button {
+  border-color: rgba(158, 188, 215, 0.18);
+  background:
+    linear-gradient(145deg, rgba(43, 61, 81, 0.9), rgba(23, 37, 53, 0.8)),
+    rgba(24, 38, 55, 0.86);
+  color: var(--ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 16px 42px rgba(0, 0, 0, 0.22);
+}
+
+:root[data-theme="dark"] .btn::before,
+:root[data-theme="dark"] button::before,
+:root[data-theme="dark"] .mini-btn::before,
+:root[data-theme="dark"] .weekly-actions button::before {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent);
+}
+
+:root[data-theme="dark"] .btn-primary {
+  border-color: rgba(101, 203, 249, 0.34);
+  background: linear-gradient(145deg, #318fc1, #256f9b);
+  color: #fff;
+}
+
+:root[data-theme="dark"] .btn-sky,
+:root[data-theme="dark"] .btn-ghost.is-active,
+:root[data-theme="dark"] button.is-active {
+  border-color: rgba(104, 205, 249, 0.32);
+  background: rgba(43, 135, 181, 0.44);
+  color: #f4fbff;
+}
+
+:root[data-theme="dark"] .btn-danger,
+:root[data-theme="dark"] button.btn-danger {
+  border-color: rgba(255, 139, 128, 0.3);
+  background: rgba(136, 48, 45, 0.74);
+  color: #ffdeda;
+}
+
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea,
+:root[data-theme="dark"] .table-search input {
+  border-color: rgba(153, 181, 208, 0.22);
+  background: rgba(9, 18, 29, 0.7);
+  color: var(--ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+:root[data-theme="dark"] input::placeholder,
+:root[data-theme="dark"] textarea::placeholder {
+  color: #8190a3;
+  opacity: 1;
+}
+
+:root[data-theme="dark"] select option {
+  background: #132033;
+  color: var(--ink);
+}
+
+:root[data-theme="dark"] table,
+:root[data-theme="dark"] thead,
+:root[data-theme="dark"] tbody,
+:root[data-theme="dark"] tr,
+:root[data-theme="dark"] td,
+:root[data-theme="dark"] th {
+  border-color: rgba(146, 174, 202, 0.16);
+}
+
+:root[data-theme="dark"] thead,
+:root[data-theme="dark"] th {
+  background: rgba(31, 48, 68, 0.78);
+}
+
+:root[data-theme="dark"] tbody tr,
+:root[data-theme="dark"] .renewal-day,
+:root[data-theme="dark"] .calendar-day,
+:root[data-theme="dark"] .schedule-row,
+:root[data-theme="dark"] .appointment-row,
+:root[data-theme="dark"] .sms-template-row {
+  background-color: rgba(14, 25, 38, 0.5);
+}
+
+:root[data-theme="dark"] tbody tr:hover {
+  background-color: rgba(62, 126, 164, 0.16);
+}
+
+:root[data-theme="dark"] .dashboard-portal-info-copy p,
+:root[data-theme="dark"] .renewal-day-head span,
+:root[data-theme="dark"] .renewal-day-list span,
+:root[data-theme="dark"] .renewal-day-list em,
+:root[data-theme="dark"] .sms-report-summary span {
+  color: var(--muted);
+}
+
+:root[data-theme="dark"] dialog,
+:root[data-theme="dark"] .modal,
+:root[data-theme="dark"] .popover,
+:root[data-theme="dark"] .dropdown-menu {
+  color: var(--ink);
+}
+
+:root[data-theme="dark"] dialog::backdrop {
+  background: rgba(2, 7, 14, 0.72);
+}
+
+:root[data-theme="dark"] .theme-toggle-moon {
+  display: none;
+}
+
+:root[data-theme="dark"] .theme-toggle-sun {
+  display: block;
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    flex-wrap: wrap;
+  }
+
+  .topbar-actions {
+    width: 100%;
+  }
+
+  .topbar-actions .theme-toggle {
+    flex: 1;
+  }
+}
+
+@media print {
+  :root[data-theme="dark"],
+  :root[data-theme="dark"] body {
+    color-scheme: light;
+    color: #132033;
+    background: #fff;
+  }
+}

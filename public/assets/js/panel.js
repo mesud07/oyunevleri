@@ -1,3 +1,48 @@
+(() => {
+  const storageKey = 'oyunevleriTheme';
+  const root = document.documentElement;
+  const toggles = Array.from(document.querySelectorAll('[data-theme-toggle]'));
+
+  if (!toggles.length) {
+    return;
+  }
+
+  function isDark() {
+    return root.dataset.theme === 'dark';
+  }
+
+  function updateButtons() {
+    const dark = isDark();
+    toggles.forEach((toggle) => {
+      const label = toggle.querySelector('[data-theme-label]');
+      toggle.setAttribute('aria-pressed', dark ? 'true' : 'false');
+      toggle.setAttribute('aria-label', dark ? 'Acik modu ac' : 'Koyu modu ac');
+      if (label) {
+        label.textContent = dark ? 'Acik Mod' : 'Koyu Mod';
+      }
+    });
+  }
+
+  toggles.forEach((toggle) => {
+    toggle.addEventListener('click', () => {
+      const nextTheme = isDark() ? 'light' : 'dark';
+      if (nextTheme === 'dark') {
+        root.dataset.theme = 'dark';
+      } else {
+        delete root.dataset.theme;
+      }
+      try {
+        localStorage.setItem(storageKey, nextTheme);
+      } catch (error) {
+        // Depolama kapali olsa da tema mevcut sayfada calismaya devam eder.
+      }
+      updateButtons();
+    });
+  });
+
+  updateButtons();
+})();
+
 document.addEventListener('click', async (event) => {
   const portalCopyButton = event.target.closest('[data-parent-portal-copy]');
   if (portalCopyButton) {
