@@ -2068,6 +2068,74 @@ body * {
   color: #c4a8ff;
 }
 
+:root[data-theme="dark"] .dashboard-date-pill,
+:root[data-theme="dark"] .dashboard-day-card {
+  border-color: rgba(149, 178, 205, 0.2);
+  background:
+    linear-gradient(145deg, rgba(29, 44, 63, 0.94), rgba(15, 27, 42, 0.88)),
+    #111d2c;
+  color: var(--ink);
+  box-shadow: var(--glass-inner), 0 18px 44px rgba(0, 0, 0, 0.24);
+}
+
+:root[data-theme="dark"] .dashboard-date-pill {
+  color: #c3d1e1;
+}
+
+:root[data-theme="dark"] .dashboard-date-pill svg {
+  color: #8fa5bc;
+}
+
+:root[data-theme="dark"] .dashboard-day-card-main span:not(.dashboard-day-icon),
+:root[data-theme="dark"] .dashboard-day-heading p {
+  color: #aebdd0;
+}
+
+:root[data-theme="dark"] .dashboard-day-card-main strong,
+:root[data-theme="dark"] .dashboard-day-heading h1 {
+  color: #f2f7fd;
+}
+
+:root[data-theme="dark"] .dashboard-day-card.is-blue .dashboard-day-icon {
+  background: rgba(46, 116, 202, 0.2);
+  color: #78b7ff;
+}
+
+:root[data-theme="dark"] .dashboard-day-card.is-blue .dashboard-day-card-foot em {
+  background: rgba(47, 136, 202, 0.16);
+  color: #82c5f5;
+}
+
+:root[data-theme="dark"] .dashboard-day-card.is-green .dashboard-day-icon,
+:root[data-theme="dark"] .dashboard-day-card.is-teal .dashboard-day-icon {
+  background: rgba(24, 158, 111, 0.17);
+  color: #62ddb1;
+}
+
+:root[data-theme="dark"] .dashboard-day-card.is-green .dashboard-day-card-foot em,
+:root[data-theme="dark"] .dashboard-day-card.is-teal .dashboard-day-card-foot em {
+  background: rgba(24, 158, 111, 0.14);
+  color: #65d5ae;
+}
+
+:root[data-theme="dark"] .dashboard-day-card.is-orange .dashboard-day-icon {
+  background: rgba(226, 105, 40, 0.17);
+  color: #ff9a62;
+}
+
+:root[data-theme="dark"] .dashboard-day-card.is-orange .dashboard-day-card-foot em {
+  background: rgba(226, 105, 40, 0.14);
+  color: #ff9f69;
+}
+
+:root[data-theme="dark"] .dashboard-day-card-foot a,
+:root[data-theme="dark"] .dashboard-day-card.is-blue .dashboard-day-card-foot a,
+:root[data-theme="dark"] .dashboard-day-card.is-green .dashboard-day-card-foot a,
+:root[data-theme="dark"] .dashboard-day-card.is-orange .dashboard-day-card-foot a,
+:root[data-theme="dark"] .dashboard-day-card.is-teal .dashboard-day-card-foot a {
+  color: #91cff2;
+}
+
 :root[data-theme="dark"] .dashboard-portal-info-copy p,
 :root[data-theme="dark"] .renewal-day-head span,
 :root[data-theme="dark"] .renewal-day-list span,
