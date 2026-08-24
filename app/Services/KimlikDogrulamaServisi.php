@@ -12,7 +12,10 @@ final class KimlikDogrulamaServisi
 {
     public function giris(string $eposta, string $sifre, string $kurumKodu = 'TALYA'): bool
     {
-        $kurumKodu = strtoupper(trim($kurumKodu) !== '' ? trim($kurumKodu) : 'TALYA');
+        $eposta = trim($eposta);
+        $kurumKodu = strcasecmp($eposta, 'demo') === 0
+            ? 'DEMO'
+            : strtoupper(trim($kurumKodu) !== '' ? trim($kurumKodu) : 'TALYA');
         $kullanici = Kullanici::epostaIleBul($eposta, $kurumKodu);
         if (!$kullanici || !password_verify($sifre, (string) $kullanici['sifre'])) {
             IslemKaydi::ekle(null, 'giris_basarisiz', 'Basarisiz giris denemesi', [
