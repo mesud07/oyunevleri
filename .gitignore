@@ -1,0 +1,32 @@
+.DS_Store
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Runtime files
+storage/*.lock
+storage/logs/
+storage/cache/
+storage/sessions/
+storage/uploads/
+storage/backups/
+
+# Database dumps and backups
+talya_db.sql
+dump.sql
+backup.sql
+*_dump.sql
+*_backup.sql
+*.dump
+*.bak
+*.backup
+
+# Dependencies and local tooling
+vendor/
+node_modules/
+
+# IDE
+.idea/
+.vscode/

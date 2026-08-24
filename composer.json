@@ -1,5 +1,16 @@
 {
-    "require": {
-        "phpmailer/phpmailer": "^7.0"
+  "name": "oyun-evleri/yonetim-sistemi",
+  "description": "Oyun Evleri Yönetim Sistemi bağımsız PHP 8.2 uygulaması",
+  "type": "project",
+  "require": {
+    "php": "^8.2",
+    "ext-pdo": "*",
+    "ext-pdo_mysql": "*",
+    "dompdf/dompdf": "^3"
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "app/"
     }
+  }
 }

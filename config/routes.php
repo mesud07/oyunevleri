@@ -1,0 +1,65 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Controllers\GirisController;
+use App\Controllers\BekleyenVeliController;
+use App\Controllers\GrupController;
+use App\Controllers\GunlukKayitController;
+use App\Controllers\HaftalikTemaController;
+use App\Controllers\KasaController;
+use App\Controllers\KullaniciController;
+use App\Controllers\KurumController;
+use App\Controllers\OdemeController;
+use App\Controllers\OgrenciController;
+use App\Controllers\OnamFormuController;
+use App\Controllers\PaketController;
+use App\Controllers\RandevuController;
+use App\Controllers\RandevuKatilimController;
+use App\Controllers\PanelController;
+use App\Controllers\RaporController;
+use App\Controllers\SmsController;
+use App\Controllers\VeliController;
+use App\Controllers\VeliPortalController;
+use App\Core\Router;
+
+return function (Router $router): void {
+    $router->get('/', [GirisController::class, 'form']);
+    $router->get('/giris', [GirisController::class, 'form']);
+    $router->post('/giris', [GirisController::class, 'giris']);
+    $router->post('/cikis', [GirisController::class, 'cikis']);
+    $router->get('/veli-portal', [VeliPortalController::class, 'form']);
+    $router->post('/veli-portal', [VeliPortalController::class, 'dogrula']);
+    $router->get('/randevu-katilim', [RandevuKatilimController::class, 'form']);
+    $router->post('/randevu-katilim', [RandevuKatilimController::class, 'kaydet']);
+    $router->get('/panel', [PanelController::class, 'genelBakis']);
+    $router->get('/panel/ogrenciler', [OgrenciController::class, 'sayfa']);
+    $router->get('/panel/ogrenciler/yeni', [OgrenciController::class, 'yeniKayit']);
+    $router->get('/panel/ogrenciler/profil', [OgrenciController::class, 'profil']);
+    $router->get('/panel/ogrenciler/tema-etkinlikleri', [OgrenciController::class, 'temaEtkinlikleri']);
+    $router->get('/panel/ogrenciler/kara-liste', [OgrenciController::class, 'karaListeSayfa']);
+    $router->get('/panel/onam-formlari/pdf', [OnamFormuController::class, 'pdf']);
+    $router->get('/panel/bekleyen-veliler', [BekleyenVeliController::class, 'sayfa']);
+    $router->get('/panel/veliler', [VeliController::class, 'sayfa']);
+    $router->get('/panel/gruplar', [GrupController::class, 'sayfa']);
+    $router->get('/panel/gruplar/kontenjanlar', [GrupController::class, 'kontenjanlarSayfa']);
+    $router->get('/panel/paketler', [PaketController::class, 'listeSayfa']);
+    $router->get('/panel/paketler/tanimla', [PaketController::class, 'sayfa']);
+    $router->get('/panel/odemeler', [OdemeController::class, 'sayfa']);
+    $router->get('/panel/odemeler/borclular', [OdemeController::class, 'borclularSayfa']);
+    $router->get('/panel/odemeler/tahsilat-takibi', [OdemeController::class, 'tahsilatTakibiSayfa']);
+    $router->get('/panel/odemeler/tahsilatlar', [OdemeController::class, 'tahsilatlarSayfa']);
+    $router->get('/panel/odemeler/giderler', [OdemeController::class, 'giderlerSayfa']);
+    $router->get('/panel/odemeler/kasalar', [KasaController::class, 'sayfa']);
+    $router->get('/panel/randevular', [RandevuController::class, 'sayfa']);
+    $router->get('/panel/randevular/yeni', [RandevuController::class, 'yeni']);
+    $router->get('/panel/gunluk-kayitlar', [GunlukKayitController::class, 'sayfa']);
+    $router->get('/panel/haftalik-temalar', [HaftalikTemaController::class, 'temalarSayfa']);
+    $router->get('/panel/raporlar', [RaporController::class, 'sayfa']);
+    $router->get('/panel/finans/gelir-gider', [RaporController::class, 'gelirGiderSayfa']);
+    $router->get('/panel/sms', [SmsController::class, 'sayfa']);
+    $router->get('/panel/sms/raporlar', [SmsController::class, 'raporlarSayfa']);
+    $router->get('/panel/kullanicilar', [KullaniciController::class, 'sayfa']);
+    $router->get('/panel/sistem/kurumlar', [KurumController::class, 'sayfa']);
+    $router->post('/panel/sistem/kurumlar/logo', [KurumController::class, 'logoYukle']);
+};

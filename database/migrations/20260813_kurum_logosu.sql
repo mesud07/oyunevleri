@@ -1,0 +1,2 @@
+ALTER TABLE kurumlar
+    ADD COLUMN IF NOT EXISTS logo_yolu VARCHAR(255) NULL AFTER kod;

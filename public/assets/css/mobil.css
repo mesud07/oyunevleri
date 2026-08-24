@@ -1,0 +1,202 @@
+@media (max-width: 900px) {
+  .sidebar-collapsed .app-shell,
+  .app-shell { grid-template-columns: 1fr; }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1200;
+    width: min(84vw, 330px);
+    height: 100dvh;
+    max-height: none;
+    overflow-y: auto;
+    border-right: 1px solid var(--line);
+    border-bottom: 0;
+    border-radius: 0 22px 22px 0;
+    box-shadow: 18px 0 44px rgba(25, 38, 56, 0.18);
+    transform: translateX(-105%);
+    transition: transform 220ms ease;
+  }
+  .sidebar-mobile-open .sidebar {
+    transform: translateX(0);
+  }
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1190;
+    display: block;
+    border: 0;
+    background: rgba(15, 23, 42, 0.34);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 220ms ease;
+  }
+  .sidebar-mobile-open .sidebar-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  body.has-sidebar-open {
+    overflow: hidden;
+  }
+  .topbar {
+    flex-direction: row;
+    align-items: center;
+  }
+  .topbar-menu-button {
+    display: inline-grid;
+  }
+  .brand {
+    margin-bottom: 14px;
+  }
+  .menu {
+    display: grid;
+    gap: 8px;
+    overflow-x: visible;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+  .sidebar-collapsed .sidebar {
+    padding: 16px;
+  }
+  .sidebar-collapsed .brand {
+    display: flex;
+    justify-items: initial;
+  }
+  .sidebar-collapsed .brand-text {
+    display: block;
+  }
+  .sidebar-collapsed .sidebar-toggle {
+    margin-left: auto;
+  }
+  .sidebar-collapsed .menu,
+  .sidebar-collapsed .menu-group {
+    justify-items: stretch;
+  }
+  .sidebar-collapsed .menu a,
+  .sidebar-collapsed .menu button {
+    width: auto;
+    height: auto;
+    display: flex;
+    justify-content: flex-start;
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+  .sidebar-collapsed .menu a::before,
+  .sidebar-collapsed .menu button::before {
+    content: none;
+  }
+  .sidebar-collapsed .menu-group > button::after {
+    display: block;
+  }
+  .sidebar-collapsed .menu-group.is-open .submenu {
+    display: grid;
+  }
+  .menu > a,
+  .menu-group > button {
+    white-space: nowrap;
+  }
+  .menu-group {
+    min-width: 0;
+  }
+  .menu-group.is-open .submenu {
+    display: grid;
+    gap: 4px;
+    padding: 2px 0 4px 10px;
+  }
+  .submenu a {
+    border-radius: 8px;
+    padding: 8px 10px;
+    white-space: nowrap;
+  }
+  .stats-grid, .panel-grid { grid-template-columns: 1fr; }
+  .report-grid, .report-summary, .renewal-week-grid { grid-template-columns: 1fr; }
+  .capacity-metrics, .capacity-split { grid-template-columns: 1fr; }
+  .income-breakdown-head { flex-direction: column; }
+  .income-formula { min-width: 0; width: 100%; }
+  .income-breakdown-summary { grid-template-columns: 1fr; }
+  .income-bar-row { grid-template-columns: 1fr; }
+  .income-bar-values { justify-items: start; text-align: left; }
+  .expense-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .expense-kpi-grid { grid-template-columns: 1fr; }
+  .expense-chart-layout { grid-template-columns: 1fr; }
+  .expense-toolbar { justify-content: stretch; }
+  .expense-search { width: 100%; }
+  .renewal-calendar-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .appointment-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .appointment-toolbar { flex-direction: column; }
+  .appointment-toolbar-actions { justify-content: flex-start; }
+  .report-section-head { flex-direction: column; }
+  .capacity-week-filter { justify-content: flex-start; width: 100%; }
+  .record-grid { grid-template-columns: 1fr; }
+  .record-titlebar { align-items: flex-start; flex-direction: column; padding: 16px; }
+  .page-head { align-items: flex-start; flex-direction: column; }
+  .student-profile-hero { grid-template-columns: 72px minmax(0, 1fr); align-items: center; }
+  .student-profile-hero .student-avatar { width: 68px; height: 68px; font-size: 28px; }
+  .student-profile-hero h1 { font-size: 26px; white-space: normal; overflow-wrap: normal; word-break: normal; }
+  .student-profile-hero > .appointment-toolbar-actions { grid-column: 1 / -1; width: 100%; }
+  .student-profile-meta { flex-wrap: wrap; }
+  .profile-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .main { padding: 16px; }
+  .student-profile-hero { gap: 12px; padding: 16px; }
+  .student-profile-hero h1 { margin-bottom: 3px; font-size: 22px; }
+  .student-profile-hero p { font-size: 14px; }
+  .student-profile-meta { gap: 6px; margin-top: 8px; }
+  .student-profile-meta span { min-height: 27px; padding: 5px 9px; font-size: 12px; }
+  .student-profile-hero > .appointment-toolbar-actions .btn { flex: 1 1 auto; }
+  .capacity-week-filter .btn,
+  .capacity-week-filter label,
+  .capacity-week-filter input { width: 100%; }
+  .sidebar { padding: 16px; }
+  .quick-actions { grid-template-columns: 1fr; }
+  .sidebar {
+    width: min(88vw, 320px);
+    padding-bottom: 12px;
+  }
+  .brand strong {
+    font-size: 14px;
+  }
+  .brand small {
+    display: none;
+  }
+  .brand-mark {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+  .menu a {
+    padding: 9px 10px;
+    font-size: 13px;
+  }
+  .record-fields label { grid-template-columns: 1fr; gap: 6px; }
+  .record-fields label > span { justify-content: flex-start; min-height: auto; }
+  .schedule-row { grid-template-columns: 1fr; }
+  .appointment-stats { grid-template-columns: 1fr; }
+  .dialog-grid { grid-template-columns: 1fr; }
+  .appointment-detail-grid { grid-template-columns: 1fr; }
+  .group-student-assign { grid-template-columns: 1fr; }
+  .group-target-list { grid-template-columns: 1fr; }
+  .role-permission-list { grid-template-columns: 1fr; }
+  .group-monthly-head { align-items: stretch; flex-direction: column; }
+  .appointment-dialog.group-vacancy-dialog { width: calc(100% - 12px); }
+  .group-vacancy-dialog .dialog-head { align-items: flex-start; }
+  .dialog-head-actions { gap: 6px; }
+  .group-vacancy-controls { align-items: stretch; flex-direction: column; }
+  .group-vacancy-quick, .group-vacancy-dates { align-items: stretch; flex-direction: column; }
+  .group-vacancy-dates input { min-width: 0; width: 100%; }
+  .group-vacancy-calendar { grid-template-columns: 1fr; }
+  .group-vacancy-print-head { align-items: flex-start; flex-direction: column; }
+  .report-bar-row, .report-bar-row.wide { grid-template-columns: 1fr; }
+  .renewal-calendar-grid { grid-template-columns: 1fr; }
+  .renewal-calendar-summary { align-items: flex-start; flex-direction: column; }
+  .expense-summary { grid-template-columns: 1fr; }
+  .expense-insight-card { padding: 14px; }
+  .expense-insight-head h3 { font-size: 18px; }
+  .expense-kpi-grid strong { font-size: 18px; }
+  .expense-donut { max-width: 190px; }
+  .expense-chart-row-head { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .textarea-row small { grid-column: 1; }
+  .record-actions { align-items: stretch; flex-direction: column; }
+}

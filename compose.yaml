@@ -1,20 +1,52 @@
-{\rtf1\ansi\ansicpg1254\cocoartf2822
-\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
-{\colortbl;\red255\green255\blue255;}
-{\*\expandedcolortbl;;}
-\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
-\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+services:
+  db:
+    image: mysql:8.0
+    platform: linux/arm64/v8
+    container_name: talya_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_pass
+      MYSQL_DATABASE: talya_db
+      MYSQL_USER: talya_user
+      MYSQL_PASSWORD: talya_pass
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - talya_db_data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
 
-\f0\fs24 \cf0 version: '3.8'\
-\
-services:\
-  web:\
-    build: .\
-    container_name: oyunevleri\
-    ports:\
-      - "9000:80"\
-    volumes:\
-      # BURASI DE\uc0\u286 \u304 \u350 T\u304 : Nokta (.) diyerek t\'fcm proje klas\'f6r\'fcn\'fc i\'e7eri al\u305 yoruz.\
-      # B\'f6ylece /eno4/v2/... adresi sunucu i\'e7inde de /var/www/html/eno4/v2/... ile e\uc0\u351 le\u351 ir.\
-      - .:/var/www/html \
-    restart: always}
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: talya_app
+    platform: linux/arm64/v8
+    restart: unless-stopped
+    depends_on:
+      - db
+    ports:
+      - "8080:80"
+    env_file:
+      - .env
+    volumes:
+      - ./:/var/www/html
+
+  phpmyadmin:
+    image: phpmyadmin:5.2-apache
+    platform: linux/arm64/v8
+    container_name: talya_phpmyadmin
+    restart: unless-stopped
+    depends_on:
+      - db
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: root_pass
+      UPLOAD_LIMIT: 256M
+
+volumes:
+  talya_db_data:
