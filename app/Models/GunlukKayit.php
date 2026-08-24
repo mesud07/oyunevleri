@@ -9,12 +9,8 @@ use PDO;
 
 final class GunlukKayit extends Model
 {
-    private static bool $tabloHazir = false;
-
     public static function ekle(array $veri): int
     {
-        self::tabloHazirla();
-
         $stmt = self::db()->prepare(
             'INSERT INTO gunluk_notlar
              (kurum_id, ogrenci_id, randevu_id, tarih, kategori, not_metni, olusturan_kullanici_id, olusturulma_tarihi)
@@ -36,8 +32,6 @@ final class GunlukKayit extends Model
 
     public static function liste(string $baslangic, string $bitis, array $filtre = []): array
     {
-        self::tabloHazirla();
-
         $where = ['gn.kurum_id = :kurum_id', 'gn.tarih BETWEEN :baslangic AND :bitis'];
         $params = [
             'kurum_id' => self::kurumId(),
@@ -80,8 +74,6 @@ final class GunlukKayit extends Model
 
     public static function ogrenciAkisi(int $ogrenciId, int $limit = 100): array
     {
-        self::tabloHazirla();
-
         $stmt = self::db()->prepare(
             'SELECT gn.*,
                     r.baslangic_saati,
@@ -109,8 +101,6 @@ final class GunlukKayit extends Model
 
     public static function randevuNotlari(int $randevuId): array
     {
-        self::tabloHazirla();
-
         $stmt = self::db()->prepare(
             'SELECT gn.*, COALESCE(CONCAT(k.ad, " ", k.soyad), "-") AS kaydeden
              FROM gunluk_notlar gn
@@ -146,22 +136,4 @@ final class GunlukKayit extends Model
         ];
     }
 
-    private static function tabloHazirla(): void
-    {
-        if (self::$tabloHazir) {
-            return;
-        }
-
-        $stmt = self::db()->query("SHOW TABLES LIKE 'gunluk_notlar'");
-        if (!$stmt || !$stmt->fetchColumn()) {
-            throw new \RuntimeException('gunluk_notlar tablosu bulunamadi. Uzak veritabaninda otomatik sema degisikligi yapilmadi.');
-        }
-
-        $kolon = self::db()->query("SHOW COLUMNS FROM gunluk_notlar LIKE 'kurum_id'");
-        if (!$kolon || !$kolon->fetchColumn()) {
-            throw new \RuntimeException('gunluk_notlar.kurum_id kolonu eksik. Kurum bazli sema migration calistirilmadan devam edilmemeli.');
-        }
-
-        self::$tabloHazir = true;
-    }
 }

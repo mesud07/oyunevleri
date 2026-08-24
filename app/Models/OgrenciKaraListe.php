@@ -19,8 +19,7 @@ final class OgrenciKaraListe extends Model
 
     public static function tabloVarMi(): bool
     {
-        $stmt = self::db()->query("SHOW TABLES LIKE 'ogrenci_kara_liste'");
-        return (bool) ($stmt && $stmt->fetchColumn());
+        return true;
     }
 
     public static function liste(array $filtre = []): array

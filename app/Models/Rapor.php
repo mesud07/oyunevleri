@@ -6,6 +6,62 @@ use App\Models\Gider;
 
 final class Rapor extends Model
 {
+    public static function genelBakisVerisi(): array
+    {
+        $db = self::db();
+        $kurumId = self::kurumId();
+        $stmt = $db->prepare(
+            'SELECT
+                (SELECT COUNT(DISTINCT o.id)
+                 FROM ogrenciler o
+                 INNER JOIN grup_ogrencileri go ON go.ogrenci_id = o.id AND go.kurum_id = o.kurum_id
+                 INNER JOIN gruplar g ON g.id = go.grup_id AND g.kurum_id = o.kurum_id
+                 WHERE o.kurum_id = :kurum_id_ogrenci
+                   AND o.durum = "aktif"
+                   AND go.aktif = 1
+                   AND (go.bitis_tarihi IS NULL OR go.bitis_tarihi >= CURDATE())
+                   AND g.aktif = 1) AS aktif_ogrenci,
+                (SELECT COUNT(*)
+                 FROM randevular
+                 WHERE kurum_id = :kurum_id_randevu AND tarih = CURDATE()) AS bugunku_randevu,
+                (SELECT COALESCE(SUM(tutar), 0)
+                 FROM odemeler
+                 WHERE kurum_id = :kurum_id_aylik AND iptal = 0
+                   AND tarih >= DATE_FORMAT(CURDATE(), "%Y-%m-01")
+                   AND tarih <= LAST_DAY(CURDATE())) AS bu_ay_tahsilat,
+                COALESCE(SUM(GREATEST(p.net_paket_tutari - COALESCE(od.tahsilat, 0), 0)), 0) AS bekleyen_alacak,
+                COALESCE(SUM(CASE WHEN p.net_paket_tutari - COALESCE(od.tahsilat, 0) > 0 THEN 1 ELSE 0 END), 0) AS borclu_paket_sayisi
+             FROM paketler p
+             LEFT JOIN (
+                SELECT paket_id, SUM(tutar) AS tahsilat
+                FROM odemeler
+                WHERE kurum_id = :kurum_id_odeme AND iptal = 0
+                GROUP BY paket_id
+             ) od ON od.paket_id = p.id
+             WHERE p.kurum_id = :kurum_id_paket AND p.paket_durumu = "aktif"'
+        );
+        $stmt->execute([
+            'kurum_id_ogrenci' => $kurumId,
+            'kurum_id_randevu' => $kurumId,
+            'kurum_id_aylik' => $kurumId,
+            'kurum_id_odeme' => $kurumId,
+            'kurum_id_paket' => $kurumId,
+        ]);
+        $ozet = $stmt->fetch() ?: [];
+
+        return [
+            'ozet' => [
+                'aktif_ogrenci' => (int) ($ozet['aktif_ogrenci'] ?? 0),
+                'bugunku_randevu' => (int) ($ozet['bugunku_randevu'] ?? 0),
+                'bu_ay_tahsilat' => (float) ($ozet['bu_ay_tahsilat'] ?? 0),
+                'bekleyen_alacak' => (float) ($ozet['bekleyen_alacak'] ?? 0),
+            ],
+            'borclu_paket_sayisi' => (int) ($ozet['borclu_paket_sayisi'] ?? 0),
+            'bugun_son_dersler' => self::bugunSonDersiOlanlar(),
+            'kayit_yenileme_takvimi' => self::kayitYenilemeTakvimi(),
+        ];
+    }
+
     public static function ozet(): array
     {
         return [
@@ -748,19 +804,56 @@ final class Rapor extends Model
     public static function sayfaVerisi(?string $kapasiteHaftasi = null): array
     {
         return [
-            'ozet' => self::ozet(),
+            'ozet' => self::raporSayfaOzeti(),
             'aylik_tahsilat' => self::aylikTahsilat(),
             'randevu_durumlari' => self::randevuDurumDagilimi(),
             'paket_performansi' => self::paketPerformansi(),
-            'borclu_paketler' => self::borcluPaketler(),
-            'yaklasan_randevular' => self::yaklasanRandevular(),
-            'bugun_son_dersler' => self::bugunSonDersiOlanlar(),
-            'grup_kontenjanlari' => self::grupKontenjanlari(),
             'kapasite_gelir' => self::kapasiteGelirRaporu($kapasiteHaftasi),
-            'yaklasan_tahsilatlar' => self::yaklasanTahsilatlar(),
-            'gecikmis_tahsilatlar' => self::gecikmisTahsilatlar(),
-            'kayit_yenilemeleri' => self::kayitYenilemeleri(),
             'kayit_yenileme_takvimi' => self::kayitYenilemeTakvimi(),
+        ];
+    }
+
+    private static function raporSayfaOzeti(): array
+    {
+        $kurumId = self::kurumId();
+        $stmt = self::db()->prepare(
+            'SELECT
+                (SELECT COALESCE(SUM(tutar), 0)
+                 FROM odemeler
+                 WHERE kurum_id = :kurum_id_aylik AND iptal = 0
+                   AND tarih >= DATE_FORMAT(CURDATE(), "%Y-%m-01")
+                   AND tarih <= LAST_DAY(CURDATE())) AS bu_ay_tahsilat,
+                (SELECT COUNT(*)
+                 FROM randevular
+                 WHERE kurum_id = :kurum_id_randevu
+                   AND durum IN ("gelmedi", "mazeretli_gelmedi", "gec_iptal")
+                   AND tarih >= DATE_FORMAT(CURDATE(), "%Y-%m-01")
+                   AND tarih <= LAST_DAY(CURDATE())) AS gelmeyen_randevu,
+                COALESCE(SUM(GREATEST(p.net_paket_tutari - COALESCE(od.tahsilat, 0), 0)), 0) AS bekleyen_alacak
+             FROM paketler p
+             LEFT JOIN (
+                SELECT paket_id, SUM(tutar) AS tahsilat
+                FROM odemeler
+                WHERE kurum_id = :kurum_id_odeme AND iptal = 0
+                GROUP BY paket_id
+             ) od ON od.paket_id = p.id
+             WHERE p.kurum_id = :kurum_id_paket AND p.paket_durumu = "aktif"'
+        );
+        $stmt->execute([
+            'kurum_id_aylik' => $kurumId,
+            'kurum_id_randevu' => $kurumId,
+            'kurum_id_odeme' => $kurumId,
+            'kurum_id_paket' => $kurumId,
+        ]);
+        $ozet = $stmt->fetch() ?: [];
+
+        return [
+            'bu_ay_tahsilat' => (float) ($ozet['bu_ay_tahsilat'] ?? 0),
+            'bekleyen_alacak' => (float) ($ozet['bekleyen_alacak'] ?? 0),
+            'gelmeyen_randevu' => (int) ($ozet['gelmeyen_randevu'] ?? 0),
+            'yaklasan_tahsilat_beklentisi' => self::tahsilatBeklentisiToplami('BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)'),
+            'gecikmis_tahsilat_beklentisi' => self::tahsilatBeklentisiToplami('< CURDATE()'),
+            'kayit_yenileme_bakiyesi' => self::kayitYenilemeBakiyesi(),
         ];
     }
 

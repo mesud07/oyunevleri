@@ -1,12 +1,8 @@
 <?php
 $rapor = $rapor ?? [];
 $raporOzet = $rapor['ozet'] ?? [];
-$yaklasanTahsilatlar = $rapor['yaklasan_tahsilatlar'] ?? [];
-$gecikmisTahsilatlar = $rapor['gecikmis_tahsilatlar'] ?? [];
-$borcluPaketler = $rapor['borclu_paketler'] ?? [];
+$borcluPaketSayisi = (int) ($rapor['borclu_paket_sayisi'] ?? 0);
 $bugunSonDersler = $rapor['bugun_son_dersler'] ?? [];
-$grupKontenjanlari = $rapor['grup_kontenjanlari'] ?? [];
-$kayitYenilemeleri = $rapor['kayit_yenilemeleri'] ?? [];
 $kayitYenilemeTakvimi = $rapor['kayit_yenileme_takvimi'] ?? [];
 $veliPortalAnahtari = $veliPortalAnahtari ?? '';
 $veliPortalYolu = $veliPortalAnahtari !== '' ? '/veli-portal?k=' . rawurlencode($veliPortalAnahtari) : '';
@@ -120,7 +116,7 @@ $tarihEtiketi = $bugun->format('j') . ' ' . $ayAdlari[(int) $bugun->format('n')]
                 </div>
                 <div class="dashboard-day-card-foot">
                     <a href="/panel/odemeler/borclular">Tahsilat bekleyenler <span aria-hidden="true">›</span></a>
-                    <em><?= e(count($borcluPaketler)) ?> kayıt</em>
+                    <em><?= e($borcluPaketSayisi) ?> kayıt</em>
                 </div>
             </article>
 

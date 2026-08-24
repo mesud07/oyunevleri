@@ -8,10 +8,19 @@ use App\Models\Kullanici;
 
 final class Auth
 {
+    private static ?array $kullanici = null;
+    private static bool $kullaniciYuklendi = false;
+
     public static function user(): ?array
     {
+        if (self::$kullaniciYuklendi) {
+            return self::$kullanici;
+        }
+
+        self::$kullaniciYuklendi = true;
         $id = Session::get('kullanici_id');
-        return $id ? Kullanici::idIleBul((int) $id) : null;
+        self::$kullanici = $id ? Kullanici::idIleBul((int) $id) : null;
+        return self::$kullanici;
     }
 
     public static function check(): bool
@@ -26,6 +35,8 @@ final class Auth
         Session::set('kurum_id', (int) $kullanici['kurum_id']);
         Session::set('kurum_kodu', (string) $kullanici['kurum_kodu']);
         Session::set('rol_kodu', (string) $kullanici['rol_kodu']);
+        self::$kullanici = $kullanici;
+        self::$kullaniciYuklendi = true;
         Kullanici::sonGirisGuncelle((int) $kullanici['id']);
     }
 
@@ -41,6 +52,8 @@ final class Auth
 
     public static function logout(): void
     {
+        self::$kullanici = null;
+        self::$kullaniciYuklendi = true;
         Session::destroy();
     }
 }

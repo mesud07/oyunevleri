@@ -9,6 +9,8 @@ use App\Core\Veritabani;
 
 final class YetkiServisi
 {
+    private static array $rolYetkileri = [];
+
     public function izinliMi(string $yetki): bool
     {
         $kullanici = Auth::user();
@@ -24,20 +26,24 @@ final class YetkiServisi
             return true;
         }
 
-        $yetkiler = [$yetki];
-        if ($yetki === 'randevu_durum_degistir') {
-            $yetkiler[] = 'randevu_ekle';
+        $rolKodu = (string) ($kullanici['rol_kodu'] ?? '');
+        if ($rolKodu === '') {
+            return false;
         }
 
-        $stmt = Veritabani::baglan()->prepare(
-            'SELECT 1
+        if (!array_key_exists($rolKodu, self::$rolYetkileri)) {
+            $stmt = Veritabani::baglan()->prepare(
+                'SELECT ry.yetki
              FROM rol_yetkileri ry
              INNER JOIN roller r ON r.id = ry.rol_id
-             WHERE r.kod = ? AND ry.yetki IN (' . implode(',', array_fill(0, count($yetkiler), '?')) . ')
-             LIMIT 1'
-        );
-        $stmt->execute(array_merge([(string) $kullanici['rol_kodu']], $yetkiler));
+             WHERE r.kod = ?'
+            );
+            $stmt->execute([$rolKodu]);
+            self::$rolYetkileri[$rolKodu] = array_fill_keys(array_map('strval', $stmt->fetchAll(\PDO::FETCH_COLUMN)), true);
+        }
 
-        return (bool) $stmt->fetchColumn();
+        $rolYetkileri = self::$rolYetkileri[$rolKodu];
+        return isset($rolYetkileri[$yetki])
+            || ($yetki === 'randevu_durum_degistir' && isset($rolYetkileri['randevu_ekle']));
     }
 }
