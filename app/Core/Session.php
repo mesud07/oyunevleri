@@ -6,6 +6,8 @@ namespace App\Core;
 
 final class Session
 {
+    private const BENI_HATIRLA_SURESI = 2592000;
+
     public static function start(): void
     {
         if (session_status() === PHP_SESSION_ACTIVE) {
@@ -14,7 +16,8 @@ final class Session
 
         $secure = Config::get('APP_ENV') === 'production'
             && (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
-        $lifetime = (int) Config::get('SESSION_LIFETIME', 2592000);
+        $normalLifetime = max(60, (int) Config::get('SESSION_LIFETIME', 7200));
+        $maxLifetime = max($normalLifetime, self::BENI_HATIRLA_SURESI);
         $sessionPath = BASE_PATH . '/storage/sessions';
         if (!is_dir($sessionPath)) {
             @mkdir($sessionPath, 0775, true);
@@ -22,10 +25,10 @@ final class Session
         if (is_dir($sessionPath) && is_writable($sessionPath)) {
             session_save_path($sessionPath);
         }
-        ini_set('session.gc_maxlifetime', (string) $lifetime);
+        ini_set('session.gc_maxlifetime', (string) $maxLifetime);
         session_name((string) Config::get('SESSION_NAME', 'talya_kids_session'));
         session_set_cookie_params([
-            'lifetime' => $lifetime,
+            'lifetime' => 0,
             'path' => '/',
             'secure' => $secure,
             'httponly' => true,
@@ -33,13 +36,17 @@ final class Session
         ]);
         session_start();
 
+        $beniHatirla = !empty($_SESSION['_beni_hatirla']);
+        $lifetime = $beniHatirla ? self::BENI_HATIRLA_SURESI : $normalLifetime;
         $now = time();
         if (isset($_SESSION['_son_aktivite']) && ($now - (int) $_SESSION['_son_aktivite']) > $lifetime) {
             self::destroy();
             session_start();
+            $beniHatirla = false;
+            $lifetime = $normalLifetime;
         }
         $_SESSION['_son_aktivite'] = $now;
-        self::refreshCookie($lifetime, $secure);
+        self::refreshCookie($beniHatirla ? $lifetime : 0, $secure);
     }
 
     public static function regenerate(): void
@@ -62,6 +69,15 @@ final class Session
         unset($_SESSION[$key]);
     }
 
+    public static function beniHatirla(bool $aktif): void
+    {
+        self::set('_beni_hatirla', $aktif);
+        self::set('_son_aktivite', time());
+        $secure = Config::get('APP_ENV') === 'production'
+            && (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+        self::refreshCookie($aktif ? self::BENI_HATIRLA_SURESI : 0, $secure);
+    }
+
     public static function destroy(): void
     {
         $_SESSION = [];
@@ -81,7 +97,7 @@ final class Session
         }
 
         setcookie(session_name(), session_id(), [
-            'expires' => time() + $lifetime,
+            'expires' => $lifetime > 0 ? time() + $lifetime : 0,
             'path' => '/',
             'secure' => $secure,
             'httponly' => true,

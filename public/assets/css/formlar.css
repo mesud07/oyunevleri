@@ -13,6 +13,24 @@
   outline: 3px solid rgba(56, 170, 245, 0.18);
   border-color: var(--primary);
 }
+.form-stack .auth-remember {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  cursor: pointer;
+  font-weight: 600;
+}
+.form-stack .auth-remember input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  padding: 0;
+  border-radius: 5px;
+  accent-color: var(--primary-dark);
+  box-shadow: none;
+}
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

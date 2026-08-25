@@ -17,6 +17,7 @@ $asset = static function (string $path): string {
     <link rel="stylesheet" href="<?= e($asset('/assets/css/panel.css')) ?>">
     <link rel="stylesheet" href="<?= e($asset('/assets/css/formlar.css')) ?>">
     <link rel="stylesheet" href="<?= e($asset('/assets/css/liquid-glass.css')) ?>">
+    <link rel="stylesheet" href="<?= e($asset('/assets/css/login.css')) ?>">
 </head>
 <body class="auth-body">
     <?php require $viewDosyasi; ?>

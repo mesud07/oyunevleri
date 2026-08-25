@@ -8,6 +8,7 @@ use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Csrf;
 use App\Core\Response;
+use App\Core\Session;
 use App\Core\Validator;
 use App\Services\KimlikDogrulamaServisi;
 
@@ -29,9 +30,10 @@ final class GirisController extends Controller
     public function giris(): void
     {
         $veri = [
-            'kurum_kodu' => $_POST['kurum_kodu'] ?? 'TALYA',
+            'kurum_kodu' => $_POST['kurum_kodu'] ?? '',
             'eposta' => $_POST['eposta'] ?? '',
             'sifre' => $_POST['sifre'] ?? '',
+            'beni_hatirla' => isset($_POST['beni_hatirla']) && (string) $_POST['beni_hatirla'] === '1',
             'csrf' => $_POST['csrf'] ?? '',
         ];
 
@@ -45,6 +47,9 @@ final class GirisController extends Controller
                 'baslik' => 'Giris',
                 'csrf' => Csrf::token(),
                 'hata' => 'Kullanici adi, sifre veya guvenlik bilgisi hatali.',
+                'kurumKodu' => (string) $veri['kurum_kodu'],
+                'eposta' => (string) $veri['eposta'],
+                'beniHatirla' => (bool) $veri['beni_hatirla'],
             ], 'giris');
             return;
         }
@@ -55,10 +60,14 @@ final class GirisController extends Controller
                 'baslik' => 'Giris',
                 'csrf' => Csrf::token(),
                 'hata' => 'Kullanici adi veya sifre hatali.',
+                'kurumKodu' => (string) $veri['kurum_kodu'],
+                'eposta' => (string) $veri['eposta'],
+                'beniHatirla' => (bool) $veri['beni_hatirla'],
             ], 'giris');
             return;
         }
 
+        Session::beniHatirla((bool) $veri['beni_hatirla']);
         Response::redirect('/panel');
     }
 
