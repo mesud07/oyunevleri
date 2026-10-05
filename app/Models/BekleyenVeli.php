@@ -8,35 +8,59 @@ use App\Core\Model;
 
 final class BekleyenVeli extends Model
 {
+    private static bool $schemaHazir = false;
+
     public static function liste(): array
     {
         self::ensureSchema();
 
         $stmt = self::db()->prepare(
             'SELECT id, ogrenci_id, ogrenci_ad_soyad, ogrenci_dogum_tarihi, veli_ad_soyad, veli_telefon, veli_eposta,
-                    beklenen_gun, ay_grubu, zaman_tercihi, durum, notlar, olusturulma_tarihi,
+                    beklenen_gun, ay_grubu, zaman_tercihi, durum, next_follow_up_at, next_action_type,
+                    next_action_note, notlar, olusturulma_tarihi, guncellenme_tarihi,
                     GREATEST(0, DATEDIFF(CURDATE(), DATE(olusturulma_tarihi))) AS listeye_ekleneli_gun,
                     (SELECT COUNT(*) FROM bekleyen_veli_gorusmeleri bg
                      WHERE bg.bekleyen_veli_id = bekleyen_veliler.id AND bg.kurum_id = bekleyen_veliler.kurum_id) AS gorusme_sayisi,
+                    (SELECT COUNT(*) FROM bekleyen_veli_gorusmeleri bg
+                     WHERE bg.bekleyen_veli_id = bekleyen_veliler.id AND bg.kurum_id = bekleyen_veliler.kurum_id
+                       AND bg.kanal <> "diger") AS iletisim_sayisi,
                     (SELECT bg.ozet FROM bekleyen_veli_gorusmeleri bg
                      WHERE bg.bekleyen_veli_id = bekleyen_veliler.id AND bg.kurum_id = bekleyen_veliler.kurum_id
+                       AND bg.kanal <> "diger"
                      ORDER BY bg.gorusme_tarihi DESC, bg.id DESC LIMIT 1) AS son_gorusme_ozeti,
                     (SELECT bg.gorusme_tarihi FROM bekleyen_veli_gorusmeleri bg
                      WHERE bg.bekleyen_veli_id = bekleyen_veliler.id AND bg.kurum_id = bekleyen_veliler.kurum_id
+                       AND bg.kanal <> "diger"
                      ORDER BY bg.gorusme_tarihi DESC, bg.id DESC LIMIT 1) AS son_gorusme_tarihi,
-                    (SELECT MIN(bg.sonraki_takip_tarihi) FROM bekleyen_veli_gorusmeleri bg
+                    (SELECT bg.sonuc FROM bekleyen_veli_gorusmeleri bg
                      WHERE bg.bekleyen_veli_id = bekleyen_veliler.id AND bg.kurum_id = bekleyen_veliler.kurum_id
-                       AND bg.sonraki_takip_tarihi >= CURDATE()) AS sonraki_takip_tarihi
+                       AND bg.kanal <> "diger"
+                     ORDER BY bg.gorusme_tarihi DESC, bg.id DESC LIMIT 1) AS son_gorusme_sonucu,
+                    DATE(next_follow_up_at) AS sonraki_takip_tarihi,
+                    CASE
+                      WHEN next_follow_up_at IS NULL THEN "takip_yok"
+                      WHEN next_follow_up_at < NOW() THEN "gecikmis"
+                      WHEN DATE(next_follow_up_at) = CURDATE() THEN "bugun"
+                      WHEN DATE(next_follow_up_at) = DATE_ADD(CURDATE(), INTERVAL 1 DAY) THEN "yarin"
+                      ELSE "ileri_tarih"
+                    END AS takip_durumu
              FROM bekleyen_veliler
              WHERE kurum_id = :kurum_id
-             ORDER BY FIELD(durum, "bekliyor", "ulasilamadi", "iletisime_gecildi", "bilgi_verildi", "katilmadi", "kayda_donustu", "iptal"),
+             ORDER BY CASE
+                        WHEN next_follow_up_at IS NOT NULL AND next_follow_up_at < NOW() THEN 0
+                        WHEN next_follow_up_at IS NOT NULL AND DATE(next_follow_up_at) = CURDATE() THEN 1
+                        ELSE 2
+                      END,
+                      FIELD(durum, "tekrar_aranacak", "yeni_talep", "ilk_gorusme_yapilacak", "bekliyor", "bilgi_verildi", "uygun_grup_bekliyor", "veli_donusu_bekleniyor", "kayit_olmaya_hazir"),
                       olusturulma_tarihi DESC,
                       id DESC
              LIMIT 300'
         );
         $stmt->execute(self::kurumParam());
 
-        return self::gruplariEkle(self::ayYaslariniEkle($stmt->fetchAll()));
+        return self::guncelRandevulariEkle(
+            self::uygunKontenjanlariEkle(self::gruplariEkle(self::ayYaslariniEkle($stmt->fetchAll())))
+        );
     }
 
     public static function ekle(array $veri): int
@@ -49,7 +73,7 @@ final class BekleyenVeli extends Model
                  beklenen_gun, ay_grubu, zaman_tercihi, durum, notlar, olusturan_kullanici_id, olusturulma_tarihi)
              VALUES
                 (:kurum_id, :ogrenci_ad_soyad, :ogrenci_dogum_tarihi, :veli_ad_soyad, :veli_telefon, :veli_eposta,
-                 :beklenen_gun, :ay_grubu, :zaman_tercihi, "bekliyor", :notlar, :olusturan_kullanici_id, NOW())'
+                 :beklenen_gun, :ay_grubu, :zaman_tercihi, "yeni_talep", :notlar, :olusturan_kullanici_id, NOW())'
         );
         $stmt->execute([
             'kurum_id' => self::kurumId(),
@@ -65,7 +89,131 @@ final class BekleyenVeli extends Model
             'olusturan_kullanici_id' => $veri['olusturan_kullanici_id'] ?: null,
         ]);
 
-        return (int) self::db()->lastInsertId();
+        $id = (int) self::db()->lastInsertId();
+        self::tarihceEkle($id, 'diger', 'Bekleme listesine eklendi.', 'diger', null, (int) ($veri['olusturan_kullanici_id'] ?? 0));
+        return $id;
+    }
+
+    public static function ogrencidenEkle(int $ogrenciId, int $kullaniciId = 0): array
+    {
+        self::ensureSchema();
+        $db = self::db();
+        $db->beginTransaction();
+
+        try {
+            $ogrenciStmt = $db->prepare(
+                'SELECT id, ad, soyad, dogum_tarihi, durum
+                 FROM ogrenciler
+                 WHERE id = :id AND kurum_id = :kurum_id
+                 LIMIT 1
+                 FOR UPDATE'
+            );
+            $ogrenciStmt->execute(['id' => $ogrenciId, 'kurum_id' => self::kurumId()]);
+            $ogrenci = $ogrenciStmt->fetch();
+            if (!$ogrenci) {
+                throw new \DomainException('Öğrenci bulunamadı.');
+            }
+            if ((string) ($ogrenci['durum'] ?? '') !== 'pasif') {
+                throw new \DomainException('Yalnızca ayrılmış (pasif) öğrenciler bekleyen veli listesine eklenebilir.');
+            }
+
+            $mevcutStmt = $db->prepare(
+                'SELECT id
+                 FROM bekleyen_veliler
+                 WHERE kurum_id = :kurum_id
+                   AND ogrenci_id = :ogrenci_id
+                   AND durum NOT IN ("kayda_donustu", "iptal")
+                   AND durum NOT IN ("kayit_oldu", "vazgecti", "ulasilamadi", "katilmadi", "yas_uygun_degil", "saatler_uymadi", "diger")
+                 ORDER BY id DESC
+                 LIMIT 1'
+            );
+            $mevcutStmt->execute(['kurum_id' => self::kurumId(), 'ogrenci_id' => $ogrenciId]);
+            $mevcutId = (int) ($mevcutStmt->fetchColumn() ?: 0);
+            if ($mevcutId > 0) {
+                $db->commit();
+                return ['id' => $mevcutId, 'yeni' => false];
+            }
+
+            $veliStmt = $db->prepare(
+                'SELECT v.ad, v.soyad, v.telefon, v.eposta
+                 FROM ogrenci_velileri ov
+                 INNER JOIN veliler v ON v.id = ov.veli_id AND v.kurum_id = ov.kurum_id
+                 WHERE ov.ogrenci_id = :ogrenci_id AND ov.kurum_id = :kurum_id
+                 ORDER BY ov.birincil_mi DESC, ov.id ASC
+                 LIMIT 1'
+            );
+            $veliStmt->execute(['ogrenci_id' => $ogrenciId, 'kurum_id' => self::kurumId()]);
+            $veli = $veliStmt->fetch();
+            if (!$veli || trim((string) ($veli['telefon'] ?? '')) === '') {
+                throw new \DomainException('Öğrencinin telefon numarası bulunan bir velisi olmadan bekleme kaydı oluşturulamaz.');
+            }
+
+            $ekle = $db->prepare(
+                'INSERT INTO bekleyen_veliler
+                    (kurum_id, ogrenci_id, ogrenci_ad_soyad, ogrenci_dogum_tarihi, veli_ad_soyad,
+                     veli_telefon, veli_eposta, zaman_tercihi, durum, notlar,
+                     olusturan_kullanici_id, olusturulma_tarihi)
+                 VALUES
+                    (:kurum_id, :ogrenci_id, :ogrenci_ad_soyad, :ogrenci_dogum_tarihi, :veli_ad_soyad,
+                     :veli_telefon, :veli_eposta, "farketmez", "yeni_talep", :notlar,
+                     :kullanici_id, NOW())'
+            );
+            $ekle->execute([
+                'kurum_id' => self::kurumId(),
+                'ogrenci_id' => $ogrenciId,
+                'ogrenci_ad_soyad' => trim((string) $ogrenci['ad'] . ' ' . (string) $ogrenci['soyad']),
+                'ogrenci_dogum_tarihi' => $ogrenci['dogum_tarihi'] ?: null,
+                'veli_ad_soyad' => trim((string) $veli['ad'] . ' ' . (string) $veli['soyad']),
+                'veli_telefon' => (string) $veli['telefon'],
+                'veli_eposta' => $veli['eposta'] ?: null,
+                'notlar' => 'Daha önce ayrılan öğrenci yeniden katılmak istiyor.',
+                'kullanici_id' => $kullaniciId ?: null,
+            ]);
+            $bekleyenVeliId = (int) $db->lastInsertId();
+
+            $sonGrupStmt = $db->prepare(
+                'SELECT go.grup_id
+                 FROM grup_ogrencileri go
+                 INNER JOIN gruplar g ON g.id = go.grup_id AND g.kurum_id = go.kurum_id
+                 WHERE go.ogrenci_id = :ogrenci_id
+                   AND go.kurum_id = :kurum_id
+                   AND g.aktif = 1
+                 ORDER BY go.baslangic_tarihi DESC, go.id DESC
+                 LIMIT 1'
+            );
+            $sonGrupStmt->execute(['ogrenci_id' => $ogrenciId, 'kurum_id' => self::kurumId()]);
+            $sonGrupId = (int) ($sonGrupStmt->fetchColumn() ?: 0);
+            if ($sonGrupId > 0) {
+                $grupEkle = $db->prepare(
+                    'INSERT INTO bekleyen_veli_gruplari
+                        (kurum_id, bekleyen_veli_id, grup_id, olusturan_kullanici_id)
+                     VALUES (:kurum_id, :bekleyen_veli_id, :grup_id, :kullanici_id)'
+                );
+                $grupEkle->execute([
+                    'kurum_id' => self::kurumId(),
+                    'bekleyen_veli_id' => $bekleyenVeliId,
+                    'grup_id' => $sonGrupId,
+                    'kullanici_id' => $kullaniciId ?: null,
+                ]);
+            }
+
+            self::tarihceEkle(
+                $bekleyenVeliId,
+                'diger',
+                'Ayrılmış öğrenci yeniden katılım talebiyle bekleyen veli listesine eklendi.',
+                'diger',
+                null,
+                $kullaniciId
+            );
+            $db->commit();
+
+            return ['id' => $bekleyenVeliId, 'yeni' => true];
+        } catch (\Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
     }
 
     public static function guncelle(int $id, array $veri, int $kullaniciId = 0): bool
@@ -83,7 +231,7 @@ final class BekleyenVeli extends Model
                  notlar = :notlar,
                  guncellenme_tarihi = NOW()
              WHERE id = :id AND kurum_id = :kurum_id
-               AND durum NOT IN ("kayda_donustu", "iptal")'
+               AND durum NOT IN ("kayda_donustu", "kayit_oldu", "iptal", "vazgecti", "ulasilamadi", "katilmadi", "yas_uygun_degil", "saatler_uymadi", "diger")'
         );
         $stmt->execute([
             'ogrenci_ad_soyad' => $veri['ogrenci_ad_soyad'],
@@ -123,8 +271,17 @@ final class BekleyenVeli extends Model
                 return false;
             }
             if ((string) $eskiDurum !== $durum) {
-                $stmt = $db->prepare('UPDATE bekleyen_veliler SET durum = :durum, guncellenme_tarihi = NOW() WHERE id = :id AND kurum_id = :kurum_id');
-                $stmt->execute(['id' => $id, 'durum' => $durum, 'kurum_id' => self::kurumId()]);
+                $stmt = $db->prepare(
+                    'UPDATE bekleyen_veliler
+                     SET durum = :durum,
+                         next_follow_up_at = IF(:kapali = 1, NULL, next_follow_up_at),
+                         next_action_type = IF(:kapali_aksiyon = 1, NULL, next_action_type),
+                         next_action_note = IF(:kapali_not = 1, NULL, next_action_note),
+                         guncellenme_tarihi = NOW()
+                     WHERE id = :id AND kurum_id = :kurum_id'
+                );
+                $kapali = self::kapaliDurumMu($durum) ? 1 : 0;
+                $stmt->execute(['id' => $id, 'durum' => $durum, 'kurum_id' => self::kurumId(), 'kapali' => $kapali, 'kapali_aksiyon' => $kapali, 'kapali_not' => $kapali]);
                 self::tarihceEkle($id, 'diger', 'Durum değiştirildi: ' . self::durumEtiketi((string) $eskiDurum) . ' → ' . self::durumEtiketi($durum) . '.', self::durumSonucu($durum), null, $kullaniciId);
             }
             $db->commit();
@@ -151,7 +308,27 @@ final class BekleyenVeli extends Model
 
         $stmt = self::db()->prepare(
             'SELECT id, ogrenci_id, ogrenci_ad_soyad, ogrenci_dogum_tarihi, veli_ad_soyad, veli_telefon, veli_eposta,
-                    beklenen_gun, ay_grubu, zaman_tercihi, durum, notlar, olusturulma_tarihi
+                    beklenen_gun, ay_grubu, zaman_tercihi, durum, next_follow_up_at, next_action_type,
+                    next_action_note, notlar, olusturulma_tarihi, guncellenme_tarihi,
+                    GREATEST(0, DATEDIFF(CURDATE(), DATE(olusturulma_tarihi))) AS listeye_ekleneli_gun,
+                    (SELECT COUNT(*) FROM bekleyen_veli_gorusmeleri bg
+                     WHERE bg.bekleyen_veli_id = bekleyen_veliler.id AND bg.kurum_id = bekleyen_veliler.kurum_id
+                       AND bg.kanal <> "diger") AS iletisim_sayisi,
+                    (SELECT bg.ozet FROM bekleyen_veli_gorusmeleri bg
+                     WHERE bg.bekleyen_veli_id = bekleyen_veliler.id AND bg.kurum_id = bekleyen_veliler.kurum_id
+                       AND bg.kanal <> "diger"
+                     ORDER BY bg.gorusme_tarihi DESC, bg.id DESC LIMIT 1) AS son_gorusme_ozeti,
+                    (SELECT bg.gorusme_tarihi FROM bekleyen_veli_gorusmeleri bg
+                     WHERE bg.bekleyen_veli_id = bekleyen_veliler.id AND bg.kurum_id = bekleyen_veliler.kurum_id
+                       AND bg.kanal <> "diger"
+                     ORDER BY bg.gorusme_tarihi DESC, bg.id DESC LIMIT 1) AS son_gorusme_tarihi,
+                    CASE
+                      WHEN next_follow_up_at IS NULL THEN "takip_yok"
+                      WHEN next_follow_up_at < NOW() THEN "gecikmis"
+                      WHEN DATE(next_follow_up_at) = CURDATE() THEN "bugun"
+                      WHEN DATE(next_follow_up_at) = DATE_ADD(CURDATE(), INTERVAL 1 DAY) THEN "yarin"
+                      ELSE "ileri_tarih"
+                    END AS takip_durumu
              FROM bekleyen_veliler
              WHERE id = :id
                AND kurum_id = :kurum_id
@@ -162,7 +339,7 @@ final class BekleyenVeli extends Model
 
         if (!$kayit) return null;
         $kayit = self::ayYasiniEkle($kayit);
-        return self::gruplariEkle([$kayit])[0];
+        return self::guncelRandevulariEkle(self::uygunKontenjanlariEkle(self::gruplariEkle([$kayit])))[0];
     }
 
     public static function gorusmeler(int $id): array
@@ -213,17 +390,34 @@ final class BekleyenVeli extends Model
             ]);
             $gorusmeId = (int) $db->lastInsertId();
             $yeniDurum = match ((string) $veri['sonuc']) {
+                'goruldu' => 'bilgi_verildi',
                 'bilgi_verildi' => 'bilgi_verildi',
+                'veli_donecek' => 'veli_donusu_bekleniyor',
+                'tekrar_aranacak' => 'tekrar_aranacak',
+                'kayit_istiyor' => 'kayit_olmaya_hazir',
+                'uygun_grup_yok' => 'uygun_grup_bekliyor',
                 'ulasilamadi' => 'ulasilamadi',
-                'katilmadi' => 'katilmadi',
-                default => 'iletisime_gecildi',
+                'katilmadi' => 'vazgecti',
+                default => 'bilgi_verildi',
             };
             $durumStmt = $db->prepare(
                 'UPDATE bekleyen_veliler
-                 SET durum = IF(durum IN ("kayda_donustu", "iptal"), durum, :durum), guncellenme_tarihi = NOW()
+                 SET durum = IF(durum IN ("kayda_donustu", "kayit_oldu", "iptal", "vazgecti", "ulasilamadi", "katilmadi", "yas_uygun_degil", "saatler_uymadi", "diger"), durum, :durum),
+                     next_follow_up_at = :next_follow_up_at,
+                     next_action_type = :next_action_type,
+                     next_action_note = :next_action_note,
+                     guncellenme_tarihi = NOW()
                  WHERE id = :id AND kurum_id = :kurum_id'
             );
-            $durumStmt->execute(['id' => $id, 'kurum_id' => self::kurumId(), 'durum' => $yeniDurum]);
+            $takipAcik = !self::kapaliDurumMu($yeniDurum);
+            $durumStmt->execute([
+                'id' => $id,
+                'kurum_id' => self::kurumId(),
+                'durum' => $yeniDurum,
+                'next_follow_up_at' => $takipAcik ? ($veri['next_follow_up_at'] ?: null) : null,
+                'next_action_type' => $takipAcik ? ($veri['next_action_type'] ?: null) : null,
+                'next_action_note' => $takipAcik ? ($veri['next_action_note'] ?: null) : null,
+            ]);
             $db->commit();
             return $gorusmeId;
         } catch (\Throwable $e) {
@@ -302,9 +496,57 @@ final class BekleyenVeli extends Model
         return $ogrenciId;
     }
 
+    public static function takipGuncelle(int $id, array $veri, int $kullaniciId = 0): bool
+    {
+        self::ensureSchema();
+        $kayit = self::bul($id);
+        if (!$kayit || self::kapaliDurumMu((string) $kayit['durum']) || !in_array((string) ($veri['next_action_type'] ?? ''), self::aksiyonTipleri(), true)) {
+            return false;
+        }
+        $stmt = self::db()->prepare(
+            'UPDATE bekleyen_veliler
+             SET next_follow_up_at = :takip, next_action_type = :aksiyon, next_action_note = :not, guncellenme_tarihi = NOW()
+             WHERE id = :id AND kurum_id = :kurum_id'
+        );
+        $stmt->execute([
+            'takip' => $veri['next_follow_up_at'],
+            'aksiyon' => $veri['next_action_type'],
+            'not' => $veri['next_action_note'] ?: null,
+            'id' => $id,
+            'kurum_id' => self::kurumId(),
+        ]);
+        self::tarihceEkle($id, 'diger', 'Sonraki aksiyon planlandı: ' . self::aksiyonEtiketi((string) $veri['next_action_type']) . '.', 'diger', substr((string) $veri['next_follow_up_at'], 0, 10), $kullaniciId);
+        return true;
+    }
+
+    public static function randevuyaBagla(int $id, int $ogrenciId, int $kullaniciId = 0): bool
+    {
+        if ($id < 1 || $ogrenciId < 1) return false;
+        $stmt = self::db()->prepare(
+            'UPDATE bekleyen_veliler
+             SET ogrenci_id = :ogrenci_id, durum = "kayit_oldu", next_follow_up_at = NULL,
+                 next_action_type = NULL, next_action_note = NULL, guncellenme_tarihi = NOW()
+             WHERE id = :id AND kurum_id = :kurum_id'
+        );
+        $stmt->execute(['ogrenci_id' => $ogrenciId, 'id' => $id, 'kurum_id' => self::kurumId()]);
+        if ($stmt->rowCount() < 1 && !self::bul($id)) return false;
+        self::tarihceEkle($id, 'diger', 'Bekleyen veli için randevu oluşturuldu.', 'diger', null, $kullaniciId);
+        return true;
+    }
+
     public static function durumlar(): array
     {
-        return ['bekliyor', 'iletisime_gecildi', 'bilgi_verildi', 'ulasilamadi', 'katilmadi', 'kayda_donustu', 'iptal'];
+        return [
+            'yeni_talep', 'ilk_gorusme_yapilacak', 'bilgi_verildi', 'uygun_grup_bekliyor',
+            'veli_donusu_bekleniyor', 'tekrar_aranacak', 'kayit_olmaya_hazir', 'kayit_oldu',
+            'vazgecti', 'ulasilamadi', 'yas_uygun_degil', 'saatler_uymadi', 'diger',
+            'bekliyor', 'iletisime_gecildi', 'katilmadi', 'kayda_donustu', 'iptal',
+        ];
+    }
+
+    public static function aksiyonTipleri(): array
+    {
+        return ['telefonla_ara', 'whatsapp_gonder', 'veli_donusunu_bekle', 'grup_kontrol_et', 'kayit_icin_ara', 'diger'];
     }
 
     public static function grupSecenekleri(int $id): array
@@ -383,7 +625,7 @@ final class BekleyenVeli extends Model
              FROM bekleyen_veli_gruplari bvg
              INNER JOIN bekleyen_veliler bv ON bv.id = bvg.bekleyen_veli_id AND bv.kurum_id = bvg.kurum_id
              WHERE bvg.grup_id = :grup_id AND bvg.kurum_id = :kurum_id
-               AND bv.durum NOT IN ("kayda_donustu", "iptal")
+               AND bv.durum NOT IN ("kayda_donustu", "kayit_oldu", "iptal", "vazgecti", "ulasilamadi", "katilmadi", "yas_uygun_degil", "saatler_uymadi", "diger")
              ORDER BY FIELD(bv.durum, "bekliyor", "ulasilamadi", "iletisime_gecildi", "bilgi_verildi", "katilmadi"), bv.olusturulma_tarihi ASC'
         );
         $stmt->execute(['grup_id' => $grupId, 'kurum_id' => self::kurumId()]);
@@ -394,7 +636,8 @@ final class BekleyenVeli extends Model
     {
         $stmt = self::db()->prepare(
             'UPDATE bekleyen_veliler
-             SET ogrenci_id = :ogrenci_id, durum = "kayda_donustu", guncellenme_tarihi = NOW()
+             SET ogrenci_id = :ogrenci_id, durum = "kayit_oldu", next_follow_up_at = NULL,
+                 next_action_type = NULL, next_action_note = NULL, guncellenme_tarihi = NOW()
              WHERE id = :id AND kurum_id = :kurum_id'
         );
         $stmt->execute(['id' => $id, 'ogrenci_id' => $ogrenciId, 'kurum_id' => self::kurumId()]);
@@ -483,6 +726,169 @@ final class BekleyenVeli extends Model
         return $kayitlar;
     }
 
+    private static function uygunKontenjanlariEkle(array $kayitlar): array
+    {
+        if (!$kayitlar) return $kayitlar;
+
+        $stmt = self::db()->prepare(
+            'SELECT g.id, g.ad, g.yas_araligi, g.kontenjan,
+                    COALESCE(doluluk.ogrenci_sayisi, 0) AS ogrenci_sayisi,
+                    dp.gun, dp.baslangic_saati, dp.bitis_saati
+             FROM gruplar g
+             LEFT JOIN ders_programlari dp
+               ON dp.grup_id = g.id AND dp.kurum_id = g.kurum_id AND dp.aktif = 1
+             LEFT JOIN (
+               SELECT grup_id, COUNT(DISTINCT ogrenci_id) AS ogrenci_sayisi
+               FROM randevular
+               WHERE kurum_id = :kurum_doluluk
+                 AND TIMESTAMP(tarih, baslangic_saati) >= NOW()
+                 AND TIMESTAMP(tarih, baslangic_saati) < DATE_ADD(NOW(), INTERVAL 7 DAY)
+                 AND COALESCE(durum, "planlandi") NOT IN ("iptal", "kurum_iptali")
+               GROUP BY grup_id
+             ) doluluk ON doluluk.grup_id = g.id
+             WHERE g.kurum_id = :kurum_id AND g.aktif = 1
+             ORDER BY g.ad, dp.gun, dp.baslangic_saati'
+        );
+        $stmt->execute(['kurum_doluluk' => self::kurumId(), 'kurum_id' => self::kurumId()]);
+
+        $gunler = [1 => 'Pazartesi', 2 => 'Salı', 3 => 'Çarşamba', 4 => 'Perşembe', 5 => 'Cuma', 6 => 'Cumartesi', 7 => 'Pazar'];
+        $gruplar = [];
+        foreach ($stmt->fetchAll() as $satir) {
+            $grupId = (int) $satir['id'];
+            if (!isset($gruplar[$grupId])) {
+                $kontenjan = (int) ($satir['kontenjan'] ?? 0);
+                $ogrenciSayisi = (int) ($satir['ogrenci_sayisi'] ?? 0);
+                $gruplar[$grupId] = [
+                    'id' => $grupId,
+                    'ad' => (string) $satir['ad'],
+                    'yas_araligi' => (string) ($satir['yas_araligi'] ?? ''),
+                    'kontenjan' => $kontenjan,
+                    'ogrenci_sayisi' => $ogrenciSayisi,
+                    'bos_kontenjan' => max(0, $kontenjan - $ogrenciSayisi),
+                    'programlar' => [],
+                ];
+            }
+            if ($satir['gun'] !== null) {
+                $gun = (int) $satir['gun'];
+                $gruplar[$grupId]['programlar'][] = [
+                    'gun' => $gun,
+                    'gun_adi' => $gunler[$gun] ?? '-',
+                    'baslangic_saati' => substr((string) $satir['baslangic_saati'], 0, 5),
+                    'bitis_saati' => substr((string) $satir['bitis_saati'], 0, 5),
+                ];
+            }
+        }
+
+        foreach ($kayitlar as &$kayit) {
+            $secili = array_fill_keys(array_map('intval', $kayit['grup_idleri'] ?? []), true);
+            $kayit['gruplar'] = array_values(array_filter(array_map(
+                static fn(int $id): ?array => $gruplar[$id] ?? null,
+                array_keys($secili)
+            )));
+            $kayit['grup_adlari'] = implode(', ', array_column($kayit['gruplar'], 'ad'));
+
+            $ayYasi = isset($kayit['ogrenci_ay_yasi']) ? (int) $kayit['ogrenci_ay_yasi'] : null;
+            $beklenenGun = mb_strtolower(trim((string) ($kayit['beklenen_gun'] ?? '')), 'UTF-8');
+            $zamanTercihi = (string) ($kayit['zaman_tercihi'] ?? 'farketmez');
+            $uygun = [];
+            foreach ($gruplar as $grup) {
+                if ((int) $grup['bos_kontenjan'] < 1) continue;
+                $dogrudanSecili = isset($secili[(int) $grup['id']]);
+                $yasUyumlu = $ayYasi !== null && self::yasAraliginda($ayYasi, (string) $grup['yas_araligi']);
+                if (!$dogrudanSecili && !$yasUyumlu) continue;
+
+                $programlar = $grup['programlar'];
+                $gunUyumlu = $beklenenGun === '' || array_filter($programlar, static fn(array $program): bool => str_contains(mb_strtolower((string) $program['gun_adi'], 'UTF-8'), $beklenenGun));
+                $zamanUyumlu = $zamanTercihi === 'farketmez' || array_filter($programlar, static function (array $program) use ($zamanTercihi): bool {
+                    $haftaSonu = (int) $program['gun'] >= 6;
+                    return $zamanTercihi === 'hafta_sonu' ? $haftaSonu : !$haftaSonu;
+                });
+                if (!$dogrudanSecili && (!$gunUyumlu || !$zamanUyumlu)) continue;
+                $grup['dogrudan_secili'] = $dogrudanSecili ? 1 : 0;
+                $grup['program_ozeti'] = $programlar
+                    ? implode(' · ', array_map(static fn(array $p): string => $p['gun_adi'] . ' ' . $p['baslangic_saati'], $programlar))
+                    : 'Program saati tanımlı değil';
+                $uygun[] = $grup;
+            }
+            usort($uygun, static function (array $a, array $b): int {
+                $sonuc = (int) $b['dogrudan_secili'] <=> (int) $a['dogrudan_secili'];
+                if ($sonuc !== 0) return $sonuc;
+                $sonuc = (int) $b['bos_kontenjan'] <=> (int) $a['bos_kontenjan'];
+                return $sonuc !== 0 ? $sonuc : strcasecmp((string) $a['ad'], (string) $b['ad']);
+            });
+            $kayit['uygun_gruplar'] = array_slice($uygun, 0, 8);
+            $kayit['uygun_grup_var'] = $uygun ? 1 : 0;
+            $kayit['whatsapp_telefon'] = self::whatsappTelefon((string) ($kayit['veli_telefon'] ?? ''));
+        }
+        unset($kayit);
+        return $kayitlar;
+    }
+
+    private static function guncelRandevulariEkle(array $kayitlar): array
+    {
+        if (!$kayitlar) return $kayitlar;
+
+        $ogrenciIdleri = array_values(array_unique(array_filter(
+            array_map('intval', array_column($kayitlar, 'ogrenci_id')),
+            static fn(int $ogrenciId): bool => $ogrenciId > 0
+        )));
+        $randevular = [];
+
+        if ($ogrenciIdleri) {
+            $yer = implode(',', array_fill(0, count($ogrenciIdleri), '?'));
+            $stmt = self::db()->prepare(
+                "SELECT r.id, r.ogrenci_id, r.tarih, r.baslangic_saati, r.bitis_saati, r.durum,
+                        COALESCE(g.ad, r.tur) AS grup_adi
+                 FROM randevular r
+                 LEFT JOIN gruplar g ON g.id = r.grup_id AND g.kurum_id = r.kurum_id
+                 WHERE r.kurum_id = ?
+                   AND r.ogrenci_id IN ({$yer})
+                   AND r.tarih >= CURDATE()
+                   AND COALESCE(r.durum, \"planlandi\") NOT IN
+                       (\"gelmedi\", \"mazeretli_gelmedi\", \"gec_iptal\", \"kurum_iptali\", \"ertelendi\")
+                 ORDER BY r.ogrenci_id, r.tarih, r.baslangic_saati, r.id"
+            );
+            $stmt->execute([self::kurumId(), ...$ogrenciIdleri]);
+            foreach ($stmt->fetchAll() as $randevu) {
+                $ogrenciId = (int) $randevu['ogrenci_id'];
+                if (isset($randevular[$ogrenciId])) continue;
+                $randevu['id'] = (int) $randevu['id'];
+                $randevu['ogrenci_id'] = $ogrenciId;
+                $randevu['baslangic_saati'] = substr((string) $randevu['baslangic_saati'], 0, 5);
+                $randevu['bitis_saati'] = substr((string) $randevu['bitis_saati'], 0, 5);
+                $randevular[$ogrenciId] = $randevu;
+            }
+        }
+
+        foreach ($kayitlar as &$kayit) {
+            $randevu = $randevular[(int) ($kayit['ogrenci_id'] ?? 0)] ?? null;
+            $kayit['guncel_randevu'] = $randevu;
+            $kayit['guncel_randevu_var'] = $randevu ? 1 : 0;
+            $kayit['daha_once_arandi'] = (int) ($kayit['iletisim_sayisi'] ?? 0) > 0 ? 1 : 0;
+        }
+        unset($kayit);
+
+        return $kayitlar;
+    }
+
+    private static function yasAraliginda(int $ay, string $aralik): bool
+    {
+        preg_match_all('/\d+/', $aralik, $eslesmeler);
+        $sayilar = array_map('intval', $eslesmeler[0] ?? []);
+        if (!$sayilar) return false;
+        $alt = $sayilar[0];
+        $ust = $sayilar[1] ?? $sayilar[0];
+        return $ay >= min($alt, $ust) && $ay <= max($alt, $ust);
+    }
+
+    private static function whatsappTelefon(string $telefon): string
+    {
+        $rakamlar = preg_replace('/\D+/', '', $telefon) ?? '';
+        if (str_starts_with($rakamlar, '90')) return $rakamlar;
+        if (str_starts_with($rakamlar, '0')) $rakamlar = substr($rakamlar, 1);
+        return strlen($rakamlar) === 10 ? '90' . $rakamlar : $rakamlar;
+    }
+
     private static function tarihceEkle(int $id, string $kanal, string $ozet, string $sonuc, ?string $takipTarihi, int $kullaniciId): void
     {
         $stmt = self::db()->prepare(
@@ -500,10 +906,24 @@ final class BekleyenVeli extends Model
     private static function durumEtiketi(string $durum): string
     {
         return [
-            'bekliyor' => 'Bekliyor', 'iletisime_gecildi' => 'İletişime Geçildi',
+            'yeni_talep' => 'Yeni Talep', 'ilk_gorusme_yapilacak' => 'İlk Görüşme Yapılacak',
             'bilgi_verildi' => 'Bilgi Verildi', 'ulasilamadi' => 'Ulaşılamadı',
-            'katilmadi' => 'Katılmadı', 'kayda_donustu' => 'Kayda Dönüştü', 'iptal' => 'İptal',
+            'uygun_grup_bekliyor' => 'Uygun Grup Bekliyor', 'veli_donusu_bekleniyor' => 'Veli Dönüşü Bekleniyor',
+            'tekrar_aranacak' => 'Tekrar Aranacak', 'kayit_olmaya_hazir' => 'Kayıt Olmaya Hazır',
+            'kayit_oldu' => 'Kayıt Oldu', 'vazgecti' => 'Vazgeçti',
+            'yas_uygun_degil' => 'Yaş Uygun Değil', 'saatler_uymadi' => 'Saatler Uymadı', 'diger' => 'Diğer',
+            'bekliyor' => 'Yeni Talep', 'iletisime_gecildi' => 'Bilgi Verildi',
+            'katilmadi' => 'Vazgeçti', 'kayda_donustu' => 'Kayıt Oldu', 'iptal' => 'Vazgeçti',
         ][$durum] ?? $durum;
+    }
+
+    private static function aksiyonEtiketi(string $aksiyon): string
+    {
+        return [
+            'telefonla_ara' => 'Telefonla Ara', 'whatsapp_gonder' => 'WhatsApp Gönder',
+            'veli_donusunu_bekle' => 'Veli Dönüşünü Bekle', 'grup_kontrol_et' => 'Grup Kontrol Et',
+            'kayit_icin_ara' => 'Kayıt İçin Ara', 'diger' => 'Diğer',
+        ][$aksiyon] ?? $aksiyon;
     }
 
     private static function durumSonucu(string $durum): string
@@ -516,8 +936,14 @@ final class BekleyenVeli extends Model
         };
     }
 
+    private static function kapaliDurumMu(string $durum): bool
+    {
+        return in_array($durum, ['kayit_oldu', 'kayda_donustu', 'vazgecti', 'ulasilamadi', 'yas_uygun_degil', 'saatler_uymadi', 'diger', 'iptal', 'katilmadi'], true);
+    }
+
     private static function ensureSchema(): void
     {
+        if (self::$schemaHazir) return;
         $db = self::db();
         $db->exec(
             'CREATE TABLE IF NOT EXISTS bekleyen_veliler (
@@ -532,7 +958,10 @@ final class BekleyenVeli extends Model
               beklenen_gun VARCHAR(20) NULL,
               ay_grubu VARCHAR(80) NULL,
               zaman_tercihi ENUM("hafta_ici","hafta_sonu","farketmez") NOT NULL DEFAULT "farketmez",
-              durum ENUM("bekliyor","iletisime_gecildi","bilgi_verildi","ulasilamadi","katilmadi","kayda_donustu","iptal") NOT NULL DEFAULT "bekliyor",
+              durum ENUM("yeni_talep","ilk_gorusme_yapilacak","bilgi_verildi","uygun_grup_bekliyor","veli_donusu_bekleniyor","tekrar_aranacak","kayit_olmaya_hazir","kayit_oldu","vazgecti","ulasilamadi","yas_uygun_degil","saatler_uymadi","diger","bekliyor","iletisime_gecildi","katilmadi","kayda_donustu","iptal") NOT NULL DEFAULT "yeni_talep",
+              next_follow_up_at DATETIME NULL,
+              next_action_type ENUM("telefonla_ara","whatsapp_gonder","veli_donusunu_bekle","grup_kontrol_et","kayit_icin_ara","diger") NULL,
+              next_action_note VARCHAR(500) NULL,
               notlar TEXT NULL,
               olusturan_kullanici_id BIGINT UNSIGNED NULL,
               olusturulma_tarihi DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -578,6 +1007,33 @@ final class BekleyenVeli extends Model
         if (!self::kolonVarMi('kurum_id')) {
             $db->exec('ALTER TABLE bekleyen_veliler ADD COLUMN kurum_id INT UNSIGNED NOT NULL DEFAULT 1 AFTER id');
         }
+        $crmKolonlari = [
+            'next_follow_up_at' => 'DATETIME NULL AFTER durum',
+            'next_action_type' => 'ENUM("telefonla_ara","whatsapp_gonder","veli_donusunu_bekle","grup_kontrol_et","kayit_icin_ara","diger") NULL AFTER next_follow_up_at',
+            'next_action_note' => 'VARCHAR(500) NULL AFTER next_action_type',
+        ];
+        foreach ($crmKolonlari as $kolon => $tanim) {
+            if (!self::kolonVarMi($kolon)) $db->exec("ALTER TABLE bekleyen_veliler ADD COLUMN {$kolon} {$tanim}");
+        }
+        if (!str_contains(self::kolonTuru('bekleyen_veliler', 'durum'), 'yeni_talep')) {
+            $db->exec(
+                'ALTER TABLE bekleyen_veliler MODIFY COLUMN durum ENUM(
+              "yeni_talep","ilk_gorusme_yapilacak","bilgi_verildi","uygun_grup_bekliyor",
+              "veli_donusu_bekleniyor","tekrar_aranacak","kayit_olmaya_hazir","kayit_oldu",
+              "vazgecti","ulasilamadi","yas_uygun_degil","saatler_uymadi","diger",
+              "bekliyor","iletisime_gecildi","katilmadi","kayda_donustu","iptal"
+            ) NOT NULL DEFAULT "yeni_talep"'
+            );
+        }
+        if (!str_contains(self::kolonTuru('bekleyen_veli_gorusmeleri', 'sonuc'), 'veli_donecek')) {
+            $db->exec(
+                'ALTER TABLE bekleyen_veli_gorusmeleri MODIFY COLUMN sonuc ENUM(
+              "goruldu","bilgi_verildi","veli_donecek","tekrar_aranacak","kayit_istiyor","uygun_grup_yok",
+              "randevu_planlandi","kararsiz","ulasilamadi","katilmadi","olumsuz","diger"
+            ) NOT NULL DEFAULT "bilgi_verildi"'
+            );
+        }
+        self::$schemaHazir = true;
     }
 
     private static function kolonVarMi(string $kolon): bool
@@ -592,5 +1048,15 @@ final class BekleyenVeli extends Model
         $stmt->execute(['kolon' => $kolon]);
 
         return (int) $stmt->fetchColumn() > 0;
+    }
+
+    private static function kolonTuru(string $tablo, string $kolon): string
+    {
+        $stmt = self::db()->prepare(
+            'SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :tablo AND COLUMN_NAME = :kolon LIMIT 1'
+        );
+        $stmt->execute(['tablo' => $tablo, 'kolon' => $kolon]);
+        return (string) ($stmt->fetchColumn() ?: '');
     }
 }

@@ -33,7 +33,7 @@ $canSendSms = yetki_var('sms_gonder');
 <section class="page-head">
     <div>
         <h1>Genel Bakis</h1>
-        <p>Oyun Evleri operasyonunun gunluk durumunu hizli takip edin.</p>
+        <p>Oyun evinizin günlük durumunu hızlıca takip edin.</p>
     </div>
     <?php if ($canCreateAppointments) : ?>
         <div class="appointment-toolbar-actions">
@@ -44,12 +44,34 @@ $canSendSms = yetki_var('sms_gonder');
     <?php endif; ?>
 </section>
 
-<section class="stats-grid dashboard-summary-grid">
-    <?php if ($canStudents) : ?><article class="stat-card"><span>Aktif Ogrenci</span><strong><?= e($ozet['ogrenci'] ?? 0) ?></strong></article><?php endif; ?>
-    <?php if ($canGroups) : ?><article class="stat-card"><span>Aktif Grup</span><strong><?= e($ozet['grup'] ?? 0) ?></strong></article><?php endif; ?>
-    <?php if ($canAppointments) : ?><article class="stat-card"><span>Bugunku Randevu</span><strong><?= e($ozet['randevu'] ?? 0) ?></strong></article><?php endif; ?>
+<section class="dashboard-overview-grid<?= $canStudents ? '' : ' without-birthdays' ?>">
+    <div class="dashboard-overview-main">
+        <section class="stats-grid dashboard-summary-grid">
+            <?php if ($canStudents) : ?><article class="stat-card dashboard-color-card dashboard-color-card--blue"><span>Aktif Ogrenci</span><strong><?= e($ozet['ogrenci'] ?? 0) ?></strong></article><?php endif; ?>
+            <?php if ($canGroups) : ?><article class="stat-card dashboard-color-card dashboard-color-card--purple"><span>Aktif Grup</span><strong><?= e($ozet['grup'] ?? 0) ?></strong></article><?php endif; ?>
+            <?php if ($canAppointments) : ?><article class="stat-card dashboard-color-card dashboard-color-card--green"><span>Bugunku Randevu</span><strong><?= e($ozet['randevu'] ?? 0) ?></strong></article><?php endif; ?>
+        </section>
+
+        <?php if ($canPayments || $canReports) : ?>
+        <section class="report-grid report-summary dashboard-finance-summary">
+            <article class="report-card accent-blue dashboard-finance-card dashboard-finance-card--blue">
+                <span>Bu Ay Tahsilat</span>
+                <strong><?= e(para_goster($raporOzet['bu_ay_tahsilat'] ?? 0)) ?></strong>
+            </article>
+            <article class="report-card accent-red dashboard-finance-card dashboard-finance-card--coral">
+                <span>Bekleyen Alacak</span>
+                <strong><?= e(para_goster($raporOzet['bekleyen_alacak'] ?? 0)) ?></strong>
+            </article>
+            <article class="report-card accent-dark dashboard-finance-card dashboard-finance-card--violet">
+                <span>Yapilacak Odemeler</span>
+                <strong><?= e(para_goster($raporOzet['yapilacak_odeme_30_gun'] ?? 0)) ?></strong>
+            </article>
+        </section>
+        <?php endif; ?>
+    </div>
+
     <?php if ($canStudents) : ?>
-        <article class="stat-card birthday-stat-card">
+        <article class="stat-card birthday-stat-card dashboard-color-card dashboard-color-card--pink">
             <span>Bu Hafta Dogum Gunu</span>
             <strong><?= e($ozet['dogum_gunu'] ?? 0) ?></strong>
             <?php if ($dogumGunleri) : ?>
@@ -94,25 +116,6 @@ $canSendSms = yetki_var('sms_gonder');
         </div>
     </div>
 </dialog>
-<?php endif; ?>
-
-<?php if ($canPayments || $canReports) : ?>
-<section class="report-grid report-summary dashboard-finance-summary">
-    <?php if ($canPayments || $canReports) : ?>
-    <article class="report-card accent-blue">
-        <span>Bu Ay Tahsilat</span>
-        <strong><?= e(para_goster($raporOzet['bu_ay_tahsilat'] ?? 0)) ?></strong>
-    </article>
-    <article class="report-card accent-red">
-        <span>Bekleyen Alacak</span>
-        <strong><?= e(para_goster($raporOzet['bekleyen_alacak'] ?? 0)) ?></strong>
-    </article>
-    <article class="report-card accent-dark">
-        <span>Yapilacak Odemeler</span>
-        <strong><?= e(para_goster($raporOzet['yapilacak_odeme_30_gun'] ?? 0)) ?></strong>
-    </article>
-    <?php endif; ?>
-</section>
 <?php endif; ?>
 
 <?php if ($canAppointments) : ?>
@@ -196,17 +199,17 @@ $canSendSms = yetki_var('sms_gonder');
     data-can-change-appointment-status="<?= $canChangeAppointmentStatus ? '1' : '0' ?>"
 >
     <div class="appointment-stats">
-        <article class="appointment-stat">
+        <article class="appointment-stat dashboard-appointment-stat--blue">
             <span>Planlanan</span>
             <strong data-randevu-stat="planlandi">0</strong>
             <a href="/panel/randevular">Goruntule</a>
         </article>
-        <article class="appointment-stat success">
+        <article class="appointment-stat success dashboard-appointment-stat--green">
             <span>Gelen</span>
             <strong data-randevu-stat="geldi">0</strong>
             <a href="/panel/randevular">Goruntule</a>
         </article>
-        <article class="appointment-stat danger">
+        <article class="appointment-stat danger dashboard-appointment-stat--pink">
             <span>Gelmeyen</span>
             <strong data-randevu-stat="gelmedi">0</strong>
             <a href="/panel/randevular">Goruntule</a>
@@ -228,8 +231,8 @@ $canSendSms = yetki_var('sms_gonder');
             </div>
             <div class="appointment-toolbar-actions">
                 <div class="calendar-view-switch" aria-label="Takvim gorunumu">
-                    <button class="btn btn-ghost" type="button" data-calendar-view="month">Ay</button>
-                    <button class="btn btn-ghost is-active" type="button" data-calendar-view="week">Hafta</button>
+                    <button class="btn btn-ghost is-active" type="button" data-calendar-view="month">Ay</button>
+                    <button class="btn btn-ghost" type="button" data-calendar-view="week">Hafta</button>
                     <button class="btn btn-ghost" type="button" data-calendar-view="day">Gun</button>
                 </div>
                 <button class="btn btn-ghost" type="button" data-calendar-prev>&lt;</button>

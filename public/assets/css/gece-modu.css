@@ -325,6 +325,75 @@ html[data-theme="dark"] .waiting-parent-create-groups label:has(input:checked) {
 html[data-theme="dark"] .waiting-parent-action-icon.is-primary { color: #8bd6ff; }
 html[data-theme="dark"] .waiting-parent-action-icon.is-success { color: #6ee7b7; }
 html[data-theme="dark"] .waiting-parent-action-icon.is-danger { color: #fca5a5; }
+html[data-theme="dark"] .waiting-parent-crm-search input,
+html[data-theme="dark"] .waiting-parent-crm-filters select {
+  border-color: var(--glass-border);
+  color: var(--ink);
+  background: rgba(14, 27, 42, .82);
+}
+html[data-theme="dark"] .waiting-parent-smart-planner { border-color: rgba(102,199,255,.22); background: linear-gradient(135deg, rgba(34,72,123,.3), rgba(6,78,59,.24)); }
+html[data-theme="dark"] .waiting-parent-smart-planner small { color: #6ee7b7; }
+html[data-theme="dark"] .waiting-parent-smart-plan-button { border-color: rgba(52,211,153,.3); color: #9aefd0; background: rgba(6,78,59,.3); }
+html[data-theme="dark"] .waiting-parent-smart-plan-button.is-active { color: #ecfdf5; background: #047857; }
+html[data-theme="dark"] .waiting-parent-plan-groups { border-color: rgba(52,211,153,.24); background: rgba(6,78,59,.25); }
+html[data-theme="dark"] .waiting-parent-plan-group-list article { border-color: rgba(52,211,153,.18); background: rgba(18,31,47,.76); }
+html[data-theme="dark"] .waiting-parent-plan-groups > header span,
+html[data-theme="dark"] .waiting-parent-plan-groups > header small,
+html[data-theme="dark"] .waiting-parent-plan-group-capacity strong { color: #9aefd0; }
+html[data-theme="dark"] .waiting-parent-kanban-column,
+html[data-theme="dark"] .waiting-parent-crm-card,
+html[data-theme="dark"] .waiting-parent-drawer {
+  border-color: var(--glass-border);
+  color: var(--ink);
+  background: rgba(18, 31, 47, .9);
+}
+html[data-theme="dark"] .waiting-parent-crm-card { box-shadow: 0 12px 28px rgba(0,0,0,.24); }
+html[data-theme="dark"] .waiting-parent-quick-filters button,
+html[data-theme="dark"] .waiting-parent-card-actions a,
+html[data-theme="dark"] .waiting-parent-card-actions button {
+  border-color: var(--glass-border);
+  color: #b7c7d9;
+  background: rgba(25, 42, 60, .78);
+}
+html[data-theme="dark"] .waiting-parent-quick-filters button.is-active { color: #eaf7ff; background: rgba(63,112,148,.3); }
+html[data-theme="dark"] .waiting-parent-group-preferences { border-color: rgba(251,146,60,.3); border-left-color: #fb923c; background: rgba(154,52,18,.22); }
+html[data-theme="dark"] .waiting-parent-group-preferences > h3 { color: #fdba74; }
+html[data-theme="dark"] .waiting-parent-group-chips span { border-color: rgba(251,146,60,.3); color: #fed7aa; background: rgba(154,52,18,.28); }
+html[data-theme="dark"] .waiting-parent-drawer-groups span { border-color: rgba(117,190,235,.22); color: #bfe6fb; background: rgba(42,91,124,.28); }
+html[data-theme="dark"] .waiting-parent-suitable-groups { border-color: var(--glass-border); background: rgba(25,42,60,.5); }
+html[data-theme="dark"] .waiting-parent-suitable-groups.has-match { border-color: rgba(52,211,153,.24); background: rgba(6,78,59,.28); }
+html[data-theme="dark"] .waiting-parent-suitable-groups strong,
+html[data-theme="dark"] .waiting-parent-plan-reason strong { color: #c8f7e4; }
+html[data-theme="dark"] .waiting-parent-plan-reason { background: rgba(6,78,59,.34); }
+html[data-theme="dark"] .waiting-parent-appointment { border-color: rgba(52,211,153,.24); color: #9aefd0; background: rgba(6,78,59,.32); }
+html[data-theme="dark"] .waiting-parent-contact-state { color: #c4b5fd; background: rgba(109,40,217,.22); }
+html[data-theme="dark"] .waiting-parent-contact-state.is-contacted { color: #9cdef5; background: rgba(3,105,161,.24); }
+html[data-theme="dark"] .waiting-parent-drop-message { border-color: rgba(102,199,255,.25); color: #bfe6fb; background: rgba(42,91,124,.28); }
+html[data-theme="dark"] .waiting-parent-group-collapse,
+html[data-theme="dark"] .waiting-parent-follow-options,
+html[data-theme="dark"] .waiting-parent-history-dialog [data-waiting-parent-history-form] { border-color: var(--glass-border); background: rgba(25,42,60,.55); }
+html[data-theme="dark"] .waiting-parent-drop-message.is-error { border-color: rgba(252,165,165,.25); color: #fca5a5; background: rgba(114,35,44,.35); }
+html[data-theme="dark"] .waiting-parent-kanban-column.is-drop-target { border-color: rgba(102,199,255,.55); background: rgba(32,68,94,.72); }
+html[data-theme="dark"] .waiting-parent-last-contact p,
+html[data-theme="dark"] .waiting-parent-card-note { color: #aebdce; }
+html[data-theme="dark"] .waiting-parent-next-action { background: rgba(38,52,69,.76); }
+html[data-theme="dark"] .waiting-parent-next-action.is-gecikmis { background: rgba(114,35,44,.35); }
+html[data-theme="dark"] .waiting-parent-next-action.is-bugun { background: rgba(113,72,15,.34); }
+html[data-theme="dark"] .waiting-parent-next-action.is-yarin,
+html[data-theme="dark"] .waiting-parent-next-action.is-ileri_tarih { background: rgba(34,72,123,.34); }
+html[data-theme="dark"] .waiting-parent-drawer-summary { border-color: var(--glass-border); background: rgba(26,49,68,.62); }
+html[data-theme="dark"] .waiting-parent-drawer-grid strong,
+html[data-theme="dark"] .waiting-parent-drawer-grid a { color: var(--ink); }
+html[data-theme="dark"] .waiting-parent-secondary-info { border-color: var(--glass-border); background: rgba(25,42,60,.38); }
+html[data-theme="dark"] .waiting-parent-priority-card { border-color: rgba(148,163,184,.22); background: rgba(38,52,69,.76); }
+html[data-theme="dark"] .waiting-parent-priority-card strong { color: #e7eff9; }
+html[data-theme="dark"] .waiting-parent-priority-card.is-gecikmis,
+html[data-theme="dark"] .waiting-parent-priority-card.is-warning { background: rgba(114,35,44,.42); }
+html[data-theme="dark"] .waiting-parent-priority-card.is-bugun { background: rgba(113,72,15,.4); }
+html[data-theme="dark"] .waiting-parent-priority-card.is-yarin,
+html[data-theme="dark"] .waiting-parent-priority-card.is-ileri_tarih { background: rgba(34,72,123,.42); }
+html[data-theme="dark"] .waiting-parent-priority-card.is-status { background: rgba(76,45,124,.4); }
+html[data-theme="dark"] .waiting-parent-priority-card.is-calm { background: rgba(6,78,59,.36); }
 
 html[data-theme="dark"] .renewal-day-head strong,
 html[data-theme="dark"] .renewal-day-list b,

@@ -85,8 +85,39 @@
   .sidebar-collapsed .menu button::before {
     content: none;
   }
+  .sidebar-collapsed .menu > a .menu-icon,
+  .sidebar-collapsed .menu-group > button .menu-icon {
+    display: none;
+  }
+  .sidebar-collapsed .menu > a::after {
+    display: none;
+  }
   .sidebar-collapsed .menu-group > button::after {
     display: block;
+    content: "";
+    position: absolute;
+    top: auto;
+    right: 13px;
+    left: auto;
+    z-index: auto;
+    width: 7px;
+    height: 7px;
+    max-width: none;
+    padding: 0;
+    border: 0;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    opacity: .55;
+    transform: rotate(45deg);
+    transition: none;
+  }
+  .sidebar-collapsed .menu-group.is-open > button::after {
+    margin-top: 5px;
+    opacity: .55;
+    transform: rotate(225deg);
   }
   .sidebar-collapsed .menu-group.is-open .submenu {
     display: grid;

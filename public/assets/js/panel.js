@@ -311,9 +311,33 @@ document.querySelector('[data-waiting-parent-history-form]')?.addEventListener('
     message.textContent = response.mesaj;
     const id = Number(payload.bekleyen_veli_id);
     form.elements.ozet.value = '';
-    form.elements.sonraki_takip_tarihi.value = '';
+    form.elements.next_follow_up_at.value = '';
+    form.elements.next_action_type.value = '';
+    form.elements.next_action_note.value = '';
     form.elements.gorusme_tarihi.value = localDateTimeInputValue();
-    await loadWaitingParentHistory(id, dialog);
+    if (!dialog.classList.contains('is-drag-flow')) await loadWaitingParentHistory(id, dialog);
+    const table = document.querySelector('[data-table="bekleyen_veli_listele"]');
+    if (table) await loadAjaxTable(table);
+    if (dialog.classList.contains('is-drag-flow')) closeDialogElement(dialog);
+  } catch (error) {
+    message.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+
+document.querySelector('[data-waiting-parent-followup-form]')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const dialog = form.closest('[data-waiting-parent-followup-dialog]');
+  const message = form.querySelector('[data-form-message]');
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  message.textContent = 'Kaydediliyor...';
+  try {
+    const response = await talyaAjax('bekleyen_veli_takip_guncelle', formValues(form));
+    message.textContent = response.mesaj;
+    closeDialogElement(dialog);
     const table = document.querySelector('[data-table="bekleyen_veli_listele"]');
     if (table) await loadAjaxTable(table);
   } catch (error) {
@@ -457,6 +481,7 @@ function renderOgrenciTable(target, rows, paging = {}) {
   target._talyaRows = rows || [];
   const filtered = target._talyaRows;
   const canEditStudent = target.dataset.canEditStudent === '1';
+  const canManageWaiting = target.dataset.canManageWaiting === '1';
 
   if (!filtered.length) {
     target.innerHTML = '<div class="empty-table">Eslesen ogrenci bulunamadi.</div>';
@@ -476,10 +501,13 @@ function renderOgrenciTable(target, rows, paging = {}) {
         ${String(row.kara_liste_aktif || '0') === '1' ? '<span class="status-pill is-danger">Kara Liste</span>' : ''}
       </td>
       <td>
-        ${canEditStudent ? `
+        ${canEditStudent || (canManageWaiting && row.durum === 'pasif') ? `
           <div class="table-row-actions">
-            <button class="btn btn-ghost" type="button" data-quick-edit-student="${escapeHtml(row.id)}">Hizli Duzenle</button>
-            <button class="btn btn-danger" type="button" data-delete-student="${escapeHtml(row.id)}">Sil</button>
+            ${canEditStudent ? `<button class="btn btn-ghost" type="button" data-quick-edit-student="${escapeHtml(row.id)}">Hizli Duzenle</button>` : ''}
+            ${canManageWaiting && row.durum === 'pasif'
+              ? `<button class="btn btn-ghost" type="button" data-add-former-student-to-waiting="${escapeHtml(row.id)}">Bekleyen Velilere Ekle</button>`
+              : ''}
+            ${canEditStudent ? `<button class="btn btn-danger" type="button" data-delete-student="${escapeHtml(row.id)}">Sil</button>` : ''}
           </div>
         ` : '<span>-</span>'}
       </td>
@@ -508,13 +536,24 @@ function renderOgrenciTable(target, rows, paging = {}) {
 
 function waitingParentStatusLabel(value) {
   return {
-    bekliyor: 'Bekliyor',
-    iletisime_gecildi: 'Iletisime Gecildi',
+    yeni_talep: 'Yeni Talep',
+    ilk_gorusme_yapilacak: 'İlk Görüşme Yapılacak',
     bilgi_verildi: 'Bilgi Verildi',
+    uygun_grup_bekliyor: 'Uygun Grup Bekliyor',
+    veli_donusu_bekleniyor: 'Veli Dönüşü Bekleniyor',
+    tekrar_aranacak: 'Tekrar Aranacak',
+    kayit_olmaya_hazir: 'Kayıt Olmaya Hazır',
+    kayit_oldu: 'Kayıt Oldu',
+    vazgecti: 'Vazgeçti',
     ulasilamadi: 'Ulaşılamadı',
-    katilmadi: 'Katılmadı',
-    kayda_donustu: 'Kayda Donustu',
-    iptal: 'Iptal',
+    yas_uygun_degil: 'Yaş Uygun Değil',
+    saatler_uymadi: 'Saatler Uymadı',
+    diger: 'Diğer',
+    bekliyor: 'Yeni Talep',
+    iletisime_gecildi: 'Bilgi Verildi',
+    katilmadi: 'Vazgeçti',
+    kayda_donustu: 'Kayıt Oldu',
+    iptal: 'Vazgeçti',
   }[value] || value || '-';
 }
 
@@ -558,9 +597,9 @@ function waitingParentAgeLabel(row) {
 
 function waitingParentDaysLabel(value) {
   const days = Math.max(0, Number(value || 0));
-  if (days === 0) {
-    return 'Bugün';
-  }
+  if (days === 0) return 'Bugün';
+  if (days === 1) return '1 gün';
+  if (days >= 30) return '1 ay+';
   return `${days} gün`;
 }
 
@@ -588,10 +627,331 @@ function waitingParentSortHeader(target, key, label) {
   return `<th aria-sort="${ariaSort}"><button class="waiting-parent-sort" type="button" data-waiting-parent-sort="${key}" title="Sıralamak için tıklayın">${label}<span aria-hidden="true">${icon}</span></button></th>`;
 }
 
+const waitingParentClosedStatuses = new Set(['kayit_oldu', 'kayda_donustu', 'vazgecti', 'ulasilamadi', 'yas_uygun_degil', 'saatler_uymadi', 'diger', 'iptal', 'katilmadi']);
+let waitingParentCrmFilter = 'all';
+
+function waitingParentActionLabel(value) {
+  return {
+    telefonla_ara: 'Telefonla Ara', whatsapp_gonder: 'WhatsApp Gönder',
+    veli_donusunu_bekle: 'Veli Dönüşünü Bekle', grup_kontrol_et: 'Grup Kontrol Et',
+    kayit_icin_ara: 'Kayıt İçin Ara', diger: 'Diğer',
+  }[value] || 'Aksiyon belirlenmedi';
+}
+
+function waitingParentDateTimeLabel(value) {
+  if (!value) return '';
+  const date = new Date(String(value).replace(' ', 'T'));
+  if (Number.isNaN(date.getTime())) return String(value).slice(0, 16);
+  return new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(date);
+}
+
+function waitingParentCrmColumn(row) {
+  if (Number(row.guncel_randevu_var || 0) === 1) return 'appointment';
+  if (Number(row.iletisim_sayisi || 0) === 0) return 'new';
+  return 'contacted';
+}
+
+function waitingParentPriority(row) {
+  if (row.takip_durumu === 'gecikmis') return 0;
+  if (row.takip_durumu === 'bugun') return 1;
+  if (Number(row.uygun_grup_var || 0) === 1) return 2;
+  if (['yeni_talep', 'bekliyor'].includes(row.durum)) return 3;
+  if (row.next_follow_up_at) return 4;
+  return 5;
+}
+
+function waitingParentPlanScore(row) {
+  const groups = Array.isArray(row.uygun_gruplar) ? row.uygun_gruplar : [];
+  const maxVacancy = groups.reduce((max, group) => Math.max(max, Number(group.bos_kontenjan || 0)), 0);
+  const selectedMatch = groups.some((group) => Number(group.dogrudan_secili || 0) === 1);
+  const resultPoints = {
+    kayit_istiyor: 90,
+    tekrar_aranacak: 78,
+    uygun_grup_yok: 76,
+    veli_donecek: 65,
+    bilgi_verildi: 52,
+    goruldu: 45,
+    ulasilamadi: 30,
+  }[row.son_gorusme_sonucu] || 0;
+  const followPoints = row.takip_durumu === 'gecikmis' ? 120 : (row.takip_durumu === 'bugun' ? 105 : 0);
+  const lastContact = row.son_gorusme_tarihi ? new Date(String(row.son_gorusme_tarihi).replace(' ', 'T')) : null;
+  const contactAge = lastContact && !Number.isNaN(lastContact.getTime())
+    ? Math.min(60, Math.max(0, Math.floor((Date.now() - lastContact.getTime()) / 86400000)))
+    : 55;
+  return followPoints + resultPoints + contactAge + Math.min(40, maxVacancy * 5) + (selectedMatch ? 22 : 0) + Math.min(25, Number(row.listeye_ekleneli_gun || 0));
+}
+
+function waitingParentPlanReason(row) {
+  const groups = Array.isArray(row.uygun_gruplar) ? row.uygun_gruplar : [];
+  const bestGroup = groups[0];
+  const vacancy = Number(bestGroup?.bos_kontenjan || 0);
+  if (row.takip_durumu === 'gecikmis') return `Takibi gecikti · ${bestGroup?.ad || 'uygun grup'} müsait`;
+  if (row.takip_durumu === 'bugun') return `Bugün takip edilmeli · ${bestGroup?.ad || 'uygun grup'} müsait`;
+  if (row.son_gorusme_sonucu === 'uygun_grup_yok') return `Son görüşmede grup yoktu · şimdi ${vacancy} boş yer var`;
+  if (row.son_gorusme_sonucu === 'kayit_istiyor') return `Kayıt ilgisi yüksek · ${bestGroup?.ad || 'uygun grup'} öneriliyor`;
+  if (row.son_gorusme_sonucu === 'tekrar_aranacak') return `Tekrar aranacak · ${bestGroup?.ad || 'uygun grup'} hazır`;
+  if (!row.son_gorusme_tarihi) return `Henüz görüşülmedi · ${bestGroup?.ad || 'uygun grup'} müsait`;
+  return `Son görüşme dikkate alındı · ${bestGroup?.ad || 'uygun grup'} ${vacancy} boş yer`;
+}
+
+function waitingParentGroupScheduleSortValue(group) {
+  const programs = Array.isArray(group?.programlar) ? group.programlar : [];
+  return programs.reduce((first, program) => {
+    const day = Number(program?.gun || 99);
+    const time = String(program?.baslangic_saati || '99:99');
+    if (day < first.day || (day === first.day && time.localeCompare(first.time) < 0)) {
+      return { day, time };
+    }
+    return first;
+  }, { day: 99, time: '99:99' });
+}
+
+function waitingParentCompareGroupsBySchedule(a, b) {
+  const first = waitingParentGroupScheduleSortValue(a);
+  const second = waitingParentGroupScheduleSortValue(b);
+  return first.day - second.day
+    || first.time.localeCompare(second.time)
+    || String(a.ad || '').localeCompare(String(b.ad || ''), 'tr');
+}
+
+function waitingParentMatchesQuickFilter(row, filter) {
+  const hasAppointment = Number(row.guncel_randevu_var || 0) === 1;
+  if (filter === 'appointments') return hasAppointment;
+  if (filter === 'closed') return waitingParentClosedStatuses.has(row.durum);
+  if (filter === 'vacancy_plan') return !hasAppointment && !waitingParentClosedStatuses.has(row.durum) && Number(row.uygun_grup_var || 0) === 1;
+  if (waitingParentClosedStatuses.has(row.durum) && !hasAppointment) return false;
+  if (filter === 'today') return row.takip_durumu === 'bugun';
+  if (filter === 'overdue') return row.takip_durumu === 'gecikmis';
+  if (filter === 'no_followup') return !row.next_follow_up_at;
+  if (filter === 'parent_return') return row.durum === 'veli_donusu_bekleniyor' || row.next_action_type === 'veli_donusunu_bekle';
+  if (filter === 'vacancy') return Number(row.uygun_grup_var || 0) === 1;
+  return true;
+}
+
+function waitingParentStatusOptions(selected) {
+  selected = { bekliyor: 'yeni_talep', iletisime_gecildi: 'bilgi_verildi', katilmadi: 'vazgecti', kayda_donustu: 'kayit_oldu', iptal: 'vazgecti' }[selected] || selected;
+  const statuses = [
+    ['yeni_talep', 'Yeni Talep'], ['ilk_gorusme_yapilacak', 'İlk Görüşme Yapılacak'],
+    ['bilgi_verildi', 'Bilgi Verildi'], ['uygun_grup_bekliyor', 'Uygun Grup Bekliyor'],
+    ['veli_donusu_bekleniyor', 'Veli Dönüşü Bekleniyor'], ['tekrar_aranacak', 'Tekrar Aranacak'],
+    ['kayit_olmaya_hazir', 'Kayıt Olmaya Hazır'], ['kayit_oldu', 'Kayıt Oldu'],
+    ['vazgecti', 'Vazgeçti'], ['ulasilamadi', 'Ulaşılamadı'], ['yas_uygun_degil', 'Yaş Uygun Değil'],
+    ['saatler_uymadi', 'Saatler Uymadı'], ['diger', 'Diğer'],
+  ];
+  return statuses.map(([value, label]) => `<option value="${value}" ${selected === value ? 'selected' : ''}>${label}</option>`).join('');
+}
+
+function waitingParentAppointmentStatusLabel(value) {
+  return {
+    planlandi: 'Planlandı', geldi: 'Geldi', tamamlandi: 'Tamamlandı',
+  }[value] || 'Planlandı';
+}
+
+function renderWaitingParentCrmCard(row) {
+  const groups = (row.gruplar || []).slice(0, 3).map((group) => {
+    const program = group.programlar?.[0];
+    const label = program ? `${program.gun_adi} · ${program.baslangic_saati} · ${group.yas_araligi || group.ad}` : group.ad;
+    return `<span>${escapeHtml(label)}</span>`;
+  }).join('') || '<span>Grup tercihi yok</span>';
+  const suitableGroups = (row.uygun_gruplar || []).slice(0, 3);
+  const suitableGroupsHtml = suitableGroups.length ? suitableGroups.map((group) => `
+    <div>
+      <strong>${escapeHtml(group.ad || '-')}</strong>
+      <small>${escapeHtml(group.program_ozeti || group.yas_araligi || 'Program belirtilmedi')} · <b>${escapeHtml(group.bos_kontenjan || 0)} boş yer</b></small>
+    </div>`).join('') : '<p>Şu an boş kontenjanlı uygun grup yok.</p>';
+  const phoneHref = `tel:${searchablePhone(row.veli_telefon || '')}`;
+  const whatsapp = row.whatsapp_telefon ? `https://wa.me/${encodeURIComponent(row.whatsapp_telefon)}` : '';
+  const followClass = row.takip_durumu || 'takip_yok';
+  const followText = row.next_follow_up_at
+    ? `${waitingParentDateTimeLabel(row.next_follow_up_at)} · ${waitingParentActionLabel(row.next_action_type)}`
+    : 'Takip tarihi belirlenmedi';
+  const lastContact = row.son_gorusme_tarihi
+    ? `${String(row.son_gorusme_tarihi).slice(0, 10).split('-').reverse().join('.')} · ${row.son_gorusme_ozeti || 'Görüşme kaydı'}`
+    : 'Henüz görüşme yapılmadı';
+  const appointment = row.guncel_randevu || null;
+  const appointmentDate = appointment
+    ? waitingParentDateTimeLabel(`${appointment.tarih} ${appointment.baslangic_saati || '00:00'}`)
+    : '';
+  const longWait = Number(row.listeye_ekleneli_gun || 0) >= 15 ? ' is-long-wait' : '';
+  const crmColumn = waitingParentCrmColumn(row);
+
+  return `<article class="waiting-parent-crm-card${longWait}" draggable="true" data-waiting-parent-card="${escapeHtml(row.id)}" data-waiting-parent-column="${escapeHtml(crmColumn)}">
+    <header>
+      <button type="button" data-waiting-parent-history="${escapeHtml(row.id)}" data-compact-conversation><strong>${escapeHtml(row.ogrenci_ad_soyad || '-')}</strong><small>${escapeHtml(waitingParentAgeLabel(row) || row.ay_grubu || 'Yaş bilgisi yok')}</small></button>
+      <span class="waiting-parent-wait-badge">${escapeHtml(waitingParentDaysLabel(row.listeye_ekleneli_gun))}</span>
+    </header>
+    <div class="waiting-parent-contact"><span>Veli</span><strong>${escapeHtml(row.veli_ad_soyad || '-')}</strong><a href="${phoneHref}">${escapeHtml(row.veli_telefon || '-')}</a></div>
+    <div class="waiting-parent-contact-state ${Number(row.iletisim_sayisi || 0) > 0 ? 'is-contacted' : 'is-new'}"><span>${Number(row.iletisim_sayisi || 0) > 0 ? 'Daha önce arandı' : 'Yeni eklendi · henüz aranmadı'}</span>${Number(row.iletisim_sayisi || 0) > 0 ? `<strong>${escapeHtml(row.iletisim_sayisi)} iletişim</strong>` : ''}</div>
+    <section class="waiting-parent-group-preferences" aria-label="Grup tercihleri">
+      <h3>Grup Tercihleri</h3>
+      <div class="waiting-parent-group-chips">${groups}</div>
+    </section>
+    <section class="waiting-parent-suitable-groups ${suitableGroups.length ? 'has-match' : ''}">
+      <span>UYGUN VE MÜSAİT GRUPLAR</span>
+      ${suitableGroupsHtml}
+      ${(row.uygun_gruplar || []).length > 3 ? `<em>+${escapeHtml(row.uygun_gruplar.length - 3)} grup daha</em>` : ''}
+    </section>
+    ${waitingParentCrmFilter === 'vacancy_plan' ? `<div class="waiting-parent-plan-reason"><span>OTOMATİK PLAN ÖNERİSİ</span><strong>${escapeHtml(waitingParentPlanReason(row))}</strong></div>` : ''}
+    ${appointment ? `<div class="waiting-parent-appointment"><span>GÜNCEL RANDEVU</span><strong>${escapeHtml(appointmentDate)}</strong><small>${escapeHtml(appointment.grup_adi || 'Grup belirtilmedi')} · ${escapeHtml(waitingParentAppointmentStatusLabel(appointment.durum))}</small></div>` : ''}
+    <div class="waiting-parent-last-contact"><span>Son görüşme</span><p>${escapeHtml(lastContact)}</p></div>
+    ${row.notlar ? `<p class="waiting-parent-card-note">“${escapeHtml(row.notlar)}”</p>` : ''}
+    <div class="waiting-parent-next-action is-${escapeHtml(followClass)}"><span>SONRAKİ AKSİYON</span><strong>${escapeHtml(followText)}</strong>${row.next_action_note ? `<small>${escapeHtml(row.next_action_note)}</small>` : ''}</div>
+    <div class="waiting-parent-card-actions">
+      <a href="${phoneHref}" aria-label="Telefonla ara">Ara</a>
+      ${whatsapp ? `<a href="${whatsapp}" target="_blank" rel="noopener noreferrer">WhatsApp</a>` : ''}
+      <button type="button" data-waiting-parent-history="${escapeHtml(row.id)}" data-focus-conversation data-compact-conversation>Görüşme Ekle</button>
+      <button type="button" data-waiting-parent-followup="${escapeHtml(row.id)}">Takip Planla</button>
+    </div>
+    ${appointment
+      ? '<a class="btn btn-primary waiting-parent-appointment-action" href="/panel/randevular">Randevuyu Gör</a>'
+      : `<button class="btn btn-primary waiting-parent-appointment-action" type="button"
+          data-open-dialog="#hizli-randevu-dialog" data-quick-appointment-prefill
+          data-bekleyen-veli-id="${escapeHtml(row.id)}"
+          data-ogrenci-id="${escapeHtml(row.ogrenci_id || '')}"
+          data-ogrenci-ad-soyad="${escapeHtml(row.ogrenci_ad_soyad || '')}"
+          data-dogum-tarihi="${escapeHtml(row.ogrenci_dogum_tarihi || '')}"
+          data-veli-ad-soyad="${escapeHtml(row.veli_ad_soyad || '')}"
+          data-veli-telefon="${escapeHtml(row.veli_telefon || '')}">Randevu Oluştur</button>`}
+  </article>`;
+}
+
+function renderWaitingParentCrm(rows) {
+  const page = document.querySelector('[data-waiting-parent-crm-page]');
+  if (!page) return;
+  const query = String(page.querySelector('[data-waiting-parent-search]')?.value || '').trim().toLocaleLowerCase('tr-TR');
+  const queryDigits = searchablePhone(query);
+  const age = page.querySelector('[data-waiting-parent-age-filter]')?.value || '';
+  const allRows = rows || [];
+  const plannerRows = allRows.filter((row) => waitingParentMatchesQuickFilter(row, 'vacancy_plan'));
+  const plannerGroups = new Set(plannerRows.flatMap((row) => (row.uygun_gruplar || []).map((group) => String(group.id))));
+  const plannerSummary = page.querySelector('[data-waiting-parent-smart-plan-summary]');
+  if (plannerSummary) plannerSummary.textContent = `Önümüzdeki 7 günde ${plannerRows.length} uygun aday · ${plannerGroups.size} müsait grup bulundu`;
+  const plannerButton = page.querySelector('[data-waiting-parent-smart-plan]');
+  const planActive = waitingParentCrmFilter === 'vacancy_plan';
+  if (plannerButton) {
+    plannerButton.classList.toggle('is-active', planActive);
+    plannerButton.setAttribute('aria-pressed', planActive ? 'true' : 'false');
+    plannerButton.textContent = planActive ? 'Planı Kapat' : 'Otomatik Planla';
+  }
+  page.querySelector('[data-waiting-parent-smart-planner]')?.classList.toggle('is-active', planActive);
+  page.classList.toggle('is-smart-plan', planActive);
+
+  const plannerGroupsPanel = page.querySelector('[data-waiting-parent-plan-groups]');
+  const plannerGroupsList = page.querySelector('[data-waiting-parent-plan-group-list]');
+  const plannerGroupsCount = page.querySelector('[data-waiting-parent-plan-groups-count]');
+  const availableGroups = Array.from(plannerRows.reduce((groups, row) => {
+    (row.uygun_gruplar || []).forEach((group) => {
+      const key = String(group.id || group.ad || '');
+      if (!key) return;
+      const current = groups.get(key);
+      if (current) {
+        current.aday_sayisi += 1;
+        current.bos_kontenjan = Math.max(current.bos_kontenjan, Number(group.bos_kontenjan || 0));
+        return;
+      }
+      groups.set(key, {
+        ...group,
+        bos_kontenjan: Number(group.bos_kontenjan || 0),
+        aday_sayisi: 1,
+      });
+    });
+    return groups;
+  }, new Map()).values()).sort(waitingParentCompareGroupsBySchedule);
+  if (plannerGroupsPanel) plannerGroupsPanel.hidden = !planActive;
+  if (plannerGroupsCount) plannerGroupsCount.textContent = `${availableGroups.length} müsait grup`;
+  if (plannerGroupsList) {
+    plannerGroupsList.innerHTML = availableGroups.length
+      ? availableGroups.map((group) => `<article>
+          <div><strong>${escapeHtml(group.ad || '-')}</strong><small>${escapeHtml(group.program_ozeti || group.yas_araligi || 'Program belirtilmedi')}</small></div>
+          <div class="waiting-parent-plan-group-capacity"><strong>${escapeHtml(group.bos_kontenjan)} boş yer</strong><small>${escapeHtml(group.aday_sayisi)} uygun aday</small></div>
+        </article>`).join('')
+      : '<p class="waiting-parent-plan-groups-empty">Önümüzdeki 7 gün için müsait grup bulunamadı.</p>';
+  }
+
+  const filtered = allRows.filter((row) => {
+    if (!waitingParentMatchesQuickFilter(row, waitingParentCrmFilter)) return false;
+    if (age && row.ay_grubu !== age
+      && !(row.gruplar || []).some((group) => group.yas_araligi === age)
+      && !(row.uygun_gruplar || []).some((group) => group.yas_araligi === age)) return false;
+    if (!query) return true;
+    const suitableGroupNames = (row.uygun_gruplar || []).map((group) => group.ad || '').join(' ');
+    const text = `${row.ogrenci_ad_soyad || ''} ${row.veli_ad_soyad || ''} ${row.veli_telefon || ''} ${row.guncel_randevu?.grup_adi || ''} ${suitableGroupNames}`.toLocaleLowerCase('tr-TR');
+    return text.includes(query) || (queryDigits && searchablePhone(row.veli_telefon || '').includes(queryDigits));
+  }).sort((a, b) => planActive
+    ? waitingParentPlanScore(b) - waitingParentPlanScore(a)
+    : waitingParentPriority(a) - waitingParentPriority(b)
+      || String(a.next_follow_up_at || '9999').localeCompare(String(b.next_follow_up_at || '9999'))
+      || Number(b.listeye_ekleneli_gun || 0) - Number(a.listeye_ekleneli_gun || 0));
+
+  const columns = { new: [], contacted: [], appointment: [] };
+  filtered.forEach((row) => columns[waitingParentCrmColumn(row)].push(row));
+  Object.entries(columns).forEach(([key, columnRows]) => {
+    const target = page.querySelector(`[data-kanban-column="${key}"]`);
+    const count = page.querySelector(`[data-kanban-count="${key}"]`);
+    if (count) count.textContent = String(columnRows.length);
+    if (target) target.innerHTML = columnRows.length
+      ? columnRows.map(renderWaitingParentCrmCard).join('')
+      : '<div class="waiting-parent-column-empty">Bu aşamada aday yok.</div>';
+  });
+}
+
+let waitingParentDraggedId = 0;
+let waitingParentDropMessageTimer = 0;
+
+function waitingParentShowDropMessage(message, isError = false) {
+  const target = document.querySelector('[data-waiting-parent-drop-message]');
+  if (!target) return;
+  window.clearTimeout(waitingParentDropMessageTimer);
+  target.textContent = message;
+  target.classList.toggle('is-error', isError);
+  target.hidden = false;
+  waitingParentDropMessageTimer = window.setTimeout(() => { target.hidden = true; }, 4500);
+}
+
+function waitingParentMoveAllowed(source, target) {
+  if (!source || !target || source === target) return false;
+  if (target === 'appointment') return source !== 'appointment';
+  if (target === 'contacted') return source === 'new';
+  return false;
+}
+
+function requestWaitingParentColumnMove(id, targetColumn) {
+  const row = waitingParentRowById(id);
+  if (!row) return;
+  const sourceColumn = waitingParentCrmColumn(row);
+  if (sourceColumn === targetColumn) return;
+
+  const card = document.querySelector(`[data-waiting-parent-card="${CSS.escape(String(id))}"]`);
+  if (targetColumn === 'contacted' && sourceColumn === 'new') {
+    const opener = card?.querySelector('[data-focus-conversation]');
+    if (!opener) return;
+    opener.setAttribute('data-drag-transition', '1');
+    opener.click();
+    opener.removeAttribute('data-drag-transition');
+    waitingParentShowDropMessage('Görüşme bilgilerini kaydedince veli İletişime Geçilenler sütununa taşınacak.');
+    return;
+  }
+  if (targetColumn === 'appointment' && sourceColumn !== 'appointment') {
+    card?.querySelector('[data-quick-appointment-prefill]')?.click();
+    waitingParentShowDropMessage('Randevu bilgilerini kaydedince veli Randevu Oluşturulanlar sütununa taşınacak.');
+    return;
+  }
+
+  waitingParentShowDropMessage('Görüşme ve randevu geçmişi bulunan kartlar geriye taşınamaz.', true);
+}
+
+function clearWaitingParentDropState() {
+  document.querySelectorAll('.waiting-parent-kanban-column.is-drop-target, .waiting-parent-kanban-column.is-drop-invalid')
+    .forEach((column) => column.classList.remove('is-drop-target', 'is-drop-invalid'));
+  document.querySelectorAll('.waiting-parent-crm-card.is-card-dragging')
+    .forEach((card) => card.classList.remove('is-card-dragging'));
+}
+
 function renderBekleyenVeliTable(target, rows) {
   target._talyaRows = rows || [];
-  const waitingRows = target._talyaRows.filter((row) => !['kayda_donustu', 'iptal'].includes(row.durum));
-  const convertedRows = target._talyaRows.filter((row) => row.durum === 'kayda_donustu');
+  renderWaitingParentCrm(target._talyaRows);
+  const waitingRows = target._talyaRows.filter((row) => !waitingParentClosedStatuses.has(row.durum));
+  const convertedRows = target._talyaRows.filter((row) => row.durum === 'kayda_donustu' || row.durum === 'kayit_oldu');
   document.querySelectorAll('[data-waiting-parent-count]').forEach((element) => {
     const type = element.dataset.waitingParentCount;
     element.textContent = String(type === 'waiting' ? waitingRows.length : (type === 'converted' ? convertedRows.length : target._talyaRows.length));
@@ -650,7 +1010,7 @@ function renderBekleyenVeliTable(target, rows) {
       : `<button class="waiting-parent-action-icon is-primary" type="button" data-convert-waiting-parent="${escapeHtml(row.id)}" title="Aktif öğrenci yap" aria-label="Aktif öğrenci yap">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 19a6 6 0 0 0-12 0m6-8a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm9-4v6m-3-3h6"/></svg>
         </button>`;
-    const editButton = !['kayda_donustu', 'iptal'].includes(row.durum)
+    const editButton = !waitingParentClosedStatuses.has(row.durum)
       ? `<button class="waiting-parent-action-icon" type="button" data-edit-waiting-parent="${escapeHtml(row.id)}" title="Bilgileri düzenle" aria-label="Bilgileri düzenle">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l11-11a2.8 2.8 0 0 0-4-4L4 16v4Zm9.5-13.5 4 4"/></svg>
         </button>`
@@ -687,13 +1047,7 @@ function renderBekleyenVeliTable(target, rows) {
       </td>
       <td>
         <select data-waiting-parent-status="${escapeHtml(row.id)}" data-saved-status="${escapeHtml(row.durum || 'bekliyor')}" aria-label="${escapeHtml(row.ogrenci_ad_soyad || 'Öğrenci')} durumunu değiştir">
-          <option value="bekliyor" ${row.durum === 'bekliyor' ? 'selected' : ''}>Bekliyor</option>
-          <option value="iletisime_gecildi" ${row.durum === 'iletisime_gecildi' ? 'selected' : ''}>İletişime Geçildi</option>
-          <option value="bilgi_verildi" ${row.durum === 'bilgi_verildi' ? 'selected' : ''}>Bilgi Verildi</option>
-          <option value="ulasilamadi" ${row.durum === 'ulasilamadi' ? 'selected' : ''}>Ulaşılamadı</option>
-          <option value="katilmadi" ${row.durum === 'katilmadi' ? 'selected' : ''}>Katılmadı</option>
-          <option value="kayda_donustu" ${row.durum === 'kayda_donustu' ? 'selected' : ''}>Kayda Dönüştü</option>
-          <option value="iptal" ${row.durum === 'iptal' ? 'selected' : ''}>İptal</option>
+          ${waitingParentStatusOptions(row.durum)}
         </select>
       </td>
       <td>${escapeHtml(row.notlar || '-')}</td>
@@ -701,7 +1055,7 @@ function renderBekleyenVeliTable(target, rows) {
       <td class="waiting-parent-actions-cell">
         <div class="waiting-parent-row-actions">
           ${editButton}
-          <button class="waiting-parent-action-icon" type="button" data-waiting-parent-history="${escapeHtml(row.id)}" title="Detay ve görüşmeler (${escapeHtml(row.gorusme_sayisi || 0)})" aria-label="Detay ve görüşmeler">
+          <button class="waiting-parent-action-icon" type="button" data-waiting-parent-history="${escapeHtml(row.id)}" title="Detay ve gerçek iletişimler (${escapeHtml(row.iletisim_sayisi || 0)})" aria-label="Detay ve görüşmeler">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v4l3 2m6-2a9 9 0 1 1-3-6.7M18 2v4h4"/></svg>
           </button>
           ${conversionButton}
@@ -740,7 +1094,8 @@ const waitingParentChannelLabels = {
   telefon: 'Telefon', whatsapp: 'WhatsApp', yuz_yuze: 'Yüz yüze', sms: 'SMS', diger: 'Diğer'
 };
 const waitingParentResultLabels = {
-  bilgi_verildi: 'Bilgi verildi', tekrar_aranacak: 'Tekrar aranacak', randevu_planlandi: 'Randevu planlandı',
+  goruldu: 'Görüşüldü', bilgi_verildi: 'Bilgi verildi', veli_donecek: 'Veli dönecek',
+  tekrar_aranacak: 'Tekrar aranacak', kayit_istiyor: 'Kayıt istiyor', uygun_grup_yok: 'Uygun grup yok', randevu_planlandi: 'Randevu planlandı',
   kararsiz: 'Kararsız', ulasilamadi: 'Ulaşılamadı', katilmadi: 'Katılmadı', olumsuz: 'Olumsuz', diger: 'Diğer'
 };
 
@@ -758,7 +1113,7 @@ function renderWaitingParentHistory(dialog, rows) {
   target.innerHTML = rows.map((row) => `
     <article class="waiting-parent-history-item">
       <div class="waiting-parent-history-meta">
-        <strong>${escapeHtml(String(row.gorusme_tarihi || '').slice(0, 16))}</strong>
+        <strong>${escapeHtml(waitingParentDateTimeLabel(row.gorusme_tarihi))}</strong>
         <span>${escapeHtml(waitingParentChannelLabels[row.kanal] || row.kanal)}</span>
         <span>${escapeHtml(waitingParentResultLabels[row.sonuc] || row.sonuc)}</span>
       </div>
@@ -768,12 +1123,37 @@ function renderWaitingParentHistory(dialog, rows) {
   `).join('');
 }
 
+function renderWaitingParentDrawerSummary(dialog, row) {
+  const target = dialog.querySelector('[data-waiting-parent-drawer-summary]');
+  if (!target || !row) return;
+  const groups = (row.gruplar || []).map((group) => `<span>${escapeHtml(group.ad)}${group.yas_araligi ? ` · ${escapeHtml(group.yas_araligi)}` : ''}</span>`).join('') || '<span>Grup seçilmedi</span>';
+  const follow = row.next_follow_up_at ? waitingParentDateTimeLabel(row.next_follow_up_at) : 'Takip planlanmadı';
+  const followAction = row.next_follow_up_at ? waitingParentActionLabel(row.next_action_type) : 'Yeni görüşmede takip ekleyin';
+  const followTone = ['gecikmis', 'bugun', 'yarin', 'ileri_tarih'].includes(row.takip_durumu) ? row.takip_durumu : 'takip_yok';
+  const waitTone = Number(row.listeye_ekleneli_gun || 0) >= 15 ? 'warning' : 'calm';
+  target.innerHTML = `
+    <div class="waiting-parent-drawer-priorities" aria-label="CRM hatırlatmaları">
+      <div class="waiting-parent-priority-card is-${escapeHtml(followTone)}"><span>Sonraki takip</span><strong>${escapeHtml(follow)}</strong><small>${escapeHtml(followAction)}${row.next_action_note ? ` · ${escapeHtml(row.next_action_note)}` : ''}</small></div>
+      <div class="waiting-parent-priority-card is-status"><span>CRM durumu</span><strong>${escapeHtml(waitingParentStatusLabel(row.durum))}</strong><small>Güncel aday aşaması</small></div>
+      <div class="waiting-parent-priority-card is-${waitTone}"><span>Bekleme süresi</span><strong>${escapeHtml(waitingParentDaysLabel(row.listeye_ekleneli_gun))}</strong><small>${Number(row.listeye_ekleneli_gun || 0) >= 15 ? 'Uzun süredir bekliyor' : 'Takip süresi normal'}</small></div>
+    </div>
+    <div class="waiting-parent-drawer-grid waiting-parent-secondary-info">
+      <div><span>Veli</span><strong>${escapeHtml(row.veli_ad_soyad || '-')}</strong></div>
+      <div><span>Telefon</span><a href="tel:${searchablePhone(row.veli_telefon || '')}">${escapeHtml(row.veli_telefon || '-')}</a></div>
+      <div><span>Öğrenci yaşı</span><strong>${escapeHtml(waitingParentAgeLabel(row) || row.ay_grubu || 'Yaş bilgisi yok')}</strong></div>
+      <div><span>Tercihler</span><strong>${escapeHtml(waitingParentPreferenceLabel(row.zaman_tercihi))}${row.beklenen_gun ? ` · ${escapeHtml(row.beklenen_gun)}` : ''}</strong></div>
+    </div>
+    <div class="waiting-parent-drawer-groups">${groups}</div>`;
+}
+
 async function loadWaitingParentHistory(id, dialog) {
   const list = dialog.querySelector('[data-waiting-parent-history-list]');
   list.innerHTML = '<div class="empty-table">Görüşmeler yükleniyor...</div>';
   const response = await talyaAjax('bekleyen_veli_gorusmeleri', {id});
   const data = response.veri || {};
-  dialog.querySelector('[data-waiting-parent-history-title]').textContent = `${data.veli?.veli_ad_soyad || '-'} · ${data.veli?.ogrenci_ad_soyad || '-'}`;
+  dialog._talyaWaitingParent = data.veli || null;
+  dialog.querySelector('[data-waiting-parent-history-title]').textContent = data.veli?.ogrenci_ad_soyad || 'Veli Detayı';
+  renderWaitingParentDrawerSummary(dialog, data.veli);
   renderWaitingParentHistory(dialog, data.gorusmeler || []);
   const groupForm = dialog.querySelector('[data-waiting-parent-groups-form]');
   if (groupForm) {
@@ -871,6 +1251,294 @@ async function loadAjaxTable(element) {
 
 document.querySelectorAll('[data-table]').forEach(loadAjaxTable);
 
+function waitingParentRowById(id) {
+  const table = document.querySelector('[data-table="bekleyen_veli_listele"]');
+  return table?._talyaRows?.find((row) => Number(row.id) === Number(id)) || null;
+}
+
+function setWaitingParentDisplay(display, save = true) {
+  const page = document.querySelector('[data-waiting-parent-crm-page]');
+  if (!page) return;
+  const crm = display !== 'list';
+  page.querySelector('[data-waiting-parent-crm-view]')?.toggleAttribute('hidden', !crm);
+  page.querySelector('[data-waiting-parent-crm-filters]')?.toggleAttribute('hidden', !crm);
+  page.querySelector('[data-waiting-parent-swipe-hint]')?.toggleAttribute('hidden', !crm);
+  page.querySelector('[data-waiting-parent-list-view]')?.toggleAttribute('hidden', crm);
+  page.querySelectorAll('[data-waiting-parent-display]').forEach((button) => button.classList.toggle('is-active', button.dataset.waitingParentDisplay === (crm ? 'crm' : 'list')));
+  if (save) {
+    try { window.localStorage.setItem('talyaBekleyenVeliGorunumu', crm ? 'crm' : 'list'); } catch (error) { /* Tercih saklanamasa da görünüm çalışır. */ }
+  }
+}
+
+function initWaitingParentMobileCarousel() {
+  const carousel = document.querySelector('[data-waiting-parent-crm-view]');
+  if (!carousel || carousel.dataset.mobileSwipeReady === '1') return;
+  carousel.dataset.mobileSwipeReady = '1';
+
+  let startX = 0;
+  let startY = 0;
+  let startScrollLeft = 0;
+  let startColumn = 0;
+  let horizontalSwipe = false;
+  let mouseDragging = false;
+  let mouseMoved = false;
+  let suppressClick = false;
+
+  const columns = () => Array.from(carousel.querySelectorAll('.waiting-parent-kanban-column'));
+  const columnLeft = (column) => Math.max(0, column.offsetLeft - carousel.offsetLeft);
+  const nearestColumn = () => {
+    const items = columns();
+    return items.reduce((nearest, column, index) => (
+      Math.abs(columnLeft(column) - carousel.scrollLeft) < Math.abs(columnLeft(items[nearest]) - carousel.scrollLeft) ? index : nearest
+    ), 0);
+  };
+
+  carousel.addEventListener('touchstart', (event) => {
+    if (event.target.closest('[data-waiting-parent-card]')) return;
+    if (!window.matchMedia('(max-width: 760px)').matches || event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    startX = touch.clientX;
+    startY = touch.clientY;
+    startScrollLeft = carousel.scrollLeft;
+    startColumn = nearestColumn();
+    horizontalSwipe = false;
+  }, { passive: true });
+
+  carousel.addEventListener('touchmove', (event) => {
+    if (carousel.dataset.cardDragging === '1') return;
+    if (!window.matchMedia('(max-width: 760px)').matches || event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    const deltaX = touch.clientX - startX;
+    const deltaY = touch.clientY - startY;
+    if (!horizontalSwipe && Math.abs(deltaX) > 8 && Math.abs(deltaX) > Math.abs(deltaY)) horizontalSwipe = true;
+    if (!horizontalSwipe) return;
+    event.preventDefault();
+    carousel.scrollLeft = startScrollLeft - deltaX;
+  }, { passive: false });
+
+  carousel.addEventListener('touchend', (event) => {
+    if (carousel.dataset.cardDragging === '1') return;
+    if (!horizontalSwipe || !window.matchMedia('(max-width: 760px)').matches) return;
+    const endX = event.changedTouches[0]?.clientX ?? startX;
+    const distance = endX - startX;
+    const items = columns();
+    let targetColumn = nearestColumn();
+    if (Math.abs(distance) >= 45) targetColumn = Math.max(0, Math.min(items.length - 1, startColumn + (distance < 0 ? 1 : -1)));
+    carousel.scrollTo({ left: columnLeft(items[targetColumn]), behavior: 'smooth' });
+    horizontalSwipe = false;
+  }, { passive: true });
+
+  carousel.addEventListener('touchcancel', () => { horizontalSwipe = false; }, { passive: true });
+
+  carousel.addEventListener('pointerdown', (event) => {
+    if (event.pointerType !== 'mouse' || event.button !== 0 || carousel.scrollWidth <= carousel.clientWidth) return;
+    if (event.target.closest('[data-waiting-parent-card]')) return;
+    if (event.target.closest('a, button, select, input, textarea, label, summary')) return;
+    startX = event.clientX;
+    startScrollLeft = carousel.scrollLeft;
+    mouseDragging = true;
+    mouseMoved = false;
+    carousel.classList.add('is-dragging');
+    carousel.setPointerCapture(event.pointerId);
+  });
+
+  carousel.addEventListener('pointermove', (event) => {
+    if (!mouseDragging) return;
+    const distance = event.clientX - startX;
+    if (Math.abs(distance) > 5) mouseMoved = true;
+    if (!mouseMoved) return;
+    event.preventDefault();
+    carousel.scrollLeft = startScrollLeft - distance;
+  });
+
+  const finishMouseDrag = (event) => {
+    if (!mouseDragging) return;
+    mouseDragging = false;
+    carousel.classList.remove('is-dragging');
+    if (carousel.hasPointerCapture(event.pointerId)) carousel.releasePointerCapture(event.pointerId);
+    const items = columns();
+    const target = items[nearestColumn()];
+    if (target) carousel.scrollTo({ left: columnLeft(target), behavior: 'smooth' });
+    if (mouseMoved) {
+      suppressClick = true;
+      window.setTimeout(() => { suppressClick = false; }, 0);
+    }
+  };
+
+  carousel.addEventListener('pointerup', finishMouseDrag);
+  carousel.addEventListener('pointercancel', finishMouseDrag);
+  carousel.addEventListener('click', (event) => {
+    if (!suppressClick) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }, true);
+}
+
+function initWaitingParentCardDrag() {
+  const carousel = document.querySelector('[data-waiting-parent-crm-view]');
+  if (!carousel || carousel.dataset.cardDropReady === '1') return;
+  carousel.dataset.cardDropReady = '1';
+
+  const markDropColumn = (column, sourceColumn = '') => {
+    clearWaitingParentDropState();
+    const card = waitingParentDraggedId
+      ? document.querySelector(`[data-waiting-parent-card="${CSS.escape(String(waitingParentDraggedId))}"]`)
+      : null;
+    card?.classList.add('is-card-dragging');
+    if (!column) return;
+    const targetColumn = column.querySelector('[data-kanban-column]')?.dataset.kanbanColumn || '';
+    if (sourceColumn === targetColumn) return;
+    column.classList.add(waitingParentMoveAllowed(sourceColumn, targetColumn) ? 'is-drop-target' : 'is-drop-invalid');
+  };
+
+  carousel.addEventListener('dragstart', (event) => {
+    const card = event.target.closest('[data-waiting-parent-card]');
+    if (!card || event.target.closest('select, input, textarea')) {
+      event.preventDefault();
+      return;
+    }
+    waitingParentDraggedId = Number(card.dataset.waitingParentCard || 0);
+    card.classList.add('is-card-dragging');
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(waitingParentDraggedId));
+    event.dataTransfer.setDragImage(card, Math.min(40, card.clientWidth / 2), 24);
+  });
+
+  carousel.addEventListener('dragover', (event) => {
+    const column = event.target.closest('.waiting-parent-kanban-column');
+    if (!column || !waitingParentDraggedId) return;
+    event.preventDefault();
+    const row = waitingParentRowById(waitingParentDraggedId);
+    const sourceColumn = row ? waitingParentCrmColumn(row) : '';
+    const targetColumn = column.querySelector('[data-kanban-column]')?.dataset.kanbanColumn || '';
+    event.dataTransfer.dropEffect = 'move';
+    markDropColumn(column, sourceColumn);
+  });
+
+  carousel.addEventListener('drop', (event) => {
+    const column = event.target.closest('.waiting-parent-kanban-column');
+    if (!column) return;
+    event.preventDefault();
+    const id = waitingParentDraggedId || Number(event.dataTransfer.getData('text/plain'));
+    const targetColumn = column.querySelector('[data-kanban-column]')?.dataset.kanbanColumn || '';
+    clearWaitingParentDropState();
+    waitingParentDraggedId = 0;
+    requestWaitingParentColumnMove(id, targetColumn);
+  });
+
+  carousel.addEventListener('dragend', () => {
+    clearWaitingParentDropState();
+    waitingParentDraggedId = 0;
+  });
+
+  let touchCard = null;
+  let pendingTouchCard = null;
+  let touchGhost = null;
+  let touchX = 0;
+  let touchY = 0;
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let lastAutoScroll = 0;
+
+  const startTouchCardDrag = (card) => {
+    touchCard = card;
+    pendingTouchCard = null;
+    waitingParentDraggedId = Number(card.dataset.waitingParentCard || 0);
+    carousel.dataset.cardDragging = '1';
+    touchGhost = card.cloneNode(true);
+    touchGhost.classList.add('waiting-parent-card-drag-ghost');
+    touchGhost.removeAttribute('data-waiting-parent-card');
+    document.body.appendChild(touchGhost);
+    touchGhost.style.left = `${Math.max(8, Math.min(window.innerWidth - touchGhost.offsetWidth - 8, touchX - 36))}px`;
+    touchGhost.style.top = `${Math.max(8, touchY - 28)}px`;
+    card.classList.add('is-card-dragging');
+  };
+
+  const finishTouchCardDrag = () => {
+    if (!touchCard) return;
+    const element = document.elementFromPoint(touchX, touchY);
+    const items = Array.from(carousel.querySelectorAll('.waiting-parent-kanban-column'));
+    const nearest = items.reduce((best, item, index) => (
+      Math.abs(item.offsetLeft - carousel.offsetLeft - carousel.scrollLeft) < Math.abs(items[best].offsetLeft - carousel.offsetLeft - carousel.scrollLeft) ? index : best
+    ), 0);
+    const column = element?.closest('.waiting-parent-kanban-column') || items[nearest];
+    const targetColumn = column?.querySelector('[data-kanban-column]')?.dataset.kanbanColumn || '';
+    const id = Number(touchCard.dataset.waitingParentCard || 0);
+    touchGhost?.remove();
+    touchGhost = null;
+    touchCard = null;
+    pendingTouchCard = null;
+    carousel.dataset.cardDragging = '0';
+    clearWaitingParentDropState();
+    waitingParentDraggedId = 0;
+    if (id && targetColumn) requestWaitingParentColumnMove(id, targetColumn);
+  };
+
+  carousel.addEventListener('touchstart', (event) => {
+    const card = event.target.closest('[data-waiting-parent-card]');
+    if (!card || event.target.closest('select, input, textarea') || event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    pendingTouchCard = card;
+    touchX = touch.clientX;
+    touchY = touch.clientY;
+    touchStartX = touchX;
+    touchStartY = touchY;
+  }, { passive: false });
+
+  carousel.addEventListener('touchmove', (event) => {
+    if ((!touchCard && !pendingTouchCard) || event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    touchX = touch.clientX;
+    touchY = touch.clientY;
+    if (!touchCard && pendingTouchCard) {
+      const deltaX = touchX - touchStartX;
+      const deltaY = touchY - touchStartY;
+      if (Math.abs(deltaY) > 10 && Math.abs(deltaY) > Math.abs(deltaX)) {
+        pendingTouchCard = null;
+        return;
+      }
+      if (Math.abs(deltaX) <= 10) return;
+      startTouchCardDrag(pendingTouchCard);
+    }
+    if (!touchCard) return;
+    event.preventDefault();
+    touchGhost.style.left = `${Math.max(8, Math.min(window.innerWidth - touchGhost.offsetWidth - 8, touchX - 36))}px`;
+    touchGhost.style.top = `${Math.max(8, Math.min(window.innerHeight - 60, touchY - 28))}px`;
+
+    const now = Date.now();
+    if (now - lastAutoScroll > 450 && (touchX < 48 || touchX > window.innerWidth - 48)) {
+      const items = Array.from(carousel.querySelectorAll('.waiting-parent-kanban-column'));
+      const current = items.reduce((best, item, index) => (
+        Math.abs(item.offsetLeft - carousel.offsetLeft - carousel.scrollLeft) < Math.abs(items[best].offsetLeft - carousel.offsetLeft - carousel.scrollLeft) ? index : best
+      ), 0);
+      const next = Math.max(0, Math.min(items.length - 1, current + (touchX > window.innerWidth - 48 ? 1 : -1)));
+      if (next !== current) carousel.scrollTo({ left: items[next].offsetLeft - carousel.offsetLeft, behavior: 'smooth' });
+      lastAutoScroll = now;
+    }
+
+    const column = document.elementFromPoint(touchX, touchY)?.closest('.waiting-parent-kanban-column');
+    const row = waitingParentRowById(waitingParentDraggedId);
+    markDropColumn(column, row ? waitingParentCrmColumn(row) : '');
+  }, { passive: false });
+
+  carousel.addEventListener('touchend', () => {
+    if (touchCard) finishTouchCardDrag();
+    else pendingTouchCard = null;
+  }, { passive: true });
+  carousel.addEventListener('touchcancel', () => {
+    if (touchCard) finishTouchCardDrag();
+    else pendingTouchCard = null;
+  }, { passive: true });
+}
+
+if (document.querySelector('[data-waiting-parent-crm-page]')) {
+  let savedDisplay = 'crm';
+  try { savedDisplay = window.localStorage.getItem('talyaBekleyenVeliGorunumu') || 'crm'; } catch (error) { savedDisplay = 'crm'; }
+  setWaitingParentDisplay(savedDisplay, false);
+  initWaitingParentMobileCarousel();
+  initWaitingParentCardDrag();
+}
+
 let studentSearchTimer = 0;
 document.addEventListener('input', (event) => {
   if (!event.target.closest('[data-student-search]')) {
@@ -892,6 +1560,34 @@ document.addEventListener('input', (event) => {
       loadAjaxTable(target);
     }, 250);
   }
+});
+
+document.addEventListener('change', (event) => {
+  if (!event.target.closest('[data-waiting-parent-age-filter]')) return;
+  const target = document.querySelector('[data-table="bekleyen_veli_listele"]');
+  if (target?._talyaRows) renderWaitingParentCrm(target._talyaRows);
+});
+
+document.addEventListener('click', (event) => {
+  const display = event.target.closest('[data-waiting-parent-display]');
+  if (display) {
+    setWaitingParentDisplay(display.dataset.waitingParentDisplay || 'crm');
+    return;
+  }
+  const smartPlan = event.target.closest('[data-waiting-parent-smart-plan]');
+  if (smartPlan) {
+    waitingParentCrmFilter = waitingParentCrmFilter === 'vacancy_plan' ? 'all' : 'vacancy_plan';
+    document.querySelectorAll('[data-waiting-parent-filter]').forEach((button) => button.classList.toggle('is-active', waitingParentCrmFilter === 'all' && button.dataset.waitingParentFilter === 'all'));
+    const target = document.querySelector('[data-table="bekleyen_veli_listele"]');
+    if (target?._talyaRows) renderWaitingParentCrm(target._talyaRows);
+    return;
+  }
+  const filter = event.target.closest('[data-waiting-parent-filter]');
+  if (!filter) return;
+  waitingParentCrmFilter = filter.dataset.waitingParentFilter || 'all';
+  document.querySelectorAll('[data-waiting-parent-filter]').forEach((button) => button.classList.toggle('is-active', button.dataset.waitingParentFilter === waitingParentCrmFilter));
+  const target = document.querySelector('[data-table="bekleyen_veli_listele"]');
+  if (target?._talyaRows) renderWaitingParentCrm(target._talyaRows);
 });
 
 document.addEventListener('click', (event) => {
@@ -1146,6 +1842,12 @@ document.addEventListener('submit', async (event) => {
 });
 
 document.addEventListener('click', async (event) => {
+  const waitingParentCard = event.target.closest('[data-waiting-parent-card]');
+  if (waitingParentCard && !event.target.closest('a, button, select, input, textarea, label')) {
+    waitingParentCard.querySelector('[data-waiting-parent-history]')?.click();
+    return;
+  }
+
   const opener = event.target.closest('[data-open-dialog]');
   if (opener) {
     const dialog = document.querySelector(opener.getAttribute('data-open-dialog'));
@@ -1155,6 +1857,7 @@ document.addEventListener('click', async (event) => {
         const values = {
           ogrenci_id: opener.dataset.ogrenciId || '',
           veli_onam_id: opener.dataset.onamId || '',
+          bekleyen_veli_id: opener.dataset.bekleyenVeliId || '',
           ogrenci_ad_soyad: opener.dataset.ogrenciAdSoyad || '',
           dogum_tarihi: opener.dataset.dogumTarihi || '',
           veli_ad_soyad: opener.dataset.veliAdSoyad || '',
@@ -1246,6 +1949,11 @@ document.addEventListener('click', async (event) => {
     const dialog = document.querySelector('[data-waiting-parent-history-dialog]');
     const form = dialog?.querySelector('[data-waiting-parent-history-form]');
     if (!id || !dialog || !form) return;
+    const compactConversation = waitingParentHistory.hasAttribute('data-drag-transition')
+      || waitingParentHistory.hasAttribute('data-compact-conversation');
+    dialog.classList.toggle('is-drag-flow', compactConversation);
+    dialog.querySelector('[data-waiting-parent-history-form] .waiting-parent-follow-options')?.removeAttribute('open');
+    dialog.querySelector('.waiting-parent-group-collapse')?.removeAttribute('open');
     form.reset();
     form.elements.bekleyen_veli_id.value = String(id);
     form.elements.gorusme_tarihi.value = localDateTimeInputValue();
@@ -1254,9 +1962,30 @@ document.addEventListener('click', async (event) => {
     openDialogElement(dialog);
     try {
       await loadWaitingParentHistory(id, dialog);
+      if (waitingParentHistory.hasAttribute('data-focus-conversation')) {
+        form.querySelector('[name="ozet"]')?.focus();
+      }
     } catch (error) {
       dialog.querySelector('[data-waiting-parent-history-list]').innerHTML = `<div class="empty-table">${escapeHtml(error.message)}</div>`;
     }
+    return;
+  }
+
+  const waitingParentFollowup = event.target.closest('[data-waiting-parent-followup]');
+  if (waitingParentFollowup) {
+    const id = Number(waitingParentFollowup.getAttribute('data-waiting-parent-followup'));
+    const row = waitingParentRowById(id);
+    const dialog = document.querySelector('[data-waiting-parent-followup-dialog]');
+    const form = dialog?.querySelector('[data-waiting-parent-followup-form]');
+    if (!row || !dialog || !form) return;
+    form.reset();
+    form.elements.id.value = String(id);
+    form.elements.next_follow_up_at.value = row.next_follow_up_at ? String(row.next_follow_up_at).replace(' ', 'T').slice(0, 16) : localDateTimeInputValue(new Date(Date.now() + 86400000));
+    form.elements.next_action_type.value = row.next_action_type || 'telefonla_ara';
+    form.elements.next_action_note.value = row.next_action_note || '';
+    dialog.querySelector('[data-waiting-parent-followup-title]').textContent = row.ogrenci_ad_soyad || '';
+    dialog.querySelector('[data-form-message]').textContent = '';
+    openDialogElement(dialog);
     return;
   }
 
@@ -1380,6 +2109,24 @@ document.addEventListener('click', async (event) => {
       }
     } catch (error) {
       window.alert(error.message);
+    }
+    return;
+  }
+
+  const formerStudentWaiting = event.target.closest('[data-add-former-student-to-waiting]');
+  if (formerStudentWaiting) {
+    const ogrenciId = Number(formerStudentWaiting.getAttribute('data-add-former-student-to-waiting'));
+    if (!ogrenciId || !window.confirm('Bu ayrılmış öğrenci mevcut veli bilgileriyle bekleyen veli listesine eklensin mi?')) {
+      return;
+    }
+    formerStudentWaiting.disabled = true;
+    try {
+      const sonuc = await talyaAjax('bekleyen_veli_ogrenciden_ekle', { ogrenci_id: ogrenciId });
+      window.alert(sonuc.mesaj || 'Öğrenci bekleyen veli listesine eklendi.');
+      window.location.href = '/panel/bekleyen-veliler';
+    } catch (error) {
+      window.alert(error.message);
+      formerStudentWaiting.disabled = false;
     }
     return;
   }
@@ -1792,7 +2539,8 @@ document.addEventListener('change', (event) => {
 
   const source = (() => {
     try {
-      return JSON.parse(calendar.getAttribute('data-renewals') || '[]');
+      const rows = JSON.parse(calendar.getAttribute('data-renewals') || '[]');
+      return Array.isArray(rows) ? rows : [];
     } catch (error) {
       return [];
     }
@@ -1813,6 +2561,8 @@ document.addEventListener('change', (event) => {
   let range = 7;
   let customStart = '';
   let customEnd = '';
+  const expandedDates = new Set();
+  const compactRowLimit = 3;
 
   function addDays(value, count) {
     const date = parseDate(value);
@@ -1851,7 +2601,9 @@ document.addEventListener('change', (event) => {
 
   function render() {
     const startDate = customStart || today;
-    const dayCount = customStart && customEnd ? Math.max(1, Math.min(365, diffDays(customStart, customEnd) + 1)) : range;
+    const dayCount = customStart && customEnd
+      ? Math.max(1, Math.min(365, diffDays(customStart, customEnd) + 1))
+      : Math.max(1, Math.min(30, Number(range) || 7));
     const grouped = {};
     source.forEach((row) => {
       grouped[row.tarih] = grouped[row.tarih] || [];
@@ -1863,6 +2615,9 @@ document.addEventListener('change', (event) => {
     for (let i = 0; i < dayCount; i += 1) {
       const date = addDays(startDate, i);
       const rows = grouped[date] || [];
+      const expanded = expandedDates.has(date);
+      const visibleRows = expanded ? rows : rows.slice(0, compactRowLimit);
+      const hiddenRowCount = Math.max(0, rows.length - visibleRows.length);
       const dayTotal = rows.reduce((sum, row) => sum + Number(row.yenileme_ucreti || 0), 0);
       total += dayTotal;
       cells.push(`
@@ -1872,7 +2627,7 @@ document.addEventListener('change', (event) => {
             <span>${escapeHtml(money(dayTotal))}</span>
           </div>
           <div class="renewal-day-list">
-            ${rows.length ? rows.map((row) => `
+            ${rows.length ? visibleRows.map((row) => `
               <div>
                 <b>${Number(row.ogrenci_id || 0) > 0
                   ? `<a class="renewal-student-link" href="/panel/ogrenciler/profil?id=${encodeURIComponent(row.ogrenci_id)}">${escapeHtml(row.ogrenci)}</a>`
@@ -1883,6 +2638,7 @@ document.addEventListener('change', (event) => {
                 ${renewalStatus(row.odeme_durumu) ? `<i>${escapeHtml(renewalStatus(row.odeme_durumu))}</i>` : ''}
               </div>
             `).join('') : '<em>Beklenen yenileme yok.</em>'}
+            ${rows.length > compactRowLimit ? `<button class="renewal-day-more" type="button" data-renewal-day-toggle="${escapeHtml(date)}">${expanded ? 'Daha az göster' : `+${hiddenRowCount} kayıt daha`}</button>` : ''}
           </div>
         </article>
       `);
@@ -1905,6 +2661,7 @@ document.addEventListener('change', (event) => {
     range = Number(button.getAttribute('data-renewal-range') || 7);
     customStart = '';
     customEnd = '';
+    expandedDates.clear();
     document.querySelectorAll('[data-renewal-range]').forEach((item) => item.classList.remove('is-active'));
     button.classList.add('is-active');
     render();
@@ -1921,7 +2678,18 @@ document.addEventListener('change', (event) => {
     }
     customStart = start <= end ? start : end;
     customEnd = start <= end ? end : start;
+    expandedDates.clear();
     document.querySelectorAll('[data-renewal-range]').forEach((item) => item.classList.remove('is-active'));
+    render();
+  });
+
+  calendar.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-renewal-day-toggle]');
+    if (!button) return;
+    const date = button.getAttribute('data-renewal-day-toggle') || '';
+    if (!date) return;
+    if (expandedDates.has(date)) expandedDates.delete(date);
+    else expandedDates.add(date);
     render();
   });
 

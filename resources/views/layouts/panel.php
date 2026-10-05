@@ -23,6 +23,9 @@ $kurumLogosuVar = preg_match('#^/uploads/kurum-logolari/[A-Za-z0-9._-]+$#', $kur
     <link rel="stylesheet" href="<?= e($asset('/assets/css/gece-modu.css')) ?>">
     <link rel="stylesheet" href="<?= e($asset('/assets/css/personel-puantaj.css')) ?>">
     <link rel="stylesheet" href="<?= e($asset('/assets/css/tahsilat-analizi.css')) ?>">
+    <?php if (($aktif ?? '') === 'genel-bakis') : ?>
+        <link rel="stylesheet" href="<?= e($asset('/assets/css/genel-bakis.css')) ?>">
+    <?php endif; ?>
     <?php if (($aktif ?? '') === 'ogrenci-adres-haritasi') : ?>
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
     <?php endif; ?>
@@ -41,7 +44,7 @@ $kurumLogosuVar = preg_match('#^/uploads/kurum-logolari/[A-Za-z0-9._-]+$#', $kur
     </script>
     <script nonce="<?= e(\App\Core\SecurityHeaders::nonce()) ?>">window.talyaCsrfToken = <?= json_encode($csrf ?? '') ?>;</script>
 </head>
-<body>
+<body class="page-<?= e((string) ($aktif ?? 'panel')) ?>">
     <div class="app-shell">
         <aside class="sidebar" id="panel-sidebar" aria-label="Panel menusu">
             <div class="brand">

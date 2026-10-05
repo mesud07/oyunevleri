@@ -3,10 +3,11 @@ $hizliHizmetler = \App\Models\Hizmet::aktifListe();
 $hizliTanisma = \App\Models\Hizmet::tanismaDersi();
 $hizliTanismaId = (int) ($hizliTanisma['id'] ?? 0);
 ?>
-<dialog class="appointment-dialog" id="hizli-randevu-dialog">
+<dialog class="appointment-dialog quick-appointment-dialog" id="hizli-randevu-dialog">
     <form class="appointment-dialog-form" data-ajax-form="hizli_randevu_ekle" data-success-redirect="/panel/randevular" data-quick-appointment-form>
         <input type="hidden" name="ogrenci_id" value="">
         <input type="hidden" name="veli_onam_id" value="">
+        <input type="hidden" name="bekleyen_veli_id" value="">
         <div class="dialog-head">
             <h2>Hizli Randevu Olustur</h2>
             <button type="button" data-close-dialog>x</button>

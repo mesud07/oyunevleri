@@ -9,6 +9,7 @@ use App\Core\Controller;
 use App\Core\Csrf;
 use App\Core\Response;
 use App\Core\Validator;
+use App\Models\BekleyenVeli;
 use App\Models\Hizmet;
 use App\Models\Ogrenci;
 use App\Models\Paket;
@@ -297,6 +298,11 @@ final class PaketController extends Controller
             'program_gunleri' => [$randevuGunu],
             'program_saatleri' => ['program_saat_' . $randevuGunu => $randevuSaati],
         ]);
+
+        $bekleyenVeliId = max(0, (int) ($data['bekleyen_veli_id'] ?? 0));
+        if ($bekleyenVeliId > 0) {
+            BekleyenVeli::randevuyaBagla($bekleyenVeliId, $ogrenciId, $kullaniciId);
+        }
 
         if ((string) ($data['randevu_sms_gonder'] ?? '') === '1') {
             try {

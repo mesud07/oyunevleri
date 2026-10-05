@@ -28,6 +28,7 @@
       "php tests/adres-haritasi-smoke.php",
       "php tests/bekleyen-veli-gorusme-smoke.php",
       "php tests/bekleyen-veli-grup-smoke.php",
+      "php tests/bekleyen-veli-crm-smoke.php",
       "php tests/veli-onam-smoke.php",
       "php tests/borclu-odeme-plani-smoke.php",
       "php tests/dogum-gunu-smoke.php",

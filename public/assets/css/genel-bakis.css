@@ -1,0 +1,363 @@
+/* Genel Bakis: referans dashboard'dan esinlenen canli, ekrana ozel renk sistemi. */
+.page-genel-bakis .main {
+  background:
+    radial-gradient(circle at 92% 3%, rgba(145, 92, 246, 0.13), transparent 29%),
+    radial-gradient(circle at 12% 25%, rgba(49, 181, 255, 0.10), transparent 25%);
+}
+
+.renewal-day-more {
+  width: 100%;
+  border: 1px dashed #9bd9cf;
+  border-radius: 8px;
+  padding: 7px 9px;
+  color: #0f766e;
+  background: #f2fbfa;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.renewal-day-more:hover { background: #e8f7f5; }
+
+.page-genel-bakis .page-head h1 {
+  background: linear-gradient(110deg, #305fcf 5%, #884de8 58%, #db3f9b 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.page-genel-bakis .dashboard-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(260px, 1fr);
+  align-items: start;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.page-genel-bakis .dashboard-overview-grid.without-birthdays {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.page-genel-bakis .dashboard-overview-main {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.page-genel-bakis .dashboard-summary-grid {
+  gap: 14px;
+  margin-bottom: 0;
+}
+
+.page-genel-bakis .dashboard-color-card {
+  position: relative;
+  isolation: isolate;
+  min-height: 110px;
+  overflow: hidden;
+  border: 0;
+  color: #fff;
+  box-shadow: 0 16px 34px rgba(49, 67, 116, 0.19), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.page-genel-bakis .dashboard-color-card::after,
+.page-genel-bakis .dashboard-finance-card::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: -28px;
+  bottom: -46px;
+  width: 142px;
+  height: 142px;
+  border: 24px solid rgba(255, 255, 255, 0.11);
+  border-radius: 50%;
+}
+
+.page-genel-bakis .dashboard-color-card::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: auto 14px 18px 14px;
+  height: 29px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.34);
+  background: linear-gradient(135deg, transparent 0 12%, rgba(255, 255, 255, 0.10) 12% 25%, transparent 25% 42%, rgba(255, 255, 255, 0.12) 42% 66%, transparent 66%);
+  transform: skewY(-5deg);
+}
+
+.page-genel-bakis .dashboard-color-card--blue {
+  background: linear-gradient(135deg, #6258e8 0%, #2c8df3 54%, #36c4f0 100%);
+}
+
+.page-genel-bakis .dashboard-color-card--purple {
+  background: linear-gradient(135deg, #7d46df 0%, #a34edc 52%, #da5dc6 100%);
+}
+
+.page-genel-bakis .dashboard-color-card--green {
+  background: linear-gradient(135deg, #0caa9a 0%, #20c486 52%, #5fd67d 100%);
+}
+
+.page-genel-bakis .dashboard-color-card--pink {
+  background: linear-gradient(135deg, #db3d80 0%, #ee526a 52%, #fb805c 100%);
+}
+
+.page-genel-bakis .dashboard-summary-grid .dashboard-color-card > span,
+.page-genel-bakis .dashboard-summary-grid .dashboard-color-card > small,
+.page-genel-bakis .dashboard-summary-grid .dashboard-color-card > strong {
+  position: relative;
+  z-index: 1;
+  color: #fff;
+}
+
+.page-genel-bakis .dashboard-summary-grid .dashboard-color-card > span {
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.page-genel-bakis .dashboard-summary-grid .dashboard-color-card > strong {
+  font-size: 34px;
+  text-shadow: 0 3px 12px rgba(30, 36, 82, 0.18);
+}
+
+.page-genel-bakis .birthday-stat-card {
+  height: 220px;
+  min-height: 220px;
+  max-height: 220px;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-genel-bakis .birthday-stat-card ul,
+.page-genel-bakis .birthday-stat-card > small,
+.page-genel-bakis .birthday-more-button {
+  position: relative;
+  z-index: 1;
+}
+
+.page-genel-bakis .birthday-stat-card ul {
+  min-height: 0;
+  flex: 1 1 auto;
+  padding-right: 5px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: rgba(255, 255, 255, 0.58) transparent;
+}
+
+.page-genel-bakis .birthday-stat-card ul::-webkit-scrollbar {
+  width: 5px;
+}
+
+.page-genel-bakis .birthday-stat-card ul::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.page-genel-bakis .birthday-stat-card li {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.page-genel-bakis .birthday-stat-card a,
+.page-genel-bakis .birthday-stat-card small,
+.page-genel-bakis .birthday-more-button {
+  color: #fff;
+}
+
+.page-genel-bakis .birthday-more-button {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.page-genel-bakis .dashboard-finance-summary {
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 0;
+}
+
+.page-genel-bakis .dashboard-finance-card {
+  position: relative;
+  isolation: isolate;
+  min-height: 96px;
+  overflow: hidden;
+  border: 0;
+  border-left: 0;
+  color: #fff;
+  box-shadow: 0 13px 30px rgba(49, 67, 116, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.page-genel-bakis .dashboard-finance-card--blue {
+  background: linear-gradient(125deg, #3976e8, #38afea);
+}
+
+.page-genel-bakis .dashboard-finance-card--coral {
+  background: linear-gradient(125deg, #ed466c, #fb784f);
+}
+
+.page-genel-bakis .dashboard-finance-card--violet {
+  background: linear-gradient(125deg, #744bcf, #ba4db9);
+}
+
+.page-genel-bakis .dashboard-finance-card span,
+.page-genel-bakis .dashboard-finance-card strong {
+  position: relative;
+  z-index: 1;
+  color: #fff;
+}
+
+.page-genel-bakis .dashboard-finance-card span {
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 700;
+}
+
+.page-genel-bakis .dashboard-last-lessons .report-panel,
+.page-genel-bakis .renewal-calendar-panel,
+.page-genel-bakis .appointment-calendar-card {
+  border-top: 4px solid transparent;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.67)) padding-box,
+    linear-gradient(90deg, #4c8ff0, #48cdb2, #9b5be5, #ed5795) border-box;
+  box-shadow: 0 18px 42px rgba(67, 80, 128, 0.13);
+}
+
+/* Çok sayıda gün kartında iç içe backdrop-filter Chrome'un boyamasını bozuyor. */
+.page-genel-bakis .renewal-calendar,
+.page-genel-bakis .renewal-calendar-grid,
+.page-genel-bakis .renewal-day,
+.page-genel-bakis .renewal-day-list,
+.page-genel-bakis .renewal-day-list > div {
+  min-width: 0;
+}
+
+.page-genel-bakis .renewal-day {
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 5px 16px rgba(56, 76, 112, 0.08);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  contain: layout paint;
+}
+
+.page-genel-bakis .renewal-day.has-balance {
+  background: rgba(242, 251, 250, 0.96);
+}
+
+.page-genel-bakis .renewal-day-list b,
+.page-genel-bakis .renewal-day-list small,
+.page-genel-bakis .renewal-student-link {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.page-genel-bakis .appointment-stats {
+  gap: 14px;
+}
+
+.page-genel-bakis .appointment-stat {
+  position: relative;
+  overflow: hidden;
+  border: 0;
+  color: #fff;
+  box-shadow: 0 13px 28px rgba(52, 70, 118, 0.17);
+}
+
+.page-genel-bakis .dashboard-appointment-stat--blue {
+  background: linear-gradient(135deg, #4f67e7, #32a8ec);
+}
+
+.page-genel-bakis .dashboard-appointment-stat--green {
+  background: linear-gradient(135deg, #18a98e, #42ca83);
+}
+
+.page-genel-bakis .dashboard-appointment-stat--pink {
+  background: linear-gradient(135deg, #d74791, #f15b72);
+}
+
+.page-genel-bakis .appointment-stat span,
+.page-genel-bakis .appointment-stat strong,
+.page-genel-bakis .appointment-stat a {
+  color: #fff;
+}
+
+.page-genel-bakis .appointment-stat span,
+.page-genel-bakis .appointment-stat a {
+  color: rgba(255, 255, 255, 0.84);
+}
+
+.page-genel-bakis .appointment-stat a {
+  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.page-genel-bakis .appointment-shortcuts {
+  border-color: rgba(132, 86, 223, 0.17);
+  background: linear-gradient(135deg, rgba(106, 93, 225, 0.12), rgba(225, 76, 157, 0.10)), rgba(255, 255, 255, 0.75);
+}
+
+html[data-theme="dark"] .page-genel-bakis .main {
+  background:
+    radial-gradient(circle at 92% 3%, rgba(145, 92, 246, 0.18), transparent 31%),
+    radial-gradient(circle at 12% 25%, rgba(49, 181, 255, 0.13), transparent 27%);
+}
+
+html[data-theme="dark"] .page-genel-bakis .dashboard-last-lessons .report-panel,
+html[data-theme="dark"] .page-genel-bakis .renewal-calendar-panel,
+html[data-theme="dark"] .page-genel-bakis .appointment-calendar-card {
+  background:
+    linear-gradient(rgba(15, 27, 43, 0.90), rgba(15, 27, 43, 0.82)) padding-box,
+    linear-gradient(90deg, #4c8ff0, #48cdb2, #9b5be5, #ed5795) border-box;
+}
+
+html[data-theme="dark"] .page-genel-bakis .renewal-day {
+  background: rgba(24, 39, 57, 0.96);
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.18);
+}
+
+html[data-theme="dark"] .page-genel-bakis .renewal-day.has-balance {
+  background: rgba(24, 55, 58, 0.94);
+}
+
+html[data-theme="dark"] .page-genel-bakis .appointment-shortcuts {
+  border-color: rgba(155, 91, 229, 0.27);
+  background: linear-gradient(135deg, rgba(87, 73, 190, 0.25), rgba(165, 49, 119, 0.20)), rgba(16, 29, 45, 0.86);
+}
+
+@media (max-width: 1250px) {
+  .page-genel-bakis .dashboard-overview-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .page-genel-bakis .renewal-calendar-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .page-genel-bakis .dashboard-finance-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .page-genel-bakis .dashboard-summary-grid,
+  .page-genel-bakis .dashboard-finance-summary,
+  .page-genel-bakis .appointment-stats {
+    gap: 10px;
+  }
+
+  .page-genel-bakis .dashboard-color-card {
+    min-height: 96px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .page-genel-bakis .dashboard-color-card,
+  .page-genel-bakis .dashboard-finance-card,
+  .page-genel-bakis .appointment-stat {
+    transition: transform 180ms ease, box-shadow 180ms ease;
+  }
+
+  .page-genel-bakis .dashboard-color-card:hover,
+  .page-genel-bakis .dashboard-finance-card:hover,
+  .page-genel-bakis .appointment-stat:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 20px 40px rgba(49, 67, 116, 0.23);
+  }
+}

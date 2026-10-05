@@ -127,7 +127,7 @@ CREATE TABLE IF NOT EXISTS `bekleyen_veli_gorusmeleri` (
   `gorusme_tarihi` datetime NOT NULL,
   `kanal` enum('telefon','whatsapp','yuz_yuze','sms','diger') NOT NULL DEFAULT 'telefon',
   `ozet` text NOT NULL,
-  `sonuc` enum('bilgi_verildi','tekrar_aranacak','randevu_planlandi','kararsiz','ulasilamadi','katilmadi','olumsuz','diger') NOT NULL DEFAULT 'bilgi_verildi',
+  `sonuc` enum('goruldu','bilgi_verildi','veli_donecek','tekrar_aranacak','kayit_istiyor','uygun_grup_yok','randevu_planlandi','kararsiz','ulasilamadi','katilmadi','olumsuz','diger') NOT NULL DEFAULT 'bilgi_verildi',
   `sonraki_takip_tarihi` date DEFAULT NULL,
   `olusturan_kullanici_id` bigint(20) unsigned DEFAULT NULL,
   `olusturulma_tarihi` datetime NOT NULL DEFAULT current_timestamp(),
@@ -174,7 +174,10 @@ CREATE TABLE IF NOT EXISTS `bekleyen_veliler` (
   `beklenen_gun` varchar(20) DEFAULT NULL,
   `ay_grubu` varchar(80) DEFAULT NULL,
   `zaman_tercihi` enum('hafta_ici','hafta_sonu','farketmez') NOT NULL DEFAULT 'farketmez',
-  `durum` enum('bekliyor','iletisime_gecildi','bilgi_verildi','ulasilamadi','katilmadi','kayda_donustu','iptal') NOT NULL DEFAULT 'bekliyor',
+  `durum` enum('yeni_talep','ilk_gorusme_yapilacak','bilgi_verildi','uygun_grup_bekliyor','veli_donusu_bekleniyor','tekrar_aranacak','kayit_olmaya_hazir','kayit_oldu','vazgecti','ulasilamadi','yas_uygun_degil','saatler_uymadi','diger','bekliyor','iletisime_gecildi','katilmadi','kayda_donustu','iptal') NOT NULL DEFAULT 'yeni_talep',
+  `next_follow_up_at` datetime DEFAULT NULL,
+  `next_action_type` enum('telefonla_ara','whatsapp_gonder','veli_donusunu_bekle','grup_kontrol_et','kayit_icin_ara','diger') DEFAULT NULL,
+  `next_action_note` varchar(500) DEFAULT NULL,
   `notlar` text DEFAULT NULL,
   `olusturan_kullanici_id` bigint(20) unsigned DEFAULT NULL,
   `olusturulma_tarihi` datetime NOT NULL DEFAULT current_timestamp(),
@@ -187,6 +190,7 @@ CREATE TABLE IF NOT EXISTS `bekleyen_veliler` (
   KEY `idx_bekleyen_veliler_gun` (`beklenen_gun`),
   KEY `fk_bekleyen_veliler_kullanici` (`olusturan_kullanici_id`),
   KEY `idx_bekleyen_veliler_kurum` (`kurum_id`),
+  KEY `idx_bekleyen_veliler_crm_takip` (`kurum_id`,`durum`,`next_follow_up_at`),
   CONSTRAINT `fk_bekleyen_veliler_kullanici` FOREIGN KEY (`olusturan_kullanici_id`) REFERENCES `kullanicilar` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_kurum_4bcd06e91f3a0f492f26` FOREIGN KEY (`kurum_id`) REFERENCES `kurumlar` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

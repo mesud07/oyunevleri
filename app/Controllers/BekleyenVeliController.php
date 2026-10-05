@@ -75,6 +75,31 @@ final class BekleyenVeliController extends Controller
         Response::json(['basari' => true, 'mesaj' => 'Bekleyen veli kaydi olusturuldu.', 'veri' => ['id' => $id]], 201);
     }
 
+    public function ogrencidenEkle(): void
+    {
+        $data = $GLOBALS['talya_ajax_data'] ?? [];
+        $ogrenciId = (int) ($data['ogrenci_id'] ?? 0);
+        if ($ogrenciId < 1) {
+            Response::json(['basari' => false, 'mesaj' => 'Bekleme listesine eklenecek öğrenci seçilmelidir.', 'hatalar' => []], 422);
+            return;
+        }
+
+        try {
+            $sonuc = BekleyenVeli::ogrencidenEkle($ogrenciId, (int) (Auth::user()['id'] ?? 0));
+        } catch (\DomainException $e) {
+            Response::json(['basari' => false, 'mesaj' => $e->getMessage(), 'hatalar' => []], 422);
+            return;
+        }
+
+        Response::json([
+            'basari' => true,
+            'mesaj' => $sonuc['yeni']
+                ? 'Ayrılmış öğrenci bekleyen veli listesine eklendi.'
+                : 'Bu öğrenci zaten bekleyen veli listesinde.',
+            'veri' => $sonuc,
+        ], $sonuc['yeni'] ? 201 : 200);
+    }
+
     public function guncelle(): void
     {
         $data = $GLOBALS['talya_ajax_data'] ?? [];
@@ -104,7 +129,7 @@ final class BekleyenVeliController extends Controller
         }
 
         $kayit = BekleyenVeli::bul($id);
-        if (!$kayit || in_array((string) $kayit['durum'], ['kayda_donustu', 'iptal'], true)) {
+        if (!$kayit || in_array((string) $kayit['durum'], ['kayda_donustu', 'kayit_oldu', 'iptal', 'vazgecti', 'ulasilamadi', 'katilmadi', 'yas_uygun_degil', 'saatler_uymadi', 'diger'], true)) {
             Response::json(['basari' => false, 'mesaj' => 'Bu kayıt artık bekleme listesinde düzenlenemez.', 'hatalar' => []], 409);
             return;
         }
@@ -175,19 +200,25 @@ final class BekleyenVeliController extends Controller
         $kanal = trim((string) ($data['kanal'] ?? 'telefon'));
         $sonuc = trim((string) ($data['sonuc'] ?? 'bilgi_verildi'));
         $gorusmeTarihi = trim((string) ($data['gorusme_tarihi'] ?? ''));
-        $takipTarihi = trim((string) ($data['sonraki_takip_tarihi'] ?? ''));
+        $takipTarihi = trim((string) ($data['next_follow_up_at'] ?? ($data['sonraki_takip_tarihi'] ?? '')));
+        if ($takipTarihi !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $takipTarihi)) $takipTarihi .= 'T09:00';
+        $aksiyon = trim((string) ($data['next_action_type'] ?? ''));
+        $aksiyonNotu = trim((string) ($data['next_action_note'] ?? ''));
         $hatalar = [];
         if ($id < 1) $hatalar['bekleyen_veli_id'] = 'Veli seçilmelidir.';
         if ($ozet === '') $hatalar['ozet'] = 'Görüşme özeti zorunludur.';
         if (mb_strlen($ozet) > 2000) $hatalar['ozet'] = 'Görüşme özeti en fazla 2000 karakter olabilir.';
         if (!in_array($kanal, ['telefon', 'whatsapp', 'yuz_yuze', 'sms', 'diger'], true)) $hatalar['kanal'] = 'Görüşme kanalı geçersiz.';
-        if (!in_array($sonuc, ['bilgi_verildi', 'tekrar_aranacak', 'randevu_planlandi', 'kararsiz', 'ulasilamadi', 'katilmadi', 'olumsuz', 'diger'], true)) $hatalar['sonuc'] = 'Görüşme sonucu geçersiz.';
+        if (!in_array($sonuc, ['goruldu', 'bilgi_verildi', 'veli_donecek', 'tekrar_aranacak', 'kayit_istiyor', 'uygun_grup_yok', 'randevu_planlandi', 'kararsiz', 'ulasilamadi', 'katilmadi', 'olumsuz', 'diger'], true)) $hatalar['sonuc'] = 'Görüşme sonucu geçersiz.';
         $tarih = \DateTimeImmutable::createFromFormat('!Y-m-d\TH:i', $gorusmeTarihi);
         if (!$tarih || $tarih->format('Y-m-d\TH:i') !== $gorusmeTarihi) $hatalar['gorusme_tarihi'] = 'Görüşme tarihi geçersiz.';
+        $takip = null;
         if ($takipTarihi !== '') {
-            $takip = \DateTimeImmutable::createFromFormat('!Y-m-d', $takipTarihi);
-            if (!$takip || $takip->format('Y-m-d') !== $takipTarihi) $hatalar['sonraki_takip_tarihi'] = 'Takip tarihi geçersiz.';
+            $takip = \DateTimeImmutable::createFromFormat('!Y-m-d\TH:i', $takipTarihi);
+            if (!$takip || $takip->format('Y-m-d\TH:i') !== $takipTarihi) $hatalar['next_follow_up_at'] = 'Takip tarihi geçersiz.';
+            if (!in_array($aksiyon, BekleyenVeli::aksiyonTipleri(), true)) $hatalar['next_action_type'] = 'Sonraki aksiyon seçilmelidir.';
         }
+        if (mb_strlen($aksiyonNotu) > 500) $hatalar['next_action_note'] = 'Aksiyon notu en fazla 500 karakter olabilir.';
         if ($hatalar) {
             Response::json(['basari' => false, 'mesaj' => 'Görüşme bilgilerini kontrol edin.', 'hatalar' => $hatalar], 422);
             return;
@@ -197,7 +228,10 @@ final class BekleyenVeliController extends Controller
             'kanal' => $kanal,
             'ozet' => $ozet,
             'sonuc' => $sonuc,
-            'sonraki_takip_tarihi' => $takipTarihi,
+            'sonraki_takip_tarihi' => $takip?->format('Y-m-d') ?? '',
+            'next_follow_up_at' => $takip?->format('Y-m-d H:i:s') ?? '',
+            'next_action_type' => $takip ? $aksiyon : '',
+            'next_action_note' => $aksiyonNotu,
             'olusturan_kullanici_id' => (int) (Auth::user()['id'] ?? 0),
         ]);
         if ($gorusmeId < 1) {
@@ -205,6 +239,34 @@ final class BekleyenVeliController extends Controller
             return;
         }
         Response::json(['basari' => true, 'mesaj' => 'Görüşme tarihçeye eklendi.', 'veri' => ['id' => $gorusmeId]]);
+    }
+
+    public function takipGuncelle(): void
+    {
+        $data = $GLOBALS['talya_ajax_data'] ?? [];
+        $id = (int) ($data['id'] ?? 0);
+        $takipMetni = trim((string) ($data['next_follow_up_at'] ?? ''));
+        $aksiyon = trim((string) ($data['next_action_type'] ?? ''));
+        $not = trim((string) ($data['next_action_note'] ?? ''));
+        $takip = \DateTimeImmutable::createFromFormat('!Y-m-d\TH:i', $takipMetni);
+        $hatalar = [];
+        if ($id < 1) $hatalar['id'] = 'Bekleyen veli seçilmelidir.';
+        if (!$takip || $takip->format('Y-m-d\TH:i') !== $takipMetni) $hatalar['next_follow_up_at'] = 'Takip tarihi geçersiz.';
+        if (!in_array($aksiyon, BekleyenVeli::aksiyonTipleri(), true)) $hatalar['next_action_type'] = 'Aksiyon tipi geçersiz.';
+        if (mb_strlen($not) > 500) $hatalar['next_action_note'] = 'Aksiyon notu en fazla 500 karakter olabilir.';
+        if ($hatalar) {
+            Response::json(['basari' => false, 'mesaj' => 'Takip bilgilerini kontrol edin.', 'hatalar' => $hatalar], 422);
+            return;
+        }
+        if (!BekleyenVeli::takipGuncelle($id, [
+            'next_follow_up_at' => $takip->format('Y-m-d H:i:s'),
+            'next_action_type' => $aksiyon,
+            'next_action_note' => $not,
+        ], (int) (Auth::user()['id'] ?? 0))) {
+            Response::json(['basari' => false, 'mesaj' => 'Takip bilgisi kaydedilemedi.', 'hatalar' => []], 404);
+            return;
+        }
+        Response::json(['basari' => true, 'mesaj' => 'Sonraki aksiyon planlandı.', 'veri' => ['id' => $id]]);
     }
 
     public function gruplariGuncelle(): void
