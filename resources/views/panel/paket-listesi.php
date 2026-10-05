@@ -15,7 +15,7 @@
         <p class="section-helper">Bir ogrenciye paket atandiginda bu tanimin fiyat ve hak bilgileri ogrenci paketine kopyalanir.</p>
         <?php if ($paketYonetebilir) : ?><article id="paket-form-panel" class="inline-form-panel" hidden>
             <h3>Yeni Paket Tanimi</h3>
-            <form class="form-grid" data-ajax-form="hizmet_ekle" data-refresh="paket_listele" data-target="#paket-tablosu" data-service-definition-form>
+            <form class="form-grid" data-ajax-form="hizmet_ekle" data-refresh="hizmet_listele" data-target="#paket-tablosu" data-service-definition-form>
                 <label><span>Paket Adi</span><input name="hizmet_adi" placeholder="Oyun Grubu 4 Seans (24-36 Ay)" required></label>
                 <label><span>Hak Hesaplama</span><select name="hak_hesaplama_turu"><option value="sabit">Sabit ders sayısı</option><option value="aylik_takvim">Aylık takvimdeki seçili günler</option></select></label>
                 <label><span>Ucret</span><input type="number" step="0.01" name="ucret" required></label>
@@ -29,7 +29,12 @@
                 </div>
             </form>
         </article><?php endif; ?>
-        <div id="paket-tablosu" class="table-wrap" data-table="paket_listele"></div>
+        <div
+            id="paket-tablosu"
+            class="table-wrap"
+            data-table="hizmet_listele"
+            data-can-manage-packages="<?= $paketYonetebilir ? '1' : '0' ?>"
+        ></div>
     </article>
 </section>
 <?php if ($paketYonetebilir) : ?><dialog class="appointment-dialog" id="hizmet-duzenle-dialog">

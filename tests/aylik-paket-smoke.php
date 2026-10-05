@@ -32,6 +32,8 @@ $paketListesi = file_get_contents($root . '/resources/views/panel/paket-listesi.
 $panelJs = file_get_contents($root . '/public/assets/js/panel.js') ?: '';
 $assert(str_contains($paketListesi, 'data-service-definition-form') && str_contains($paketListesi, 'data-service-fixed-right-field'), 'Aylık takvim seçiminde sabit hak alanları koşullu gösteriliyor');
 $assert(str_contains($panelJs, 'updateServiceRightsVisibility') && str_contains($panelJs, "=== 'aylik_takvim'"), 'Aylık takvim seçildiğinde haftalık katılım ve telafi alanları gizleniyor');
+$assert(str_contains($paketListesi, 'data-table="hizmet_listele"') && str_contains($paketListesi, 'data-can-manage-packages'), 'Paket tanımları düzenleme ve silme destekli tabloyla yükleniyor');
+$assert(str_contains($panelJs, 'data-edit-service') && str_contains($panelJs, 'data-delete-service'), 'Paket tablosunda düzenleme ve silme işlemleri bulunuyor');
 $assert(str_contains($js, 'updateMonthlyPackageRights'), 'Normal hak sayısı ekranda ay ve gün seçimine göre güncelleniyor');
 $assert(str_contains($migration, 'hak_hesaplama_turu') && str_contains($migration, 'aylik_takvim'), 'Hizmet tanımında aylık takvim seçeneği kalıcı olarak saklanıyor');
 
