@@ -1,6 +1,8 @@
 <?php
 $roller = $roller ?? [];
 $yetkiSecenekleri = $yetkiSecenekleri ?? [];
+$modulYetkileri = $modulYetkileri ?? [];
+$rolYonetebilir = (bool) ($rolYonetebilir ?? false);
 $yetkiHaritasi = [];
 
 foreach ($yetkiSecenekleri as $yetki) {
@@ -13,7 +15,7 @@ foreach ($yetkiSecenekleri as $yetki) {
 <section class="page-head">
     <div>
         <h1>Kullanicilar</h1>
-        <p>Kullanici tiplerini, giris bilgilerini ve sifreleri yonetin.</p>
+        <p>Kullanıcı tiplerini, giriş bilgilerini ve kullanıcıya özel ek yetkileri yönetin.</p>
     </div>
     <button class="btn btn-primary" type="button" data-user-new>Kullanici Ekle</button>
 </section>
@@ -27,12 +29,12 @@ foreach ($yetkiSecenekleri as $yetki) {
     </div>
     <div class="info-box compact-info">
         <strong>Bilgilendirme</strong>
-        <p>Kullanicinin gorecegi menuler ve sayfalarda yapabilecegi islemler rol yetkilerine gore belirlenir. Sifreyi bos birakirsaniz mevcut sifre degismez.</p>
+        <p>Kullanıcının temel yetkileri kullanıcı tipinden gelir. İhtiyaç halinde yalnız o kullanıcıya özel ek yetkiler verebilirsiniz. Şifreyi boş bırakırsanız mevcut şifre değişmez.</p>
     </div>
     <div class="table-wrap fast-table-wrap user-admin-table" data-user-table></div>
     <p class="form-message" data-user-message></p>
 
-    <dialog class="appointment-dialog" data-user-dialog>
+    <dialog class="appointment-dialog user-permission-dialog" data-user-dialog>
         <form method="dialog" class="appointment-dialog-form" data-user-form>
             <div class="dialog-head">
                 <h2 data-user-form-title>Kullanici Ekle</h2>
@@ -61,6 +63,35 @@ foreach ($yetkiSecenekleri as $yetki) {
                 </label>
                 <label class="full-row"><span>Yeni Sifre</span><input type="password" name="sifre" autocomplete="new-password" placeholder="Yeni kullanicida zorunlu, duzenlemede opsiyonel"></label>
             </div>
+            <section class="user-extra-permissions">
+                <div>
+                    <h3>Kullanıcıya Özel Ek Yetkiler</h3>
+                    <p>Kurumda açık olan modüllerin yetkileri gösterilir. Kullanıcı tipinden gelen yetkiler işaretli ve sabittir; diğerlerini kullanıcıya özel olarak ekleyebilirsiniz.</p>
+                </div>
+                <div class="user-permission-module-list">
+                    <?php foreach ($modulYetkileri as $modulKodu => $modul) : ?>
+                        <?php if (empty($modul['yetkiler'])) continue; ?>
+                        <article class="user-permission-module" data-user-permission-module="<?= e($modulKodu) ?>">
+                            <div class="user-permission-module-head">
+                                <strong><?= e($modul['ad']) ?></strong>
+                                <small><?= count($modul['yetkiler']) ?> yetki</small>
+                            </div>
+                            <div class="user-permission-options">
+                                <?php foreach ($modul['yetkiler'] as $yetki) : ?>
+                                    <label class="user-role-option" data-user-permission-option>
+                                        <input type="checkbox" name="ek_yetkiler[]" value="<?= e($yetki['kod']) ?>">
+                                        <span>
+                                            <strong><?= e($yetki['ad']) ?></strong>
+                                            <em><?= e((string) ($yetki['aciklama'] ?? '')) ?></em>
+                                            <small data-user-permission-source></small>
+                                        </span>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </article>
+                    <?php endforeach; ?>
+                </div>
+            </section>
             <div class="record-actions compact-actions">
                 <span data-user-form-message></span>
                 <button class="btn btn-ghost" type="button" data-user-dialog-close>Vazgec</button>
@@ -68,8 +99,10 @@ foreach ($yetkiSecenekleri as $yetki) {
             </div>
         </form>
     </dialog>
+    <script nonce="<?= e(\App\Core\SecurityHeaders::nonce()) ?>" type="application/json" data-user-role-permissions><?= json_encode(array_column($roller, 'yetkiler', 'id'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
 </section>
 
+<?php if ($rolYonetebilir) : ?>
 <section class="panel-card report-panel user-role-page" data-role-page>
     <div class="appointment-toolbar user-admin-toolbar">
         <div>
@@ -174,5 +207,6 @@ foreach ($yetkiSecenekleri as $yetki) {
             </div>
         </form>
     </dialog>
-    <script type="application/json" data-role-permission-map><?= json_encode($yetkiSecenekleri, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
+    <script nonce="<?= e(\App\Core\SecurityHeaders::nonce()) ?>" type="application/json" data-role-permission-map><?= json_encode($yetkiSecenekleri, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
 </section>
+<?php endif; ?>

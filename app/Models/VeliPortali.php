@@ -11,7 +11,7 @@ final class VeliPortali extends Model
     public static function telefonlaBul(string $telefon, int $kurumId): array
     {
         $telefon = self::telefonNormalize($telefon);
-        if ($telefon === null) {
+        if ($telefon === null || $kurumId < 1) {
             return [
                 'gecerli' => false,
                 'veliler' => [],
@@ -32,6 +32,7 @@ final class VeliPortali extends Model
         foreach ($cocuklar as &$cocuk) {
             $ogrenciId = (int) $cocuk['id'];
             $cocuk['randevular'] = self::randevular($ogrenciId, $kurumId);
+            $cocuk['tema_etkinlikleri'] = self::temaEtkinlikleri($ogrenciId, $kurumId);
         }
         unset($cocuk);
 
@@ -42,7 +43,7 @@ final class VeliPortali extends Model
         ];
     }
 
-    private static function telefonNormalize(string $telefon): ?string
+    public static function telefonNormalize(string $telefon): ?string
     {
         $rakamlar = preg_replace('/\D+/', '', $telefon) ?? '';
         if (strpos($rakamlar, '0090') === 0) {
@@ -56,6 +57,12 @@ final class VeliPortali extends Model
         }
 
         return preg_match('/^5\d{9}$/', $rakamlar) ? $rakamlar : null;
+    }
+
+    public static function telefonKayitliMi(string $telefon, int $kurumId): bool
+    {
+        $telefon = self::telefonNormalize($telefon);
+        return $telefon !== null && self::velileriBul($telefon, $kurumId) !== [];
     }
 
     private static function velileriBul(string $telefon, int $kurumId): array
@@ -84,11 +91,11 @@ final class VeliPortali extends Model
             "SELECT DISTINCT o.id, CONCAT(o.ad, ' ', o.soyad) AS ad_soyad,
                     o.dogum_tarihi, o.durum
              FROM ogrenciler o
-             INNER JOIN ogrenci_velileri ov ON ov.ogrenci_id = o.id AND ov.kurum_id = o.kurum_id
-             WHERE o.kurum_id = ? AND ov.veli_id IN ($yerTutucular)
+             INNER JOIN ogrenci_velileri ov ON ov.ogrenci_id = o.id
+             WHERE o.kurum_id = ? AND ov.kurum_id = ? AND ov.veli_id IN ($yerTutucular)
              ORDER BY ad_soyad"
         );
-        $stmt->execute([$kurumId, ...$veliIdleri]);
+        $stmt->execute(array_merge([$kurumId, $kurumId], $veliIdleri));
         return $stmt->fetchAll();
     }
 
@@ -116,4 +123,38 @@ final class VeliPortali extends Model
         return $stmt->fetchAll();
     }
 
+    private static function temaEtkinlikleri(int $ogrenciId, int $kurumId): array
+    {
+        if (!self::tabloVarMi('student_activity_records') || !self::tabloVarMi('theme_activities') || !self::tabloVarMi('weekly_themes')) {
+            return [];
+        }
+
+        $stmt = self::db()->prepare(
+            'SELECT sar.completed_at, sar.source_type,
+                    ta.title AS activity_title, ta.description AS activity_description,
+                    wt.title AS theme_title, wt.description AS theme_description,
+                    wt.week_start, wt.week_end,
+                    GROUP_CONCAT(DISTINCT ag.name ORDER BY ag.sort_order ASC SEPARATOR ", ") AS age_groups
+             FROM student_activity_records sar
+             INNER JOIN theme_activities ta ON ta.id = sar.activity_id AND ta.kurum_id = sar.kurum_id
+             INNER JOIN weekly_themes wt ON wt.id = ta.theme_id AND wt.kurum_id = sar.kurum_id
+             LEFT JOIN weekly_theme_age_groups wtag ON wtag.theme_id = wt.id AND wtag.kurum_id = sar.kurum_id
+             LEFT JOIN age_groups ag ON ag.id = wtag.age_group_id
+             WHERE sar.student_id = :ogrenci_id
+               AND sar.kurum_id = :kurum_id
+             GROUP BY sar.id, sar.completed_at, sar.source_type, ta.title, ta.description,
+                      wt.title, wt.description, wt.week_start, wt.week_end
+             ORDER BY sar.completed_at DESC, sar.id DESC
+             LIMIT 50'
+        );
+        $stmt->execute(['ogrenci_id' => $ogrenciId, 'kurum_id' => $kurumId]);
+
+        return $stmt->fetchAll();
+    }
+
+    private static function tabloVarMi(string $tablo): bool
+    {
+        $stmt = self::db()->query('SHOW TABLES LIKE ' . self::db()->quote($tablo));
+        return $stmt && (bool) $stmt->fetchColumn();
+    }
 }

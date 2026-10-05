@@ -10,3 +10,12 @@ function tarih_goster(?string $tarih): string
     $zaman = strtotime($tarih);
     return $zaman ? date('d.m.Y', $zaman) : $tarih;
 }
+
+function tarih_saat_goster(?string $tarih): string
+{
+    if (!$tarih) {
+        return '-';
+    }
+    $zaman = strtotime($tarih);
+    return $zaman ? date('d.m.Y H:i', $zaman) : $tarih;
+}

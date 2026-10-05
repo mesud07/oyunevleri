@@ -1243,6 +1243,96 @@ tr:nth-child(even) td,
   color: rgba(80, 96, 118, 0.84);
 }
 
+.sms-student-picker {
+  display: grid;
+  gap: 10px;
+}
+
+.sms-student-picker-head,
+.sms-student-picker-actions,
+.sms-student-option {
+  display: flex;
+  align-items: center;
+}
+
+.sms-student-picker-head {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sms-student-picker-head > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.sms-student-picker-actions {
+  gap: 6px;
+}
+
+.sms-student-picker .search-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.sms-student-list {
+  display: grid;
+  gap: 6px;
+  max-height: 260px;
+  padding: 8px;
+  overflow-y: auto;
+  border: 1px solid rgba(210, 220, 234, 0.95);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.sms-student-option {
+  grid-template-columns: none;
+  gap: 10px;
+  min-height: 52px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(244, 248, 253, 0.9);
+  cursor: pointer;
+}
+
+.sms-student-option input {
+  width: 18px;
+  min-height: 18px;
+  flex: 0 0 auto;
+}
+
+.sms-student-option > span {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+}
+
+.sms-student-option small,
+.sms-student-picker > small {
+  color: rgba(80, 96, 118, 0.84);
+}
+
+.sms-student-option em {
+  font-size: 12px;
+  font-style: normal;
+  text-transform: capitalize;
+}
+
+.sms-student-option.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 760px) {
+  .user-extra-permission-list {
+    grid-template-columns: 1fr;
+  }
+  .sms-student-picker-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 .sms-reminder-form {
   grid-template-columns: 1.35fr .85fr .85fr;
   align-items: end;
@@ -1270,6 +1360,110 @@ tr:nth-child(even) td,
 .user-admin-table table strong,
 .user-role-table table strong {
   color: #1f3352;
+}
+
+.appointment-dialog.user-permission-dialog {
+  width: min(920px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow: hidden;
+}
+
+.user-permission-dialog .appointment-dialog-form {
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+}
+
+.user-extra-permissions {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(220, 228, 239, 0.92);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.52);
+}
+
+.user-extra-permissions h3,
+.user-extra-permissions p {
+  margin: 0;
+}
+
+.user-extra-permissions p {
+  margin-top: 5px;
+  color: #748298;
+  line-height: 1.45;
+}
+
+.user-permission-module-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  max-height: 430px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.user-permission-module {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(206, 220, 238, 0.96);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.user-permission-module-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.user-permission-module-head strong {
+  color: #243650;
+  font-size: 17px;
+}
+
+.user-permission-module-head small {
+  color: #748298;
+  font-weight: 700;
+}
+
+.user-permission-options {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(236, 243, 252, 0.72);
+}
+
+.user-permission-options .user-role-option {
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.user-permission-options .user-role-option.is-inherited {
+  border-color: rgba(98, 183, 224, 0.42);
+  background: rgba(221, 244, 255, 0.76);
+}
+
+.user-permission-options input:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+.user-permission-options [data-user-permission-source]:not(:empty) {
+  display: block;
+  margin-top: 5px;
+  color: #247aa5;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+@media (max-width: 760px) {
+  .user-permission-module-list {
+    grid-template-columns: 1fr;
+  }
 }
 
 .appointment-dialog.role-dialog {

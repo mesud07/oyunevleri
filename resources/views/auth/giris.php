@@ -37,20 +37,28 @@
 
             <?php if (!empty($hata)) : ?><div class="alert alert-error"><?= e($hata) ?></div><?php endif; ?>
 
-            <form method="post" action="/giris" class="form-stack login-form">
+            <form method="post" action="/giris" class="form-stack login-form" data-login-form>
                 <input type="hidden" name="csrf" value="<?= e($csrf) ?>">
                 <label><span>Kurum Kodu</span><span class="login-input-wrap"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17M2 21h20M8 7h2M12 7h1M8 11h2M12 11h1M8 15h2M12 15h1M18 9h2v12"></path></svg><input type="text" name="kurum_kodu" value="<?= e($kurumKodu ?? '') ?>" placeholder="Kurum kodunuzu girin" autocomplete="organization" required></span></label>
                 <label><span>Kullanıcı Adı</span><span class="login-input-wrap"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="7" r="4"></circle><path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2"></path></svg><input type="text" name="eposta" value="<?= e($eposta ?? '') ?>" placeholder="Kullanıcı adınızı girin" autocomplete="username" required autofocus></span></label>
                 <label><span>Şifre</span><span class="login-input-wrap has-action"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"></path></svg><input type="password" name="sifre" placeholder="Şifrenizi girin" autocomplete="current-password" required data-password-input><button type="button" class="login-password-toggle" data-password-toggle aria-label="Şifreyi göster"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg></button></span></label>
                 <label class="auth-remember"><input type="checkbox" name="beni_hatirla" value="1"<?= !empty($beniHatirla) ? ' checked' : '' ?>><span>Beni hatırla</span><small>30 gün boyunca açık tut</small></label>
-                <button class="btn btn-primary login-submit" type="submit"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"></path></svg>Giriş Yap</button>
+                <button class="btn btn-primary login-submit" type="submit" data-login-submit><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"></path></svg>Giriş Yap</button>
             </form>
         </div>
         <p class="login-copyright">© <?= e(date('Y')) ?> OyunEvleri.com — Tüm hakları saklıdır.</p>
     </section>
 </main>
 
-<script>
+<div class="login-loading" data-login-loading hidden aria-hidden="true">
+    <div class="login-loading-dialog" role="dialog" aria-modal="true" aria-labelledby="login-loading-title">
+        <span class="login-loading-spinner" aria-hidden="true"></span>
+        <strong id="login-loading-title">Giriş yapılıyor</strong>
+        <p>Lütfen bekleyin...</p>
+    </div>
+</div>
+
+<script nonce="<?= e(\App\Core\SecurityHeaders::nonce()) ?>">
 document.querySelector('[data-password-toggle]')?.addEventListener('click', function () {
     const input = document.querySelector('[data-password-input]');
     if (!input) return;
@@ -58,5 +66,25 @@ document.querySelector('[data-password-toggle]')?.addEventListener('click', func
     input.type = visible ? 'password' : 'text';
     this.setAttribute('aria-label', visible ? 'Şifreyi göster' : 'Şifreyi gizle');
     this.classList.toggle('is-visible', !visible);
+});
+
+const loginForm = document.querySelector('[data-login-form]');
+const loginLoading = document.querySelector('[data-login-loading]');
+const loginSubmit = document.querySelector('[data-login-submit]');
+
+loginForm?.addEventListener('submit', function () {
+    if (!this.checkValidity() || !loginLoading) return;
+    loginLoading.hidden = false;
+    loginLoading.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('is-login-loading');
+    if (loginSubmit) loginSubmit.disabled = true;
+});
+
+window.addEventListener('pageshow', function () {
+    if (!loginLoading) return;
+    loginLoading.hidden = true;
+    loginLoading.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('is-login-loading');
+    if (loginSubmit) loginSubmit.disabled = false;
 });
 </script>

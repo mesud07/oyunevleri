@@ -5,6 +5,8 @@ $hizliTanismaId = (int) ($hizliTanisma['id'] ?? 0);
 ?>
 <dialog class="appointment-dialog" id="hizli-randevu-dialog">
     <form class="appointment-dialog-form" data-ajax-form="hizli_randevu_ekle" data-success-redirect="/panel/randevular" data-quick-appointment-form>
+        <input type="hidden" name="ogrenci_id" value="">
+        <input type="hidden" name="veli_onam_id" value="">
         <div class="dialog-head">
             <h2>Hizli Randevu Olustur</h2>
             <button type="button" data-close-dialog>x</button>
@@ -60,6 +62,10 @@ $hizliTanismaId = (int) ($hizliTanisma['id'] ?? 0);
             <label class="checkbox-row">
                 <input type="checkbox" name="randevu_sms_gonder" value="1" checked>
                 <span>Randevu olusturma SMS'i gonder</span>
+            </label>
+            <label class="dialog-wide">
+                <span>Tahsilat Notu</span>
+                <textarea name="tahsilat_notu" rows="3" maxlength="2000" placeholder="Ornek: Onumuzdeki hafta nakit olarak getirecek."></textarea>
             </label>
         </div>
 

@@ -33,14 +33,70 @@
 })();
 
 (function () {
+  const form = document.querySelector('[data-vat-method-form]');
+  if (!form) {
+    return;
+  }
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (form.dataset.submitting === '1') {
+      return;
+    }
+    const button = form.querySelector('button[type="submit"]');
+    const message = form.querySelector('[data-vat-method-message]');
+    const yontemler = Array.from(form.querySelectorAll('input[name="yontemler[]"]:checked'))
+      .map((input) => input.value);
+    form.dataset.submitting = '1';
+    if (button) button.disabled = true;
+    if (message) message.textContent = 'Kaydediliyor...';
+    try {
+      const result = await talyaAjax('odeme_kdv_ayarlari_kaydet', { yontemler });
+      if (message) message.textContent = result.mesaj;
+      window.setTimeout(() => window.location.reload(), 450);
+    } catch (error) {
+      if (message) message.textContent = error.message;
+      form.dataset.submitting = '0';
+      if (button) button.disabled = false;
+    }
+  });
+})();
+
+(function () {
   const table = document.querySelector('[data-payment-table]');
   if (!table) {
     return;
   }
   const cashboxDialog = document.querySelector('#tahsilat-kasa-dialog');
   const cashboxForm = document.querySelector('[data-payment-cashbox-form]');
+  const invoiceDialog = document.querySelector('#fatura-kes-dialog');
+  const invoiceForm = document.querySelector('[data-invoice-create-form]');
+  const monthFilter = document.querySelector('[data-payment-month-filter]');
+  const methodFilter = document.querySelector('[data-payment-method-filter]');
+  const sortSelect = document.querySelector('[data-payment-sort]');
+  const filterClear = document.querySelector('[data-payment-filter-clear]');
+  const filterExport = document.querySelector('[data-payment-filter-export]');
+  const institutionName = table.dataset.institutionName || 'Kurum';
+  const institutionLogoPath = table.dataset.institutionLogo || '';
+  const institutionLogoUrl = institutionLogoPath
+    ? new URL(institutionLogoPath, window.location.origin).href
+    : '';
   let paymentRows = [];
   let currentPage = 1;
+
+  function syncExportLink() {
+    if (!filterExport) return;
+    const month = monthFilter?.value || '';
+    if (!month) {
+      filterExport.href = '#';
+      filterExport.setAttribute('aria-disabled', 'true');
+      return;
+    }
+    const params = new URLSearchParams({ ay: month, donem: 'ay' });
+    if (methodFilter?.value) params.set('yontem', methodFilter.value);
+    filterExport.href = `/panel/odemeler/tahsilatlar.xlsx?${params.toString()}`;
+    filterExport.removeAttribute('aria-disabled');
+  }
 
   function money(value) {
     return `${Number(value || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} TL`;
@@ -85,6 +141,10 @@
     }
 
     const no = escapeHtml(receiptNo(row));
+    const safeInstitutionName = escapeHtml(institutionName);
+    const institutionLogo = institutionLogoUrl
+      ? `<img class="institution-logo" src="${escapeHtml(institutionLogoUrl)}" alt="${safeInstitutionName} logosu">`
+      : '';
     const receiptHtml = `<!doctype html>
       <html lang="tr">
       <head>
@@ -125,32 +185,29 @@
             padding: 7mm;
           }
           .header {
-            align-items: flex-start;
+            align-items: center;
             border-bottom: 2px solid #5863b4;
             display: grid;
             gap: 8mm;
-            grid-template-columns: 1fr 1.2fr 1fr;
+            grid-template-columns: minmax(0, 1.5fr) 1fr;
             padding-bottom: 5mm;
           }
           .brand {
+            align-items: center;
             color: #283f9f;
-            font-size: 26px;
+            display: flex;
+            font-size: 20px;
             font-weight: 800;
+            gap: 4mm;
             line-height: 1;
           }
-          .brand small,
-          .clinic small {
-            color: #586479;
+          .institution-logo {
             display: block;
-            font-size: 10px;
-            font-weight: 600;
-            margin-top: 3px;
-          }
-          .clinic {
-            color: #263247;
-            font-size: 10px;
-            line-height: 1.5;
-            text-align: center;
+            height: 19mm;
+            max-width: 34mm;
+            object-fit: contain;
+            object-position: left center;
+            width: auto;
           }
           .title {
             text-align: right;
@@ -250,28 +307,24 @@
         </div>
         <main class="receipt">
           <section class="header">
-            <div class="brand">Oyun Evleri<small>www.oyunevleri.com</small></div>
-            <div class="clinic">
-              <strong>Oyun Evleri Yönetim Sistemi</strong>
-              <small>Tahsilat kaydi bilgilendirme makbuzudur.</small>
-            </div>
+            <div class="brand">${institutionLogo}<span>${safeInstitutionName}</span></div>
             <div class="title">
-              <strong>TAHSILAT MAKBUZU</strong>
+              <strong>TAHSİLAT MAKBUZU</strong>
               <span>No: ${no}</span>
               <span>Tarih: ${escapeHtml(dateLabel(row.tarih))}</span>
             </div>
           </section>
 
           <section class="info-grid">
-            <div class="cell label">Musteri Adi</div>
+            <div class="cell label">Müşteri Adı</div>
             <div class="cell">${escapeHtml(row.ogrenci || '-')}</div>
             <div class="cell label">Makbuz No</div>
             <div class="cell">${no}</div>
             <div class="cell label">Paket / Hizmet</div>
             <div class="cell">${escapeHtml(row.paket_adi || '-')}</div>
-            <div class="cell label">Odeme Tarihi</div>
+            <div class="cell label">Ödeme Tarihi</div>
             <div class="cell">${escapeHtml(dateLabel(row.tarih))}</div>
-            <div class="cell label">Odeme Yontemi</div>
+            <div class="cell label">Ödeme Yöntemi</div>
             <div class="cell">${escapeHtml(methodLabel(row.yontem))}</div>
             <div class="cell label">Kasa</div>
             <div class="cell">${escapeHtml(row.kasa || '-')}</div>
@@ -280,8 +333,8 @@
           <table>
             <thead>
               <tr>
-                <th>Aciklama</th>
-                <th>Yontem</th>
+                <th>Açıklama</th>
+                <th>Yöntem</th>
                 <th>Makbuz No</th>
                 <th>Vade</th>
                 <th>Tutar</th>
@@ -309,7 +362,7 @@
 
           <div class="signatures">
             <span>Tahsil Eden</span>
-            <span>Imza</span>
+            <span>İmza</span>
           </div>
         </main>
         <script>
@@ -374,6 +427,7 @@
           <tr>
             <th>#</th>
             <th>Ogrenci</th>
+            <th>Veli</th>
             <th>Paket</th>
             <th>Tarih</th>
             <th>Tutar</th>
@@ -386,18 +440,19 @@
         <tbody>
           ${rows.map((row, index) => `
             <tr>
-              <td>${index + 1}</td>
+              <td>${((Number(paging.sayfa || 1) - 1) * Number(paging.limit || 20)) + index + 1}</td>
               <td>${escapeHtml(row.ogrenci)}</td>
+              <td>${escapeHtml(row.veli || '-')}</td>
               <td>${escapeHtml(row.paket_adi)}</td>
-              <td>${escapeHtml(row.tarih)}</td>
+              <td>${escapeHtml(dateLabel(row.tarih))}</td>
               <td>${escapeHtml(money(row.tutar))}</td>
-              <td>${escapeHtml(row.yontem)}</td>
+              <td>${escapeHtml(methodLabel(row.yontem))}</td>
               <td>${escapeHtml(row.kasa || '-')}</td>
               <td><span class="status-pill ${String(row.iptal) === '1' ? 'is-danger' : 'is-success'}">${escapeHtml(statusLabel(row))}</span></td>
               <td>
                 <div class="row-actions">
                   <button type="button" data-payment-receipt="${escapeHtml(row.id)}" ${String(row.iptal) === '1' ? 'disabled' : ''}>Makbuz</button>
-                  <button type="button" data-payment-cashbox="${escapeHtml(row.id)}" ${String(row.iptal) === '1' ? 'disabled' : ''}>Kasaya Aktar</button>
+                  ${row.fatura_id ? `<a class="mini-btn" href="/panel/faturalar/detay?id=${escapeHtml(row.fatura_id)}">Fatura</a>` : `<button type="button" data-payment-invoice="${escapeHtml(row.id)}" ${String(row.iptal) === '1' ? 'disabled' : ''}>Taslak Oluştur</button>`}
                   <button type="button" data-payment-undo="${escapeHtml(row.id)}" ${String(row.iptal) === '1' ? 'disabled' : ''}>Geri Al</button>
                   <button type="button" data-payment-delete="${escapeHtml(row.id)}">Sil</button>
                 </div>
@@ -446,7 +501,13 @@
     const limit = Math.max(10, Number(table.dataset.limit || '20'));
     table.innerHTML = '<div class="empty-table">Yukleniyor...</div>';
     try {
-      const result = await talyaAjax('odeme_listele', { sayfa: currentPage, limit });
+      const result = await talyaAjax('odeme_listele', {
+        sayfa: currentPage,
+        limit,
+        ay: monthFilter?.value || '',
+        yontem: methodFilter?.value || '',
+        siralama: sortSelect?.value || 'tarih_desc'
+      });
       render(result.veri?.kayitlar || [], result.veri?.sayfalama || {});
     } catch (error) {
       table.innerHTML = `<div class="empty-table">${escapeHtml(error.message)}</div>`;
@@ -454,6 +515,35 @@
   }
 
   table.addEventListener('click', async (event) => {
+    const invoice = event.target.closest('[data-payment-invoice]');
+    if (invoice && invoiceForm && invoiceDialog) {
+      const row = paymentRows.find((item) => String(item.id) === String(invoice.dataset.paymentInvoice));
+      invoiceForm.reset();
+      invoiceForm.elements.odeme_id.value = invoice.dataset.paymentInvoice || '';
+      const message = invoiceForm.querySelector('[data-form-message]');
+      if (message) message.textContent = 'Fatura bilgileri yükleniyor...';
+      openDialog(invoiceDialog);
+      try {
+        const result = await talyaAjax('fatura_odeme_hazirlik', { odeme_id: invoice.dataset.paymentInvoice });
+        const profile = result.veri?.profil || {};
+        const payment = result.veri?.odeme || {};
+        if (invoiceForm.elements.kdv_orani && payment.kdv_orani !== null && payment.kdv_orani !== undefined) {
+          invoiceForm.elements.kdv_orani.value = payment.kdv_orani;
+          invoiceForm.elements.kdv_orani.readOnly = true;
+        } else if (invoiceForm.elements.kdv_orani) {
+          invoiceForm.elements.kdv_orani.readOnly = false;
+        }
+        const paymentProfileFields = { vkn_tckn: 'tc_kimlik_no', ad: 'veli_ad', soyad: 'veli_soyad', adres: 'adres', il: 'il', ilce: 'ilce', eposta: 'eposta', telefon: 'telefon' };
+        ['profil_turu','vkn_tckn','ad','soyad','unvan','vergi_dairesi','adres','il','ilce','ulke','eposta','telefon'].forEach((field) => {
+          if (invoiceForm.elements[field]) invoiceForm.elements[field].value = profile[field] ?? payment[paymentProfileFields[field]] ?? (field === 'ulke' ? 'TÜRKİYE' : (field === 'profil_turu' ? 'bireysel' : ''));
+        });
+        const info = invoiceDialog.querySelector('[data-invoice-payment-info]');
+        if (info) info.textContent = `${row?.ogrenci || ''} / ${row?.paket_adi || ''} / ${money(row?.tutar)}`;
+        invoiceForm.querySelector('[data-invoice-profile-type]')?.dispatchEvent(new Event('change'));
+        if (message) message.textContent = '';
+      } catch (error) { if (message) message.textContent = error.message; }
+      return;
+    }
     const receipt = event.target.closest('[data-payment-receipt]');
     if (receipt) {
       const row = paymentRows.find((item) => String(item.id) === String(receipt.dataset.paymentReceipt));
@@ -511,6 +601,30 @@
     await loadPayments(1);
   });
 
+  monthFilter?.addEventListener('change', () => {
+    syncExportLink();
+    loadPayments(1);
+  });
+  methodFilter?.addEventListener('change', () => {
+    syncExportLink();
+    loadPayments(1);
+  });
+  sortSelect?.addEventListener('change', () => loadPayments(1));
+  filterClear?.addEventListener('click', () => {
+    if (monthFilter) monthFilter.value = monthFilter.defaultValue;
+    if (methodFilter) methodFilter.value = '';
+    if (sortSelect) sortSelect.value = 'tarih_desc';
+    syncExportLink();
+    loadPayments(1);
+  });
+
+  filterExport?.addEventListener('click', (event) => {
+    if (!monthFilter?.value) {
+      event.preventDefault();
+      window.alert('Excel çıktısı için tahsilat ayını seçin.');
+    }
+  });
+
   cashboxForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (cashboxForm.dataset.submitting === '1') {
@@ -546,6 +660,27 @@
     }
   });
 
+  invoiceForm?.querySelector('[data-invoice-profile-type]')?.addEventListener('change', (event) => {
+    const corporate = event.target.value === 'kurumsal';
+    invoiceForm.querySelectorAll('[data-individual-field]').forEach((node) => { node.hidden = corporate; });
+    invoiceForm.querySelectorAll('[data-corporate-field]').forEach((node) => { node.hidden = !corporate; });
+  });
+
+  invoiceForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (invoiceForm.dataset.submitting === '1') return;
+    const message = invoiceForm.querySelector('[data-form-message]');
+    invoiceForm.dataset.submitting = '1';
+    if (message) message.textContent = 'Mükellef sorgulanıyor ve fatura taslağı oluşturuluyor...';
+    try {
+      const result = await talyaAjax('fatura_olustur', formValues(invoiceForm));
+      if (message) message.textContent = result.mesaj;
+      window.location.href = `/panel/faturalar/detay?id=${encodeURIComponent(result.veri.id)}`;
+    } catch (error) { if (message) message.textContent = error.message; }
+    finally { invoiceForm.dataset.submitting = '0'; }
+  });
+
+  syncExportLink();
   loadPayments();
 })();
 

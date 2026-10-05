@@ -83,25 +83,25 @@
                     <input type="email" name="veli_eposta" placeholder="Lutfen e-posta adresi giriniz. (Istege bagli)">
                 </label>
                 <label>
-                    <span>Bizimle kimin aracılığıyla iletişime geçtiniz?</span>
-                    <input name="veli_iletisim_referansi" maxlength="190" placeholder="Örn. Ayşe Hanım, Instagram, Google...">
-                </label>
-                <label>
-                    <span>Il</span>
+                    <span>Öğrencinin İli</span>
                     <select name="il" data-city-select>
-                        <option value="">Seciniz</option>
-                        <option value="Antalya">Antalya</option>
+                        <option value="Antalya" selected>Antalya</option>
                     </select>
                 </label>
                 <label>
-                    <span>Ilce</span>
-                    <select name="ilce" data-district-select disabled>
-                        <option value="">Once il seciniz.</option>
+                    <span>Öğrencinin İlçesi</span>
+                    <select name="ilce" data-district-select>
+                        <option value="">Seçiniz</option>
+                        <option value="Muratpaşa">Muratpaşa</option>
+                        <option value="Kepez">Kepez</option>
+                        <option value="Konyaaltı">Konyaaltı</option>
+                        <option value="Döşemealtı">Döşemealtı</option>
+                        <option value="Aksu">Aksu</option>
                     </select>
                 </label>
                 <label class="textarea-row">
-                    <span>Adres</span>
-                    <textarea name="adres" maxlength="250" rows="4" placeholder="Lutfen adres bilgisi giriniz. (Istege bagli)"></textarea>
+                    <span>Öğrencinin Ev Adresi</span>
+                    <textarea name="adres" maxlength="250" rows="4" placeholder="Mahalle, cadde/sokak, bina ve daire bilgisini giriniz. (İsteğe bağlı)"></textarea>
                     <small>Adres en fazla 250 karakter olabilir.</small>
                 </label>
             </div>

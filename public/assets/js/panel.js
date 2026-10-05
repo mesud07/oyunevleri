@@ -1,71 +1,4 @@
-(() => {
-  const storageKey = 'oyunevleriTheme';
-  const root = document.documentElement;
-  const toggles = Array.from(document.querySelectorAll('[data-theme-toggle]'));
-
-  if (!toggles.length) {
-    return;
-  }
-
-  function isDark() {
-    return root.dataset.theme === 'dark';
-  }
-
-  function updateButtons() {
-    const dark = isDark();
-    toggles.forEach((toggle) => {
-      const label = toggle.querySelector('[data-theme-label]');
-      toggle.setAttribute('aria-pressed', dark ? 'true' : 'false');
-      toggle.setAttribute('aria-label', dark ? 'Acik modu ac' : 'Koyu modu ac');
-      if (label) {
-        label.textContent = dark ? 'Acik Mod' : 'Koyu Mod';
-      }
-    });
-  }
-
-  toggles.forEach((toggle) => {
-    toggle.addEventListener('click', () => {
-      const nextTheme = isDark() ? 'light' : 'dark';
-      if (nextTheme === 'dark') {
-        root.dataset.theme = 'dark';
-      } else {
-        delete root.dataset.theme;
-      }
-      try {
-        localStorage.setItem(storageKey, nextTheme);
-      } catch (error) {
-        // Depolama kapali olsa da tema mevcut sayfada calismaya devam eder.
-      }
-      updateButtons();
-    });
-  });
-
-  updateButtons();
-})();
-
 document.addEventListener('click', async (event) => {
-  const portalCopyButton = event.target.closest('[data-parent-portal-copy]');
-  if (portalCopyButton) {
-    const portalInfo = portalCopyButton.closest('[data-parent-portal-info]');
-    const portalInput = portalInfo?.querySelector('[data-parent-portal-link]');
-    const portalMessage = portalInfo?.querySelector('[data-parent-portal-message]');
-    const portalUrl = portalInput?.value || '';
-
-    try {
-      await navigator.clipboard.writeText(portalUrl);
-      if (portalMessage) {
-        portalMessage.textContent = 'Bağlantı panoya kopyalandı.';
-      }
-    } catch (error) {
-      portalInput?.focus();
-      portalInput?.select();
-      if (portalMessage) {
-        portalMessage.textContent = 'Bağlantı seçildi; kopyalamak için Ctrl/Cmd+C kullanın.';
-      }
-    }
-    return;
-  }
-
   const button = event.target.closest('[data-demo-islem]');
   if (!button) {
     return;
@@ -86,111 +19,6 @@ document.addEventListener('click', async (event) => {
       sonucAlani.textContent = error.message;
     }
   }
-});
-
-document.querySelectorAll('[data-parent-portal-info]').forEach((portalInfo) => {
-  const portalPath = portalInfo.getAttribute('data-parent-portal-path') || '';
-  const portalInput = portalInfo.querySelector('[data-parent-portal-link]');
-  if (portalInput && portalPath) {
-    portalInput.value = `${window.location.origin}${portalPath}`;
-  }
-});
-
-(() => {
-  const toggles = Array.from(document.querySelectorAll('[data-sidebar-toggle]'));
-  const closeButtons = Array.from(document.querySelectorAll('[data-sidebar-close]'));
-  if (!toggles.length) {
-    return;
-  }
-
-  const root = document.documentElement;
-  const mobileQuery = window.matchMedia('(max-width: 900px)');
-
-  function setToggleState(expanded) {
-    document.querySelectorAll('[data-sidebar-toggle]').forEach((toggle) => {
-      toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-    });
-  }
-
-  function applySidebarState() {
-    if (mobileQuery.matches) {
-      root.classList.add('sidebar-collapsed');
-      root.classList.remove('sidebar-expanded');
-      setToggleState(root.classList.contains('sidebar-mobile-open'));
-      return;
-    }
-
-    const stored = localStorage.getItem('talyaSidebarCollapsed');
-    const collapsed = stored === '1';
-
-    root.classList.remove('sidebar-mobile-open');
-    root.classList.toggle('sidebar-collapsed', collapsed);
-    root.classList.toggle('sidebar-expanded', !collapsed);
-    setToggleState(!collapsed);
-  }
-
-  function closeMobileSidebar() {
-    root.classList.remove('sidebar-mobile-open');
-    document.body.classList.remove('has-sidebar-open');
-    applySidebarState();
-  }
-
-  closeButtons.forEach((button) => {
-    button.addEventListener('click', closeMobileSidebar);
-  });
-
-  mobileQuery.addEventListener?.('change', () => {
-    closeMobileSidebar();
-    applySidebarState();
-  });
-
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && root.classList.contains('sidebar-mobile-open')) {
-      closeMobileSidebar();
-    }
-  });
-
-  document.addEventListener('click', (event) => {
-    const sidebarToggle = event.target.closest('[data-sidebar-toggle]');
-    if (sidebarToggle) {
-      if (mobileQuery.matches) {
-        const willOpen = !root.classList.contains('sidebar-mobile-open');
-        root.classList.toggle('sidebar-mobile-open', willOpen);
-        document.body.classList.toggle('has-sidebar-open', willOpen);
-        setToggleState(willOpen);
-        return;
-      }
-
-      const nextCollapsed = !root.classList.contains('sidebar-collapsed');
-      localStorage.setItem('talyaSidebarCollapsed', nextCollapsed ? '1' : '0');
-      applySidebarState();
-      return;
-    }
-
-    if (!mobileQuery.matches || !root.classList.contains('sidebar-mobile-open')) {
-      return;
-    }
-    if (event.target.closest('.sidebar') || event.target.closest('[data-sidebar-toggle]')) {
-      return;
-    }
-    closeMobileSidebar();
-  });
-
-  applySidebarState();
-})();
-
-document.addEventListener('click', (event) => {
-  const toggle = event.target.closest('[data-menu-group-toggle]');
-  if (!toggle) {
-    return;
-  }
-
-  const group = toggle.closest('.menu-group');
-  if (!group) {
-    return;
-  }
-  const isOpen = group.classList.toggle('is-open');
-  toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
 });
 
 function escapeHtml(value) {
@@ -226,6 +54,28 @@ function formValues(form) {
 
 function normalRightCount(form) {
   return Number(form.querySelector('[name="toplam_normal_hak"]')?.value || 0);
+}
+
+function updateMonthlyPackageRights(form) {
+  if (!form?.matches('[data-package-assignment-form]')) return;
+  const monthly = form.querySelector('[name="hak_hesaplama_turu"]')?.value === 'aylik_takvim';
+  const note = form.querySelector('[data-monthly-calendar-note]');
+  if (note) note.hidden = !monthly;
+  if (!monthly) return;
+  const dateValue = form.querySelector('[name="baslangic_tarihi"]')?.value || '';
+  const date = new Date(`${dateValue}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return;
+  const selectedDays = new Set(Array.from(form.querySelectorAll('[name="program_gunleri[]"]:checked')).map((field) => Number(field.value)));
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  let count = 0;
+  for (let day = 1; day <= lastDay; day++) {
+    const weekday = new Date(year, month, day).getDay() || 7;
+    if (selectedDays.has(weekday)) count++;
+  }
+  const rights = form.querySelector('[name="toplam_normal_hak"]');
+  if (rights) rights.value = String(count);
 }
 
 function isoWeekday(dateValue) {
@@ -270,6 +120,7 @@ function updatePackageAssignmentSchedule(form) {
     return;
   }
 
+  updateMonthlyPackageRights(form);
   const isSingleAppointment = normalRightCount(form) === 1;
   const weeklyCard = form.querySelector('[data-weekly-schedule-card]');
   const singleTime = form.querySelector('[data-single-appointment-time]');
@@ -320,23 +171,198 @@ function formatMoney(value) {
   render();
 })();
 
+(() => {
+  const calendar = document.querySelector('[data-debt-payment-calendar]');
+  if (!calendar) return;
+
+  const sourceElement = calendar.querySelector('[data-debt-calendar-source]');
+  const grid = calendar.querySelector('[data-debt-calendar-grid]');
+  const monthLabel = calendar.querySelector('[data-debt-calendar-month]');
+  const detail = calendar.querySelector('[data-debt-calendar-detail]');
+  let source = [];
+  try {
+    source = JSON.parse(sourceElement?.textContent || '[]');
+  } catch (error) {
+    source = [];
+  }
+
+  const grouped = source.reduce((result, row) => {
+    const key = String(row.tarih || '');
+    if (!key) return result;
+    result[key] = result[key] || [];
+    result[key].push(row);
+    return result;
+  }, {});
+
+  const isoDate = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  const parseDate = (value) => {
+    const [year, month, day] = String(value || '').split('-').map(Number);
+    return year && month && day ? new Date(year, month - 1, day) : null;
+  };
+  const formatDate = (value) => {
+    const date = parseDate(value);
+    return date ? new Intl.DateTimeFormat('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' }).format(date) : value;
+  };
+
+  const firstExpectedDate = parseDate(source[0]?.tarih);
+  const now = new Date();
+  let cursor = new Date(
+    firstExpectedDate?.getFullYear() ?? now.getFullYear(),
+    firstExpectedDate?.getMonth() ?? now.getMonth(),
+    1
+  );
+  let selectedDate = source[0]?.tarih || '';
+
+  function renderDetail(dateKey) {
+    const rows = grouped[dateKey] || [];
+    if (!rows.length) {
+      detail.innerHTML = '<div class="empty-table">Bu gün için beklenen ödeme bulunmuyor.</div>';
+      return;
+    }
+    const total = rows.reduce((sum, row) => sum + Number(row.kalan_borc || 0), 0);
+    detail.innerHTML = `
+      <div class="debt-calendar-detail-head">
+        <h3>${escapeHtml(formatDate(dateKey))}</h3>
+        <strong>${escapeHtml(formatMoney(total))}</strong>
+      </div>
+      ${rows.map((row) => `
+        <article class="debt-calendar-payment">
+          <header><strong>${escapeHtml(row.ogrenci || '-')}</strong><span>${escapeHtml(formatMoney(row.kalan_borc))}</span></header>
+          <small>${escapeHtml(row.paket_adi || '-')}</small>
+          ${row.tahsilat_notu ? `<p>${escapeHtml(row.tahsilat_notu).replaceAll('\n', '<br>')}</p>` : ''}
+        </article>
+      `).join('')}
+    `;
+  }
+
+  function renderCalendar() {
+    monthLabel.textContent = new Intl.DateTimeFormat('tr-TR', { month: 'long', year: 'numeric' }).format(cursor);
+    const monthStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+    const offset = (monthStart.getDay() + 6) % 7;
+    const gridStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1 - offset);
+    const monthPrefix = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-`;
+    if (!selectedDate.startsWith(monthPrefix)) {
+      selectedDate = Object.keys(grouped).find((key) => key.startsWith(monthPrefix)) || '';
+    }
+
+    const cells = [];
+    for (let index = 0; index < 42; index += 1) {
+      const date = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + index);
+      const key = isoDate(date);
+      const rows = grouped[key] || [];
+      const total = rows.reduce((sum, row) => sum + Number(row.kalan_borc || 0), 0);
+      const classes = [
+        'debt-calendar-day',
+        date.getMonth() !== cursor.getMonth() ? 'is-outside' : '',
+        key === isoDate(now) ? 'is-today' : '',
+        rows.length ? 'has-payment' : '',
+        key === selectedDate ? 'is-selected' : ''
+      ].filter(Boolean).join(' ');
+      const content = `<strong>${date.getDate()}</strong>${rows.length ? `<span>${rows.length} ödeme<br>${escapeHtml(formatMoney(total))}</span>` : ''}`;
+      cells.push(rows.length
+        ? `<button type="button" class="${classes}" data-debt-calendar-date="${key}">${content}</button>`
+        : `<div class="${classes}">${content}</div>`);
+    }
+    grid.innerHTML = cells.join('');
+    renderDetail(selectedDate);
+  }
+
+  calendar.addEventListener('click', (event) => {
+    const day = event.target.closest('[data-debt-calendar-date]');
+    if (day) {
+      selectedDate = day.getAttribute('data-debt-calendar-date') || '';
+      const selected = parseDate(selectedDate);
+      if (selected && (selected.getFullYear() !== cursor.getFullYear() || selected.getMonth() !== cursor.getMonth())) {
+        cursor = new Date(selected.getFullYear(), selected.getMonth(), 1);
+      }
+      renderCalendar();
+      return;
+    }
+    if (event.target.closest('[data-debt-calendar-prev]')) {
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1);
+      renderCalendar();
+      return;
+    }
+    if (event.target.closest('[data-debt-calendar-next]')) {
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+      renderCalendar();
+    }
+  });
+
+  renderCalendar();
+})();
+
+document.querySelector('[data-waiting-parent-history-form]')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const dialog = form.closest('[data-waiting-parent-history-dialog]');
+  const message = dialog.querySelector('[data-waiting-parent-history-message]');
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  message.textContent = 'Kaydediliyor...';
+  try {
+    const payload = formValues(form);
+    const response = await talyaAjax('bekleyen_veli_gorusme_ekle', payload);
+    message.textContent = response.mesaj;
+    const id = Number(payload.bekleyen_veli_id);
+    form.elements.ozet.value = '';
+    form.elements.sonraki_takip_tarihi.value = '';
+    form.elements.gorusme_tarihi.value = localDateTimeInputValue();
+    await loadWaitingParentHistory(id, dialog);
+    const table = document.querySelector('[data-table="bekleyen_veli_listele"]');
+    if (table) await loadAjaxTable(table);
+  } catch (error) {
+    message.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+
+document.querySelector('[data-waiting-parent-groups-form]')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const dialog = form.closest('[data-waiting-parent-history-dialog]');
+  const message = dialog.querySelector('[data-waiting-parent-groups-message]');
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  try {
+    const payload = formValues(form);
+    payload.grup_ids = Array.from(form.querySelectorAll('[name="grup_ids[]"]:checked')).map((input) => Number(input.value));
+    const response = await talyaAjax('bekleyen_veli_gruplari_guncelle', payload);
+    message.textContent = response.mesaj;
+    await loadWaitingParentHistory(Number(payload.bekleyen_veli_id), dialog);
+    const table = document.querySelector('[data-table="bekleyen_veli_listele"]');
+    if (table) await loadAjaxTable(table);
+  } catch (error) {
+    message.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+
 function renderHizmetTable(target, rows) {
   if (!rows || rows.length === 0) {
     target.innerHTML = '<div class="empty-table">Kayit bulunamadi.</div>';
     return;
   }
 
-  const canManage = target.getAttribute('data-can-manage-services') === '1';
   const tbody = rows.map((row, index) => `
     <tr>
       <td>${index + 1}</td>
       <td>${escapeHtml(row.hizmet_adi)}</td>
       <td>${escapeHtml(formatMoney(row.ucret))}</td>
+      <td>${row.kdv_orani === null || row.kdv_orani === '' ? 'Tanimlanmamis' : `%${escapeHtml(row.kdv_orani)}`}</td>
       <td>${escapeHtml(row.haftalik_katilim_sayisi)}</td>
       <td>${escapeHtml(row.toplam_normal_hak)}</td>
       <td>${escapeHtml(row.toplam_telafi_hak)}</td>
+      <td>${row.hak_hesaplama_turu === 'aylik_takvim' ? 'Aylık takvim' : 'Sabit'}</td>
       <td><span class="status-pill">${String(row.aktif) === '1' ? 'Aktif' : 'Pasif'}</span></td>
-      ${canManage ? `<td>
+      <td>
         <button
           class="btn btn-ghost"
           type="button"
@@ -344,9 +370,11 @@ function renderHizmetTable(target, rows) {
           data-id="${escapeHtml(row.id)}"
           data-name="${escapeHtml(row.hizmet_adi)}"
           data-price="${escapeHtml(row.ucret)}"
+          data-vat="${escapeHtml(row.kdv_orani)}"
           data-weekly="${escapeHtml(row.haftalik_katilim_sayisi)}"
           data-normal="${escapeHtml(row.toplam_normal_hak)}"
           data-makeup="${escapeHtml(row.toplam_telafi_hak)}"
+          data-calendar-mode="${escapeHtml(row.hak_hesaplama_turu || 'sabit')}"
           data-active="${escapeHtml(row.aktif)}"
         >Duzenle</button>
         <button
@@ -354,7 +382,7 @@ function renderHizmetTable(target, rows) {
           type="button"
           data-delete-service="${escapeHtml(row.id)}"
         >Sil</button>
-      </td>` : ''}
+      </td>
     </tr>
   `).join('');
 
@@ -365,11 +393,13 @@ function renderHizmetTable(target, rows) {
           <th>#</th>
           <th>Paket Adi</th>
           <th>Ucret</th>
+          <th>KDV</th>
           <th>Haftalik Katilim</th>
           <th>Normal Hak</th>
           <th>Telafi Hakki</th>
+          <th>Hak Hesaplama</th>
           <th>Durum</th>
-          ${canManage ? '<th>Islem</th>' : ''}
+          <th>Islem</th>
         </tr>
       </thead>
       <tbody>${tbody}</tbody>
@@ -426,36 +456,35 @@ function renderMiniPagination(paging, attributeName, limitAttribute) {
 function renderOgrenciTable(target, rows, paging = {}) {
   target._talyaRows = rows || [];
   const filtered = target._talyaRows;
+  const canEditStudent = target.dataset.canEditStudent === '1';
 
   if (!filtered.length) {
     target.innerHTML = '<div class="empty-table">Eslesen ogrenci bulunamadi.</div>';
     return;
   }
 
-  const body = filtered.map((row, index) => {
-    const whatsappUrl = talyaWhatsappUrl(row.telefon, row.ad_soyad || `${row.ad || ''} ${row.soyad || ''}`.trim());
-    const profileUrl = `/panel/ogrenciler/profil?id=${encodeURIComponent(String(row.id || ''))}`;
-    return `
-    <tr class="student-table-row" data-student-profile-url="${escapeHtml(profileUrl)}" tabindex="0" role="link" aria-label="${escapeHtml(row.ad_soyad || 'Öğrenci')} profiline git">
+  const body = filtered.map((row, index) => `
+    <tr>
       <td>${index + 1}</td>
-      <td><a class="table-link" href="${escapeHtml(profileUrl)}">${escapeHtml(row.ad_soyad || `${row.ad || ''} ${row.soyad || ''}`.trim())}</a></td>
+      <td><a class="table-link" href="/panel/ogrenciler/profil?id=${escapeHtml(row.id)}">${escapeHtml(row.ad_soyad || `${row.ad || ''} ${row.soyad || ''}`.trim())}</a></td>
       <td>${escapeHtml(row.telefon || '-')}</td>
       <td>${escapeHtml(row.veliler || '-')}</td>
       <td>${escapeHtml(row.dogum_tarihi || '-')}</td>
       <td>${escapeHtml(row.kayit_tarihi || '-')}</td>
       <td>
         <span class="status-pill">${escapeHtml(row.durum || '-')}</span>
-        ${String(row.kara_liste_aktif || '0') === '1' ? '<span class="status-pill is-danger">Tedbir Listesi</span>' : ''}
+        ${String(row.kara_liste_aktif || '0') === '1' ? '<span class="status-pill is-danger">Kara Liste</span>' : ''}
       </td>
-      <td class="student-row-actions">
-        <button class="btn btn-danger" type="button" data-delete-student="${escapeHtml(row.id)}">Sil</button>
-        ${whatsappUrl ? `<a class="student-whatsapp-button" href="${escapeHtml(whatsappUrl)}" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp ile iletişime geç" title="WhatsApp ile iletişime geç">
-          <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><path fill="currentColor" d="M16 3a13 13 0 0 0-11.2 19.6L3 29l6.6-1.7A13 13 0 1 0 16 3Zm0 23.6c-2.1 0-4.1-.6-5.8-1.7l-.4-.2-3.9 1 1.1-3.8-.3-.4A10.5 10.5 0 1 1 16 26.6Zm5.8-7.9c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2l-1 1.2c-.2.2-.4.2-.7.1a8.6 8.6 0 0 1-4.2-3.7c-.3-.5.3-.5.8-1.6.1-.2 0-.4 0-.6l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.2-1.2 2.9s1.3 3.4 1.4 3.6c.2.2 2.5 3.8 6 5.3 2.2.9 3.1 1 4.2.8 1.3-.2 1.9-1.1 2.2-2.1.3-1 .3-1.8.2-2-.1-.2-.3-.3-.6-.4Z"/></svg>
-        </a>` : ''}
+      <td>
+        ${canEditStudent ? `
+          <div class="table-row-actions">
+            <button class="btn btn-ghost" type="button" data-quick-edit-student="${escapeHtml(row.id)}">Hizli Duzenle</button>
+            <button class="btn btn-danger" type="button" data-delete-student="${escapeHtml(row.id)}">Sil</button>
+          </div>
+        ` : '<span>-</span>'}
       </td>
     </tr>
-  `;
-  }).join('');
+  `).join('');
 
   target.innerHTML = `
     <table>
@@ -477,29 +506,13 @@ function renderOgrenciTable(target, rows, paging = {}) {
   `;
 }
 
-function talyaWhatsappUrl(phone, studentName) {
-  let digits = String(phone || '').replace(/\D/g, '');
-  if (digits.startsWith('00')) {
-    digits = digits.slice(2);
-  }
-  if (digits.startsWith('90') && digits.length === 12) {
-    digits = digits.slice(2);
-  }
-  if (digits.startsWith('0')) {
-    digits = digits.slice(1);
-  }
-  if (digits.length !== 10) {
-    return '';
-  }
-
-  const message = `Merhaba, ${studentName || 'öğrencimiz'} hakkında sizinle iletişime geçiyoruz.`;
-  return `https://wa.me/90${digits}?text=${encodeURIComponent(message)}`;
-}
-
 function waitingParentStatusLabel(value) {
   return {
     bekliyor: 'Bekliyor',
     iletisime_gecildi: 'Iletisime Gecildi',
+    bilgi_verildi: 'Bilgi Verildi',
+    ulasilamadi: 'Ulaşılamadı',
+    katilmadi: 'Katılmadı',
     kayda_donustu: 'Kayda Donustu',
     iptal: 'Iptal',
   }[value] || value || '-';
@@ -543,31 +556,87 @@ function waitingParentAgeLabel(row) {
   return Number.isFinite(months) && months >= 0 ? `${months} aylik` : '';
 }
 
+function waitingParentDaysLabel(value) {
+  const days = Math.max(0, Number(value || 0));
+  if (days === 0) {
+    return 'Bugün';
+  }
+  return `${days} gün`;
+}
+
+function waitingParentSortValue(row, key) {
+  const values = {
+    student: row.ogrenci_ad_soyad,
+    parent: `${row.veli_ad_soyad || ''} ${row.veli_telefon || ''}`,
+    age_group: row.ay_grubu,
+    groups: row.grup_adlari,
+    preference: waitingParentPreferenceLabel(row.zaman_tercihi),
+    days: Number(row.listeye_ekleneli_gun || 0),
+    status: waitingParentStatusLabel(row.durum),
+    note: row.notlar,
+    last_contact: row.son_gorusme_tarihi || '',
+  };
+  return values[key] ?? '';
+}
+
+function waitingParentSortHeader(target, key, label) {
+  const sort = target._talyaSort || {};
+  const active = sort.key === key;
+  const direction = active ? sort.direction : '';
+  const icon = direction === 'asc' ? '↑' : (direction === 'desc' ? '↓' : '↕');
+  const ariaSort = direction === 'asc' ? 'ascending' : (direction === 'desc' ? 'descending' : 'none');
+  return `<th aria-sort="${ariaSort}"><button class="waiting-parent-sort" type="button" data-waiting-parent-sort="${key}" title="Sıralamak için tıklayın">${label}<span aria-hidden="true">${icon}</span></button></th>`;
+}
+
 function renderBekleyenVeliTable(target, rows) {
   target._talyaRows = rows || [];
+  const waitingRows = target._talyaRows.filter((row) => !['kayda_donustu', 'iptal'].includes(row.durum));
+  const convertedRows = target._talyaRows.filter((row) => row.durum === 'kayda_donustu');
+  document.querySelectorAll('[data-waiting-parent-count]').forEach((element) => {
+    const type = element.dataset.waitingParentCount;
+    element.textContent = String(type === 'waiting' ? waitingRows.length : (type === 'converted' ? convertedRows.length : target._talyaRows.length));
+  });
+
+  const activeView = document.querySelector('[data-waiting-parent-view].is-active')?.dataset.waitingParentView || 'waiting';
+  const visibleRows = activeView === 'converted'
+    ? convertedRows
+    : (activeView === 'all' ? target._talyaRows : waitingRows);
   const search = document.querySelector('[data-waiting-parent-search]');
   const query = String(search?.value || '').trim().toLocaleLowerCase('tr-TR');
   const queryDigits = searchablePhone(query);
-  const filtered = query
-    ? target._talyaRows.filter((row) => {
+  let filtered = query
+    ? visibleRows.filter((row) => {
         const text = [
           row.ogrenci_ad_soyad,
           row.veli_ad_soyad,
-          row.beklenen_gun,
           row.ay_grubu,
-          row.iletisim_referansi,
           waitingParentAgeLabel(row),
           waitingParentPreferenceLabel(row.zaman_tercihi),
           waitingParentStatusLabel(row.durum),
           row.notlar,
+          row.son_gorusme_ozeti,
+          row.grup_adlari,
         ].join(' ').toLocaleLowerCase('tr-TR');
         const phone = searchablePhone(row.veli_telefon || '');
         return text.includes(query) || (queryDigits !== '' && phone.includes(queryDigits));
       })
-    : target._talyaRows;
+    : visibleRows;
+
+  const sort = target._talyaSort || {};
+  if (sort.key && ['asc', 'desc'].includes(sort.direction)) {
+    filtered = [...filtered].sort((left, right) => {
+      const leftValue = waitingParentSortValue(left, sort.key);
+      const rightValue = waitingParentSortValue(right, sort.key);
+      const comparison = typeof leftValue === 'number' && typeof rightValue === 'number'
+        ? leftValue - rightValue
+        : String(leftValue).localeCompare(String(rightValue), 'tr-TR', { numeric: true, sensitivity: 'base' });
+      return sort.direction === 'desc' ? -comparison : comparison;
+    });
+  }
 
   if (!filtered.length) {
-    target.innerHTML = '<div class="empty-table">Bekleyen veli kaydi bulunamadi.</div>';
+    const emptyLabel = activeView === 'converted' ? 'Aktif kayda dönüşen veli bulunamadı.' : 'Bekleyen veli kaydı bulunamadı.';
+    target.innerHTML = `<div class="empty-table">${emptyLabel}</div>`;
     return;
   }
 
@@ -575,11 +644,28 @@ function renderBekleyenVeliTable(target, rows) {
     const ogrenciId = Number(row.ogrenci_id || 0);
     const appointmentUrl = ogrenciId > 0 ? `/panel/paketler/tanimla?ogrenci_id=${encodeURIComponent(String(ogrenciId))}` : '';
     const conversionButton = ogrenciId > 0
-      ? `<a class="btn btn-primary" href="${appointmentUrl}">Randevu Olustur</a>`
-      : `<button class="btn btn-primary" type="button" data-convert-waiting-parent="${escapeHtml(row.id)}">Aktif Ogrenci Yap</button>`;
+      ? `<a class="waiting-parent-action-icon is-primary" href="${appointmentUrl}" title="Randevu oluştur" aria-label="Randevu oluştur">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Zm7 7v5m-2.5-2.5h5"/></svg>
+        </a>`
+      : `<button class="waiting-parent-action-icon is-primary" type="button" data-convert-waiting-parent="${escapeHtml(row.id)}" title="Aktif öğrenci yap" aria-label="Aktif öğrenci yap">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 19a6 6 0 0 0-12 0m6-8a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm9-4v6m-3-3h6"/></svg>
+        </button>`;
+    const editButton = !['kayda_donustu', 'iptal'].includes(row.durum)
+      ? `<button class="waiting-parent-action-icon" type="button" data-edit-waiting-parent="${escapeHtml(row.id)}" title="Bilgileri düzenle" aria-label="Bilgileri düzenle">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l11-11a2.8 2.8 0 0 0-4-4L4 16v4Zm9.5-13.5 4 4"/></svg>
+        </button>`
+      : (ogrenciId > 0
+        ? `<a class="waiting-parent-action-icon" href="/panel/ogrenciler/profil?id=${encodeURIComponent(String(ogrenciId))}" title="Aktif öğrenci profilini düzenle" aria-label="Aktif öğrenci profilini düzenle">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l11-11a2.8 2.8 0 0 0-4-4L4 16v4Zm9.5-13.5 4 4"/></svg>
+          </a>`
+        : '');
     const birthDate = row.ogrenci_dogum_tarihi || '-';
     const ageLabel = waitingParentAgeLabel(row);
     const birthAndAge = ageLabel ? `${birthDate} / ${ageLabel}` : birthDate;
+    const lastContact = row.son_gorusme_tarihi
+      ? `${escapeHtml(String(row.son_gorusme_tarihi).slice(0, 16))}<small>${escapeHtml(row.son_gorusme_ozeti || '-')}</small>`
+      : '<span class="muted">Henüz görüşme yok</span>';
+    const followUp = row.sonraki_takip_tarihi ? `<small class="waiting-follow-up">Takip: ${escapeHtml(row.sonraki_takip_tarihi)}</small>` : '';
 
     return `
     <tr>
@@ -592,47 +678,116 @@ function renderBekleyenVeliTable(target, rows) {
         <strong>${escapeHtml(row.veli_ad_soyad || '-')}</strong>
         <small>${escapeHtml(row.veli_telefon || '-')}</small>
       </td>
-      <td>${escapeHtml(row.beklenen_gun || '-')}</td>
       <td>${escapeHtml(row.ay_grubu || '-')}</td>
-      <td>${escapeHtml(row.iletisim_referansi || '-')}</td>
+      <td>${escapeHtml(row.grup_adlari || 'Grup seçilmedi')}</td>
       <td>${escapeHtml(waitingParentPreferenceLabel(row.zaman_tercihi))}</td>
       <td>
-        <select data-waiting-parent-status="${escapeHtml(row.id)}">
+        <strong class="waiting-parent-days">${escapeHtml(waitingParentDaysLabel(row.listeye_ekleneli_gun))}</strong>
+        <small>${escapeHtml(String(row.olusturulma_tarihi || '-').slice(0, 10))}</small>
+      </td>
+      <td>
+        <select data-waiting-parent-status="${escapeHtml(row.id)}" data-saved-status="${escapeHtml(row.durum || 'bekliyor')}" aria-label="${escapeHtml(row.ogrenci_ad_soyad || 'Öğrenci')} durumunu değiştir">
           <option value="bekliyor" ${row.durum === 'bekliyor' ? 'selected' : ''}>Bekliyor</option>
-          <option value="iletisime_gecildi" ${row.durum === 'iletisime_gecildi' ? 'selected' : ''}>Iletisime Gecildi</option>
-          <option value="kayda_donustu" ${row.durum === 'kayda_donustu' ? 'selected' : ''}>Kayda Donustu</option>
-          <option value="iptal" ${row.durum === 'iptal' ? 'selected' : ''}>Iptal</option>
+          <option value="iletisime_gecildi" ${row.durum === 'iletisime_gecildi' ? 'selected' : ''}>İletişime Geçildi</option>
+          <option value="bilgi_verildi" ${row.durum === 'bilgi_verildi' ? 'selected' : ''}>Bilgi Verildi</option>
+          <option value="ulasilamadi" ${row.durum === 'ulasilamadi' ? 'selected' : ''}>Ulaşılamadı</option>
+          <option value="katilmadi" ${row.durum === 'katilmadi' ? 'selected' : ''}>Katılmadı</option>
+          <option value="kayda_donustu" ${row.durum === 'kayda_donustu' ? 'selected' : ''}>Kayda Dönüştü</option>
+          <option value="iptal" ${row.durum === 'iptal' ? 'selected' : ''}>İptal</option>
         </select>
       </td>
       <td>${escapeHtml(row.notlar || '-')}</td>
-      <td>
-        ${conversionButton}
-        <button class="btn btn-ghost" type="button" data-save-waiting-parent-status="${escapeHtml(row.id)}">Kaydet</button>
-        <button class="btn btn-danger" type="button" data-delete-waiting-parent="${escapeHtml(row.id)}">Sil</button>
+      <td>${lastContact}${followUp}</td>
+      <td class="waiting-parent-actions-cell">
+        <div class="waiting-parent-row-actions">
+          ${editButton}
+          <button class="waiting-parent-action-icon" type="button" data-waiting-parent-history="${escapeHtml(row.id)}" title="Detay ve görüşmeler (${escapeHtml(row.gorusme_sayisi || 0)})" aria-label="Detay ve görüşmeler">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v4l3 2m6-2a9 9 0 1 1-3-6.7M18 2v4h4"/></svg>
+          </button>
+          ${conversionButton}
+          <button class="waiting-parent-action-icon is-danger" type="button" data-delete-waiting-parent="${escapeHtml(row.id)}" title="Kaydı sil" aria-label="Kaydı sil">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16m-10 4v6m4-6v6M9 7l1-3h4l1 3m3 0-1 13H7L6 7"/></svg>
+          </button>
+        </div>
       </td>
     </tr>
   `;
   }).join('');
 
   target.innerHTML = `
-    <table>
+    <table class="waiting-parent-table">
       <thead>
         <tr>
           <th>#</th>
-          <th>Ogrenci</th>
-          <th>Veli</th>
-          <th>Bekledigi Gun</th>
-          <th>Ay Grubu</th>
-          <th>İletişim Kaynağı</th>
-          <th>Tercih</th>
-          <th>Durum</th>
-          <th>Not</th>
-          <th>Islem</th>
+          ${waitingParentSortHeader(target, 'student', 'Öğrenci')}
+          ${waitingParentSortHeader(target, 'parent', 'Veli')}
+          ${waitingParentSortHeader(target, 'age_group', 'Ay Grubu')}
+          ${waitingParentSortHeader(target, 'groups', 'Beklediği Gruplar')}
+          ${waitingParentSortHeader(target, 'preference', 'Tercih')}
+          ${waitingParentSortHeader(target, 'days', 'Listeye Ekleneli')}
+          ${waitingParentSortHeader(target, 'status', 'Durum')}
+          ${waitingParentSortHeader(target, 'note', 'Not')}
+          ${waitingParentSortHeader(target, 'last_contact', 'Son Görüşme')}
+          <th>İşlem</th>
         </tr>
       </thead>
       <tbody>${body}</tbody>
     </table>
   `;
+}
+
+const waitingParentChannelLabels = {
+  telefon: 'Telefon', whatsapp: 'WhatsApp', yuz_yuze: 'Yüz yüze', sms: 'SMS', diger: 'Diğer'
+};
+const waitingParentResultLabels = {
+  bilgi_verildi: 'Bilgi verildi', tekrar_aranacak: 'Tekrar aranacak', randevu_planlandi: 'Randevu planlandı',
+  kararsiz: 'Kararsız', ulasilamadi: 'Ulaşılamadı', katilmadi: 'Katılmadı', olumsuz: 'Olumsuz', diger: 'Diğer'
+};
+
+function localDateTimeInputValue(date = new Date()) {
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 16);
+}
+
+function renderWaitingParentHistory(dialog, rows) {
+  const target = dialog.querySelector('[data-waiting-parent-history-list]');
+  if (!rows?.length) {
+    target.innerHTML = '<div class="empty-table">Henüz görüşme kaydı bulunmuyor.</div>';
+    return;
+  }
+  target.innerHTML = rows.map((row) => `
+    <article class="waiting-parent-history-item">
+      <div class="waiting-parent-history-meta">
+        <strong>${escapeHtml(String(row.gorusme_tarihi || '').slice(0, 16))}</strong>
+        <span>${escapeHtml(waitingParentChannelLabels[row.kanal] || row.kanal)}</span>
+        <span>${escapeHtml(waitingParentResultLabels[row.sonuc] || row.sonuc)}</span>
+      </div>
+      <p>${escapeHtml(row.ozet || '').replaceAll('\n', '<br>')}</p>
+      <footer><span>Kaydeden: ${escapeHtml(row.kaydeden || '-')}</span>${row.sonraki_takip_tarihi ? `<strong>Takip: ${escapeHtml(row.sonraki_takip_tarihi)}</strong>` : ''}</footer>
+    </article>
+  `).join('');
+}
+
+async function loadWaitingParentHistory(id, dialog) {
+  const list = dialog.querySelector('[data-waiting-parent-history-list]');
+  list.innerHTML = '<div class="empty-table">Görüşmeler yükleniyor...</div>';
+  const response = await talyaAjax('bekleyen_veli_gorusmeleri', {id});
+  const data = response.veri || {};
+  dialog.querySelector('[data-waiting-parent-history-title]').textContent = `${data.veli?.veli_ad_soyad || '-'} · ${data.veli?.ogrenci_ad_soyad || '-'}`;
+  renderWaitingParentHistory(dialog, data.gorusmeler || []);
+  const groupForm = dialog.querySelector('[data-waiting-parent-groups-form]');
+  if (groupForm) {
+    groupForm.elements.bekleyen_veli_id.value = String(id);
+    dialog.querySelector('[data-waiting-parent-group-options]').innerHTML = (data.gruplar || []).length
+      ? data.gruplar.map((grup) => {
+        const programlar = Array.isArray(grup.programlar) ? grup.programlar : [];
+        const programMetni = programlar.length
+          ? programlar.map((program) => `${program.gun_adi || '-'} ${program.baslangic_saati || '-'}–${program.bitis_saati || '-'}`).join(' · ')
+          : 'Program saati tanımlı değil';
+        return `<label><input type="checkbox" name="grup_ids[]" value="${escapeHtml(grup.id)}" ${Number(grup.secili) === 1 ? 'checked' : ''}><span><strong>${escapeHtml(grup.ad)}</strong><small>${escapeHtml(grup.yas_araligi || '-')}</small><small class="waiting-parent-group-schedule">${escapeHtml(programMetni)}</small></span></label>`;
+      }).join('')
+      : '<div class="empty-table">Aktif grup bulunamadı.</div>';
+  }
 }
 
 function renderTable(target, rows, islem = '') {
@@ -736,6 +891,67 @@ document.addEventListener('input', (event) => {
       target.dataset.page = '1';
       loadAjaxTable(target);
     }, 250);
+  }
+});
+
+document.addEventListener('click', (event) => {
+  const viewButton = event.target.closest('[data-waiting-parent-view]');
+  if (!viewButton) {
+    return;
+  }
+  document.querySelectorAll('[data-waiting-parent-view]').forEach((button) => {
+    button.classList.toggle('is-active', button === viewButton);
+  });
+  const target = document.querySelector('[data-table="bekleyen_veli_listele"]');
+  if (target?._talyaRows) {
+    renderBekleyenVeliTable(target, target._talyaRows);
+  }
+});
+
+document.addEventListener('click', (event) => {
+  const sortButton = event.target.closest('[data-waiting-parent-sort]');
+  if (!sortButton) {
+    return;
+  }
+  const target = sortButton.closest('[data-table="bekleyen_veli_listele"]');
+  if (!target?._talyaRows) {
+    return;
+  }
+  const key = sortButton.dataset.waitingParentSort || '';
+  const current = target._talyaSort || {};
+  target._talyaSort = current.key !== key
+    ? { key, direction: 'asc' }
+    : (current.direction === 'asc' ? { key, direction: 'desc' } : {});
+  renderBekleyenVeliTable(target, target._talyaRows);
+});
+
+document.addEventListener('change', async (event) => {
+  const statusField = event.target.closest('[data-waiting-parent-status]');
+  if (!statusField || statusField.disabled) {
+    return;
+  }
+
+  const id = Number(statusField.getAttribute('data-waiting-parent-status'));
+  const durum = statusField.value || '';
+  const eskiDurum = statusField.dataset.savedStatus || 'bekliyor';
+  if (!id || !durum || durum === eskiDurum) {
+    return;
+  }
+
+  statusField.disabled = true;
+  statusField.classList.add('is-saving');
+  try {
+    await talyaAjax('bekleyen_veli_durum_guncelle', { id, durum });
+    statusField.dataset.savedStatus = durum;
+    const table = statusField.closest('[data-table]') || document.querySelector('[data-table="bekleyen_veli_listele"]');
+    if (table) {
+      await loadAjaxTable(table);
+    }
+  } catch (error) {
+    statusField.value = eskiDurum;
+    statusField.disabled = false;
+    statusField.classList.remove('is-saving');
+    window.alert(error.message);
   }
 });
 
@@ -930,15 +1146,30 @@ document.addEventListener('submit', async (event) => {
 });
 
 document.addEventListener('click', async (event) => {
-  const studentRow = event.target.closest('[data-student-profile-url]');
-  if (studentRow && !event.target.closest('a, button, input, select, textarea, label')) {
-    window.location.assign(studentRow.getAttribute('data-student-profile-url'));
-    return;
-  }
-
   const opener = event.target.closest('[data-open-dialog]');
   if (opener) {
-    openDialogElement(document.querySelector(opener.getAttribute('data-open-dialog')));
+    const dialog = document.querySelector(opener.getAttribute('data-open-dialog'));
+    if (opener.matches('[data-quick-appointment-prefill]')) {
+      const form = dialog?.querySelector('[data-quick-appointment-form]');
+      if (form) {
+        const values = {
+          ogrenci_id: opener.dataset.ogrenciId || '',
+          veli_onam_id: opener.dataset.onamId || '',
+          ogrenci_ad_soyad: opener.dataset.ogrenciAdSoyad || '',
+          dogum_tarihi: opener.dataset.dogumTarihi || '',
+          veli_ad_soyad: opener.dataset.veliAdSoyad || '',
+          veli_telefon: opener.dataset.veliTelefon || '',
+        };
+        Object.entries(values).forEach(([name, value]) => {
+          const field = form.elements.namedItem(name);
+          if (field) {
+            field.value = value;
+            field.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        });
+      }
+    }
+    openDialogElement(dialog);
     return;
   }
 
@@ -961,6 +1192,27 @@ document.addEventListener('click', async (event) => {
         packagePriceToggle.dispatchEvent(new Event('change', { bubbles: true }));
       }
     }
+    openDialogElement(dialog);
+    return;
+  }
+
+  const debtPaymentPlan = event.target.closest('[data-debt-payment-plan]');
+  if (debtPaymentPlan) {
+    const dialog = document.querySelector('[data-debt-payment-plan-dialog]');
+    const form = dialog?.querySelector('[data-debt-payment-plan-form]');
+    if (!dialog || !form) return;
+    form.reset();
+    form.elements.paket_id.value = debtPaymentPlan.getAttribute('data-paket-id') || '';
+    form.elements.beklenen_odeme_tarihi.value = debtPaymentPlan.getAttribute('data-expected-payment-date') || '';
+    try {
+      form.elements.tahsilat_notu.value = decodeURIComponent(debtPaymentPlan.getAttribute('data-payment-note') || '');
+    } catch (error) {
+      form.elements.tahsilat_notu.value = '';
+    }
+    const title = dialog.querySelector('[data-debt-payment-plan-title]');
+    if (title) title.textContent = debtPaymentPlan.getAttribute('data-package-label') || '';
+    const message = form.querySelector('[data-form-message]');
+    if (message) message.textContent = '';
     openDialogElement(dialog);
     return;
   }
@@ -988,22 +1240,59 @@ document.addEventListener('click', async (event) => {
     return;
   }
 
-  const waitingParentStatus = event.target.closest('[data-save-waiting-parent-status]');
-  if (waitingParentStatus) {
-    const id = Number(waitingParentStatus.getAttribute('data-save-waiting-parent-status'));
-    const statusField = document.querySelector(`[data-waiting-parent-status="${id}"]`);
-    const durum = statusField?.value || '';
-    waitingParentStatus.disabled = true;
+  const waitingParentHistory = event.target.closest('[data-waiting-parent-history]');
+  if (waitingParentHistory) {
+    const id = Number(waitingParentHistory.getAttribute('data-waiting-parent-history'));
+    const dialog = document.querySelector('[data-waiting-parent-history-dialog]');
+    const form = dialog?.querySelector('[data-waiting-parent-history-form]');
+    if (!id || !dialog || !form) return;
+    form.reset();
+    form.elements.bekleyen_veli_id.value = String(id);
+    form.elements.gorusme_tarihi.value = localDateTimeInputValue();
+    dialog.querySelector('[data-waiting-parent-history-message]').textContent = '';
+    dialog.querySelector('[data-waiting-parent-groups-message]').textContent = '';
+    openDialogElement(dialog);
     try {
-      await talyaAjax('bekleyen_veli_durum_guncelle', { id, durum });
-      const table = waitingParentStatus.closest('[data-table]') || document.querySelector('[data-table="bekleyen_veli_listele"]');
-      if (table) {
-        await loadAjaxTable(table);
-      }
+      await loadWaitingParentHistory(id, dialog);
     } catch (error) {
-      window.alert(error.message);
-      waitingParentStatus.disabled = false;
+      dialog.querySelector('[data-waiting-parent-history-list]').innerHTML = `<div class="empty-table">${escapeHtml(error.message)}</div>`;
     }
+    return;
+  }
+
+  const waitingParentEdit = event.target.closest('[data-edit-waiting-parent]');
+  if (waitingParentEdit) {
+    const id = Number(waitingParentEdit.getAttribute('data-edit-waiting-parent'));
+    const table = waitingParentEdit.closest('[data-table="bekleyen_veli_listele"]');
+    const row = table?._talyaRows?.find((item) => Number(item.id) === id);
+    const dialog = document.querySelector('[data-waiting-parent-edit-dialog]');
+    const form = dialog?.querySelector('form');
+    if (!row || !dialog || !form) return;
+
+    form.reset();
+    const values = {
+      id: row.id,
+      ogrenci_ad_soyad: row.ogrenci_ad_soyad || '',
+      ogrenci_dogum_tarihi: row.ogrenci_dogum_tarihi || '',
+      veli_ad_soyad: row.veli_ad_soyad || '',
+      veli_telefon: row.veli_telefon || '',
+      veli_eposta: row.veli_eposta || '',
+      ay_grubu: row.ay_grubu || '',
+      zaman_tercihi: row.zaman_tercihi || 'farketmez',
+      notlar: row.notlar || '',
+    };
+    Object.entries(values).forEach(([name, value]) => {
+      const field = form.elements.namedItem(name);
+      if (field) field.value = value;
+    });
+    const selectedGroups = new Set((row.grup_idleri || []).map(Number));
+    form.querySelectorAll('[name="grup_ids[]"]').forEach((field) => {
+      field.checked = selectedGroups.has(Number(field.value));
+    });
+    const message = form.querySelector('[data-form-message]');
+    if (message) message.textContent = '';
+    form.elements.veli_telefon?.dispatchEvent(new Event('input', { bubbles: true }));
+    openDialogElement(dialog);
     return;
   }
 
@@ -1066,9 +1355,11 @@ document.addEventListener('click', async (event) => {
       set('id', serviceEdit.dataset.id);
       set('hizmet_adi', serviceEdit.dataset.name);
       set('ucret', serviceEdit.dataset.price);
+      set('kdv_orani', serviceEdit.dataset.vat);
       set('haftalik_katilim_sayisi', serviceEdit.dataset.weekly);
       set('toplam_normal_hak', serviceEdit.dataset.normal);
       set('toplam_telafi_hak', serviceEdit.dataset.makeup);
+      set('hak_hesaplama_turu', serviceEdit.dataset.calendarMode);
       set('aktif', serviceEdit.dataset.active);
     }
     openDialogElement(dialog);
@@ -1090,6 +1381,45 @@ document.addEventListener('click', async (event) => {
     } catch (error) {
       window.alert(error.message);
     }
+    return;
+  }
+
+  const studentQuickEdit = event.target.closest('[data-quick-edit-student]');
+  if (studentQuickEdit) {
+    const table = studentQuickEdit.closest('[data-table="ogrenci_listele"]');
+    const id = Number(studentQuickEdit.getAttribute('data-quick-edit-student'));
+    const row = (table?._talyaRows || []).find((item) => Number(item.id) === id);
+    const dialog = document.querySelector('#ogrenci-hizli-duzenle-dialog');
+    const form = dialog?.querySelector('[data-student-quick-edit-form]');
+    if (!row || !form) {
+      return;
+    }
+
+    form.reset();
+    const values = {
+      id: row.id,
+      veli_id: row.birincil_veli_id || '',
+      ogrenci_ad: row.ad || '',
+      ogrenci_soyad: row.soyad || '',
+      ogrenci_dogum_tarihi: row.dogum_tarihi || '',
+      ogrenci_kayit_tarihi: row.kayit_tarihi || '',
+      ogrenci_cinsiyet: row.cinsiyet || 'belirtilmedi',
+      ogrenci_durum: row.durum || 'aktif',
+      ogrenci_il: row.il || 'Antalya',
+      ogrenci_ilce: row.ilce || '',
+      ogrenci_adres: row.adres || '',
+      veli_ad: row.birincil_veli_ad || '',
+      veli_soyad: row.birincil_veli_soyad || '',
+      veli_telefon: row.birincil_veli_telefon || row.telefon || '',
+    };
+    Object.entries(values).forEach(([name, value]) => {
+      const field = form.elements.namedItem(name);
+      if (field) field.value = value;
+    });
+    const message = form.querySelector('[data-form-message]');
+    if (message) message.textContent = '';
+    form.elements.veli_telefon?.dispatchEvent(new Event('input', { bubbles: true }));
+    openDialogElement(dialog);
     return;
   }
 
@@ -1117,7 +1447,7 @@ document.addEventListener('click', async (event) => {
   const blacklistRemove = event.target.closest('[data-blacklist-remove]');
   if (blacklistRemove) {
     const id = Number(blacklistRemove.getAttribute('data-blacklist-remove'));
-    if (!id || !window.confirm('Bu tedbir listesi kaydı kaldırılsın mı?')) {
+    if (!id || !window.confirm('Bu kara liste kaydi kaldirilsin mi?')) {
       return;
     }
     blacklistRemove.disabled = true;
@@ -1135,15 +1465,6 @@ document.addEventListener('click', async (event) => {
   if (closer) {
     closeDialogElement(closer.closest('dialog'));
   }
-});
-
-document.addEventListener('keydown', (event) => {
-  const studentRow = event.target.closest('[data-student-profile-url]');
-  if (!studentRow || event.target !== studentRow || !['Enter', ' '].includes(event.key)) {
-    return;
-  }
-  event.preventDefault();
-  window.location.assign(studentRow.getAttribute('data-student-profile-url'));
 });
 
 document.addEventListener('click', (event) => {
@@ -1181,10 +1502,18 @@ document.addEventListener('change', (event) => {
     }
   };
   set('liste_fiyati', option.dataset.price);
+  set('kdv_orani', option.dataset.vat);
   set('haftalik_katilim_sayisi', option.dataset.weekly);
   set('haftalik_katilim_sayisi_gosterim', option.dataset.weekly);
   set('toplam_normal_hak', option.dataset.normal);
   set('toplam_telafi_hak', option.dataset.makeup);
+  set('hak_hesaplama_turu', option.dataset.calendarMode || 'sabit');
+  updatePackageAssignmentSchedule(form);
+});
+
+document.addEventListener('change', (event) => {
+  const form = event.target.closest('[data-package-assignment-form]');
+  if (!form || (!event.target.matches('[name="baslangic_tarihi"]') && !event.target.matches('[name="program_gunleri[]"]'))) return;
   updatePackageAssignmentSchedule(form);
 });
 
@@ -1515,10 +1844,9 @@ document.addEventListener('change', (event) => {
   function renewalStatus(value) {
     const labels = {
       odeme_alindi: 'Odeme alindi',
-      kismi_odeme: 'Kismi odeme',
-      odeme_bekliyor: 'Odeme alinmadi'
+      kismi_odeme: 'Kismi odeme'
     };
-    return labels[value] || value || 'Odeme alinmadi';
+    return labels[value] || '';
   }
 
   function render() {
@@ -1551,7 +1879,8 @@ document.addEventListener('change', (event) => {
                   : escapeHtml(row.ogrenci)}</b>
                 <small>${escapeHtml(row.paket_adi)} - ${escapeHtml(money(row.yenileme_ucreti))}</small>
                 <small>Kalan Ders: ${escapeHtml(row.kalan_normal_hak ?? '-')} / Telafi Hakkı: ${escapeHtml(row.kalan_telafi_hak ?? '-')}</small>
-                <i>${escapeHtml(renewalStatus(row.odeme_durumu))}</i>
+                ${row.paket_bitis_tarihi && row.paket_bitis_tarihi !== row.tarih ? '<small class="waiting-follow-up">Telafi dahil son ders tarihi</small>' : ''}
+                ${renewalStatus(row.odeme_durumu) ? `<i>${escapeHtml(renewalStatus(row.odeme_durumu))}</i>` : ''}
               </div>
             `).join('') : '<em>Beklenen yenileme yok.</em>'}
           </div>

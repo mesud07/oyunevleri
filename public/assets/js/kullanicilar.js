@@ -20,6 +20,7 @@
   const roleFormMessage = rolePage?.querySelector('[data-role-form-message]');
   const roleNewButton = rolePage?.querySelector('[data-role-new]');
   const permissionMeta = JSON.parse(rolePage?.querySelector('[data-role-permission-map]')?.textContent || '[]');
+  const rolePermissionMap = JSON.parse(page.querySelector('[data-user-role-permissions]')?.textContent || '{}');
   let rows = [];
   let roles = [];
 
@@ -90,7 +91,25 @@
     form.elements.rol_id.value = row?.rol_id || form.elements.rol_id.value;
     form.elements.aktif.value = String(row?.aktif ?? 1);
     form.elements.sifre.value = '';
+    syncUserPermissions(row?.rol_yetkiler || rolePermissionMap[String(form.elements.rol_id.value)] || [], row?.ek_yetkiler || []);
     formTitle.textContent = row ? 'Kullanici Duzenle' : 'Kullanici Ekle';
+  }
+
+  function syncUserPermissions(rolePermissions = [], extraPermissions = []) {
+    const roleSet = new Set(rolePermissions || []);
+    const extraSet = new Set(extraPermissions || []);
+    form.querySelectorAll('[name="ek_yetkiler[]"]').forEach((box) => {
+      const inherited = roleSet.has(box.value);
+      box.checked = inherited || extraSet.has(box.value);
+      box.disabled = inherited;
+      box.dataset.inherited = inherited ? '1' : '0';
+      const option = box.closest('[data-user-permission-option]');
+      option?.classList.toggle('is-inherited', inherited);
+      const source = option?.querySelector('[data-user-permission-source]');
+      if (source) {
+        source.textContent = inherited ? 'Kullanıcı tipinden geliyor' : (box.checked ? 'Kullanıcıya özel yetki' : '');
+      }
+    });
   }
 
   function renderTable() {
@@ -106,6 +125,7 @@
             <th>Ad Soyad</th>
             <th>Kullanici Adi / E-posta</th>
             <th>Rol</th>
+            <th>Ek Yetki</th>
             <th>Telefon</th>
             <th>Son Giris</th>
             <th>Durum</th>
@@ -119,6 +139,7 @@
               <td><strong>${escapeHtml(`${row.ad || ''} ${row.soyad || ''}`.trim())}</strong></td>
               <td>${escapeHtml(row.eposta || '-')}</td>
               <td>${escapeHtml(row.rol_adi || '-')}</td>
+              <td>${(row.ek_yetkiler || []).length ? `<span class="status-pill is-success">${(row.ek_yetkiler || []).length} ek yetki</span>` : '-'}</td>
               <td>${escapeHtml(row.telefon || '-')}</td>
               <td>${escapeHtml(row.son_giris_tarihi || '-')}</td>
               <td><span class="status-pill ${Number(row.aktif) === 1 ? 'is-success' : 'is-danger'}">${Number(row.aktif) === 1 ? 'Aktif' : 'Pasif'}</span></td>
@@ -230,6 +251,18 @@
     openDialog();
   });
 
+  form?.elements.rol_id?.addEventListener('change', () => {
+    const selectedExtras = Array.from(form.querySelectorAll('[name="ek_yetkiler[]"]:checked:not(:disabled)')).map((box) => box.value);
+    syncUserPermissions(rolePermissionMap[String(form.elements.rol_id.value)] || [], selectedExtras);
+  });
+
+  form?.addEventListener('change', (event) => {
+    const box = event.target.closest('[name="ek_yetkiler[]"]');
+    if (!box || box.disabled) return;
+    const source = box.closest('[data-user-permission-option]')?.querySelector('[data-user-permission-source]');
+    if (source) source.textContent = box.checked ? 'Kullanıcıya özel yetki' : '';
+  });
+
   page.addEventListener('click', (event) => {
     if (event.target.closest('[data-user-dialog-close]')) {
       closeDialog();
@@ -277,6 +310,7 @@
     setFormMessage('Kaydediliyor...');
     try {
       const values = formValues(form);
+      values.ek_yetkiler = Array.from(form.querySelectorAll('[name="ek_yetkiler[]"]:checked:not(:disabled)')).map((box) => box.value);
       const result = await talyaAjax('kullanici_kaydet', values);
       setMessage(result.mesaj);
       closeDialog();

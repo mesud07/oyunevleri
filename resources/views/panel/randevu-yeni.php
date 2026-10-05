@@ -130,6 +130,11 @@
                     <textarea name="aciklama" rows="6" placeholder="Varsa randevu notunuzu yazabilirsiniz."></textarea>
                     <small>Bu not kurum ici gorunum icindir.</small>
                 </label>
+                <label class="textarea-row">
+                    <span>Tahsilat Notu</span>
+                    <textarea name="tahsilat_notu" rows="4" maxlength="2000" placeholder="Ornek: Onumuzdeki hafta nakit olarak getirecek."></textarea>
+                    <small>Paket secildiginde o paketin tahsilat notu olarak kaydedilir.</small>
+                </label>
                 <label class="check-row">
                     <span>Haftanin Gunleri</span>
                     <div class="check-list">

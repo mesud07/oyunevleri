@@ -40,10 +40,66 @@ final class Paket extends Model
 
     public static function idIleBul(int $id): ?array
     {
+        self::tahsilatNotuKolonunuHazirla();
         $stmt = self::db()->prepare('SELECT * FROM paketler WHERE id = :id AND kurum_id = :kurum_id LIMIT 1');
         $stmt->execute(['id' => $id, 'kurum_id' => self::kurumId()]);
         $paket = $stmt->fetch();
         return $paket ?: null;
+    }
+
+    public static function tahsilatNotuKolonunuHazirla(): void
+    {
+        static $hazir = false;
+        if ($hazir) {
+            return;
+        }
+
+        self::kolonEkle(self::db(), 'paketler', 'tahsilat_notu', 'tahsilat_notu TEXT NULL AFTER net_paket_tutari');
+        self::kolonEkle(self::db(), 'paketler', 'beklenen_odeme_tarihi', 'beklenen_odeme_tarihi DATE NULL AFTER tahsilat_notu');
+        $hazir = true;
+    }
+
+    public static function tahsilatNotuGuncelle(int $id, string $not): bool
+    {
+        if ($id < 1) {
+            return false;
+        }
+
+        self::tahsilatNotuKolonunuHazirla();
+        $stmt = self::db()->prepare(
+            'UPDATE paketler
+             SET tahsilat_notu = :tahsilat_notu
+             WHERE id = :id AND kurum_id = :kurum_id'
+        );
+        $stmt->execute([
+            'id' => $id,
+            'kurum_id' => self::kurumId(),
+            'tahsilat_notu' => trim($not) !== '' ? trim($not) : null,
+        ]);
+        return $stmt->rowCount() > 0 || self::idIleBul($id) !== null;
+    }
+
+    public static function odemePlaniGuncelle(int $id, string $not, ?string $beklenenOdemeTarihi): bool
+    {
+        if ($id < 1) {
+            return false;
+        }
+
+        self::tahsilatNotuKolonunuHazirla();
+        $stmt = self::db()->prepare(
+            'UPDATE paketler
+             SET tahsilat_notu = :tahsilat_notu,
+                 beklenen_odeme_tarihi = :beklenen_odeme_tarihi
+             WHERE id = :id AND kurum_id = :kurum_id'
+        );
+        $stmt->execute([
+            'id' => $id,
+            'kurum_id' => self::kurumId(),
+            'tahsilat_notu' => trim($not) !== '' ? trim($not) : null,
+            'beklenen_odeme_tarihi' => $beklenenOdemeTarihi ?: null,
+        ]);
+
+        return $stmt->rowCount() > 0 || self::idIleBul($id) !== null;
     }
 
     public static function sonDersTarihiGuncelle(int $paketId): void
@@ -52,7 +108,7 @@ final class Paket extends Model
             return;
         }
 
-        $stmt = self::db()->prepare('SELECT MAX(tarih) FROM randevular WHERE paket_id = :paket_id AND kurum_id = :kurum_id');
+        $stmt = self::db()->prepare('SELECT MAX(tarih) FROM randevular WHERE paket_id = :paket_id AND kurum_id = :kurum_id AND durum NOT IN ("kurum_iptali", "ertelendi")');
         $stmt->execute(['paket_id' => $paketId, 'kurum_id' => self::kurumId()]);
         $sonTarih = $stmt->fetchColumn() ?: null;
 
@@ -142,7 +198,7 @@ final class Paket extends Model
 
             $haftalik = max(1, (int) $veri['haftalik_katilim_sayisi']);
             $normalHak = (int) ($veri['toplam_normal_hak'] ?: ($haftalik === 1 ? 4 : 8));
-            $telafiHak = (int) ($veri['toplam_telafi_hak'] ?: ($haftalik === 1 ? 1 : 2));
+            $telafiHak = self::telafiHakSayisiniBelirle($veri, $haftalik);
             $tanismaIlkDersSayilsin = !empty($veri['tanisma_dersi_ilk_ders_sayilsin']) && $normalHak > 0;
             $baslangicKullanilanNormalHak = $tanismaIlkDersSayilsin ? 1 : 0;
             $baslangicKalanNormalHak = max(0, $normalHak - $baslangicKullanilanNormalHak);
@@ -154,12 +210,12 @@ final class Paket extends Model
                 'INSERT INTO paketler
                  (kurum_id, ogrenci_id, paket_sira_no, paket_adi, haftalik_katilim_sayisi, toplam_normal_hak, toplam_telafi_hak,
                   kullanilan_normal_hak, kullanilan_telafi_hak, kalan_normal_hak, kalan_telafi_hak, baslangic_tarihi, tahmini_son_ders_tarihi, liste_fiyati,
-                  indirim_turu, indirim_tutari, indirim_aciklama, net_paket_tutari, paket_durumu, yenileme_durumu,
+                  indirim_turu, indirim_tutari, indirim_aciklama, net_paket_tutari, kdv_orani, tahsilat_notu, paket_durumu, yenileme_durumu,
                   yonetici_notu, olusturan_kullanici_id, olusturulma_tarihi)
                  VALUES
                  (:kurum_id, :ogrenci_id, :paket_sira_no, :paket_adi, :haftalik_katilim_sayisi, :toplam_normal_hak, :toplam_telafi_hak,
                   :kullanilan_normal_hak, 0, :kalan_normal_hak, :kalan_telafi_hak, :baslangic_tarihi, NULL, :liste_fiyati,
-                  :indirim_turu, :indirim_tutari, :indirim_aciklama, :net_paket_tutari, "aktif", "belirsiz",
+                  :indirim_turu, :indirim_tutari, :indirim_aciklama, :net_paket_tutari, :kdv_orani, :tahsilat_notu, "aktif", "belirsiz",
                   :yonetici_notu, :olusturan_kullanici_id, NOW())'
             );
             $stmt->execute([
@@ -179,6 +235,8 @@ final class Paket extends Model
                 'indirim_tutari' => $indirim,
                 'indirim_aciklama' => $veri['indirim_aciklama'] ?: null,
                 'net_paket_tutari' => $net,
+                'kdv_orani' => $veri['kdv_orani'],
+                'tahsilat_notu' => trim((string) ($veri['tahsilat_notu'] ?? '')) ?: null,
                 'yonetici_notu' => $veri['yonetici_notu'] ?: null,
                 'olusturan_kullanici_id' => $veri['olusturan_kullanici_id'],
             ]);
@@ -215,6 +273,15 @@ final class Paket extends Model
             }
             throw $e;
         }
+    }
+
+    public static function telafiHakSayisiniBelirle(array $veri, int $haftalik): int
+    {
+        if (array_key_exists('toplam_telafi_hak', $veri)) {
+            return max(0, (int) $veri['toplam_telafi_hak']);
+        }
+
+        return $haftalik === 1 ? 1 : 2;
     }
 
     public static function tutarGuncelle(int $paketId, float $yeniTutar, int $kullaniciId): bool
@@ -361,6 +428,7 @@ final class Paket extends Model
                 'SELECT *
                  FROM randevular
                  WHERE paket_id = :paket_id
+                   AND kurum_id = :kurum_id
                    AND tarih >= :baslangic_tarihi
                    AND durum IN ("planlandi", "ertelendi")
                  ORDER BY tarih ASC, baslangic_saati ASC, id ASC
@@ -368,6 +436,7 @@ final class Paket extends Model
             );
             $gelecekStmt->execute([
                 'paket_id' => $eskiPaketId,
+                'kurum_id' => self::kurumId(),
                 'baslangic_tarihi' => $baslangicTarihi,
             ]);
             $tasinarakOlusturulacakRandevular = $gelecekStmt->fetchAll();
@@ -375,24 +444,25 @@ final class Paket extends Model
                 throw new \RuntimeException('Yeni hizmete tasinacak planli randevu bulunamadi.');
             }
 
-            $siraStmt = $db->prepare('SELECT COALESCE(MAX(paket_sira_no), 0) + 1 FROM paketler WHERE ogrenci_id = :ogrenci_id');
-            $siraStmt->execute(['ogrenci_id' => $eskiPaket['ogrenci_id']]);
+            $siraStmt = $db->prepare('SELECT COALESCE(MAX(paket_sira_no), 0) + 1 FROM paketler WHERE ogrenci_id = :ogrenci_id AND kurum_id = :kurum_id');
+            $siraStmt->execute(['ogrenci_id' => $eskiPaket['ogrenci_id'], 'kurum_id' => self::kurumId()]);
             $sira = (int) $siraStmt->fetchColumn();
 
             $listeFiyat = (float) $hizmet['ucret'];
             $paketStmt = $db->prepare(
                 'INSERT INTO paketler
-                 (ogrenci_id, paket_sira_no, paket_adi, haftalik_katilim_sayisi, toplam_normal_hak, toplam_telafi_hak,
+                 (kurum_id, ogrenci_id, paket_sira_no, paket_adi, haftalik_katilim_sayisi, toplam_normal_hak, toplam_telafi_hak,
                   kullanilan_normal_hak, kullanilan_telafi_hak, kalan_normal_hak, kalan_telafi_hak, baslangic_tarihi, tahmini_son_ders_tarihi,
-                  liste_fiyati, indirim_turu, indirim_tutari, indirim_aciklama, net_paket_tutari, paket_durumu,
+                  liste_fiyati, indirim_turu, indirim_tutari, indirim_aciklama, net_paket_tutari, kdv_orani, paket_durumu,
                   yenileme_durumu, yonetici_notu, olusturan_kullanici_id, olusturulma_tarihi)
                  VALUES
-                 (:ogrenci_id, :paket_sira_no, :paket_adi, :haftalik_katilim_sayisi, :toplam_normal_hak, :toplam_telafi_hak,
+                 (:kurum_id, :ogrenci_id, :paket_sira_no, :paket_adi, :haftalik_katilim_sayisi, :toplam_normal_hak, :toplam_telafi_hak,
                   0, 0, :kalan_normal_hak, :kalan_telafi_hak, :baslangic_tarihi, NULL,
-                  :liste_fiyati, NULL, 0, NULL, :net_paket_tutari, "aktif",
+                  :liste_fiyati, NULL, 0, NULL, :net_paket_tutari, :kdv_orani, "aktif",
                   "belirsiz", :yonetici_notu, :olusturan_kullanici_id, NOW())'
             );
             $paketStmt->execute([
+                'kurum_id' => self::kurumId(),
                 'ogrenci_id' => $eskiPaket['ogrenci_id'],
                 'paket_sira_no' => $sira,
                 'paket_adi' => $hizmet['hizmet_adi'],
@@ -404,6 +474,7 @@ final class Paket extends Model
                 'baslangic_tarihi' => (string) $tasinarakOlusturulacakRandevular[0]['tarih'],
                 'liste_fiyati' => $listeFiyat,
                 'net_paket_tutari' => $listeFiyat,
+                'kdv_orani' => $hizmet['kdv_orani'],
                 'yonetici_notu' => 'Tahsilat sirasinda #' . $eskiPaketId . ' paketinden hizmet degisimi ile olusturuldu.',
                 'olusturan_kullanici_id' => $kullaniciId ?: null,
             ]);
@@ -411,9 +482,9 @@ final class Paket extends Model
 
             $randevuStmt = $db->prepare(
                 'INSERT INTO randevular
-                 (ogrenci_id, grup_id, paket_id, ogretmen_id, tarih, baslangic_saati, bitis_saati, tur, hak_kaynagi, durum, aciklama, olusturan_kullanici_id, olusturulma_tarihi)
+                 (kurum_id, ogrenci_id, grup_id, paket_id, ogretmen_id, tarih, baslangic_saati, bitis_saati, tur, hak_kaynagi, durum, aciklama, olusturan_kullanici_id, olusturulma_tarihi)
                  VALUES
-                 (:ogrenci_id, :grup_id, :paket_id, :ogretmen_id, :tarih, :baslangic_saati, :bitis_saati, "Normal ders", "Aktif paket", "planlandi", :aciklama, :olusturan_kullanici_id, NOW())'
+                 (:kurum_id, :ogrenci_id, :grup_id, :paket_id, :ogretmen_id, :tarih, :baslangic_saati, :bitis_saati, "Normal ders", "Aktif paket", "planlandi", :aciklama, :olusturan_kullanici_id, NOW())'
             );
 
             $eskiRandevuIdleri = [];
@@ -424,6 +495,7 @@ final class Paket extends Model
                 }
                 $bitisSaati = (string) ($randevu['bitis_saati'] ?: self::bitisSaati((string) $randevu['baslangic_saati']));
                 $randevuStmt->execute([
+                    'kurum_id' => self::kurumId(),
                     'ogrenci_id' => $eskiPaket['ogrenci_id'],
                     'grup_id' => $grupId > 0 ? $grupId : null,
                     'paket_id' => $yeniPaketId,
@@ -442,9 +514,9 @@ final class Paket extends Model
 
             if ($eskiRandevuIdleri !== []) {
                 $yerTutucular = implode(',', array_fill(0, count($eskiRandevuIdleri), '?'));
-                $db->prepare("DELETE FROM yoklamalar WHERE randevu_id IN ($yerTutucular)")->execute($eskiRandevuIdleri);
-                $db->prepare("DELETE FROM hak_hareketleri WHERE randevu_id IN ($yerTutucular)")->execute($eskiRandevuIdleri);
-                $db->prepare("DELETE FROM randevular WHERE id IN ($yerTutucular)")->execute($eskiRandevuIdleri);
+                $db->prepare("DELETE FROM yoklamalar WHERE kurum_id = ? AND randevu_id IN ($yerTutucular)")->execute(array_merge([self::kurumId()], $eskiRandevuIdleri));
+                $db->prepare("DELETE FROM hak_hareketleri WHERE kurum_id = ? AND randevu_id IN ($yerTutucular)")->execute(array_merge([self::kurumId()], $eskiRandevuIdleri));
+                $db->prepare("DELETE FROM randevular WHERE kurum_id = ? AND id IN ($yerTutucular)")->execute(array_merge([self::kurumId()], $eskiRandevuIdleri));
             }
 
             $not = trim((string) ($eskiPaket['yonetici_notu'] ?? ''));
@@ -454,10 +526,11 @@ final class Paket extends Model
                  SET paket_durumu = "tamamlandi",
                      yenileme_durumu = "yenilenmeyecek",
                      yonetici_notu = :yonetici_notu
-                 WHERE id = :id'
+                 WHERE id = :id AND kurum_id = :kurum_id'
             );
             $eskiPaketStmt->execute([
                 'id' => $eskiPaketId,
+                'kurum_id' => self::kurumId(),
                 'yonetici_notu' => $not,
             ]);
 
@@ -511,7 +584,10 @@ final class Paket extends Model
         self::kolonEkle($db, 'paketler', 'indirim_tutari', 'indirim_tutari DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER indirim_turu');
         self::kolonEkle($db, 'paketler', 'indirim_aciklama', 'indirim_aciklama TEXT NULL AFTER indirim_tutari');
         self::kolonEkle($db, 'paketler', 'net_paket_tutari', 'net_paket_tutari DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER indirim_aciklama');
-        self::kolonEkle($db, 'paketler', 'paket_durumu', 'paket_durumu VARCHAR(30) NOT NULL DEFAULT \'aktif\' AFTER net_paket_tutari');
+        self::kolonEkle($db, 'paketler', 'kdv_orani', 'kdv_orani DECIMAL(5,2) NULL AFTER net_paket_tutari');
+        self::kolonEkle($db, 'paketler', 'tahsilat_notu', 'tahsilat_notu TEXT NULL AFTER kdv_orani');
+        self::kolonEkle($db, 'paketler', 'beklenen_odeme_tarihi', 'beklenen_odeme_tarihi DATE NULL AFTER tahsilat_notu');
+        self::kolonEkle($db, 'paketler', 'paket_durumu', 'paket_durumu VARCHAR(30) NOT NULL DEFAULT \'aktif\' AFTER beklenen_odeme_tarihi');
         self::kolonEkle($db, 'paketler', 'yenileme_durumu', 'yenileme_durumu VARCHAR(30) NOT NULL DEFAULT \'belirsiz\' AFTER paket_durumu');
         self::kolonEkle($db, 'paketler', 'yonetici_notu', 'yonetici_notu TEXT NULL AFTER yenileme_durumu');
     }
@@ -582,7 +658,14 @@ final class Paket extends Model
         );
 
         $sonTarih = null;
-        foreach (self::randevuPlaniniHesapla((string) $veri['baslangic_tarihi'], $gunler, $veri['program_saatleri'] ?? [], $normalHak) as $randevu) {
+        $aylikTakvim = ($veri['hak_hesaplama_turu'] ?? 'sabit') === 'aylik_takvim';
+        $plan = $aylikTakvim
+            ? self::aylikTakvimPlaniniHesapla((string) $veri['baslangic_tarihi'], $gunler, $veri['program_saatleri'] ?? [])
+            : self::randevuPlaniniHesapla((string) $veri['baslangic_tarihi'], $gunler, $veri['program_saatleri'] ?? [], $normalHak);
+        if ($aylikTakvim && !empty($veri['tanisma_dersi_ilk_ders_sayilsin'])) {
+            array_shift($plan);
+        }
+        foreach (array_slice($plan, 0, $normalHak) as $randevu) {
             $grupId = Grup::randevuIcinGrupBul($randevu['tarih'], $randevu['saat']);
             $stmt->execute([
                 'kurum_id' => self::kurumId(),
@@ -623,6 +706,33 @@ final class Paket extends Model
             $guard++;
         }
 
+        return $plan;
+    }
+
+    public static function aylikTakvimDersSayisi(string $baslangicTarihi, array $gunler): int
+    {
+        return count(self::aylikTakvimPlaniniHesapla($baslangicTarihi, self::programGunleri($gunler), []));
+    }
+
+    private static function aylikTakvimPlaniniHesapla(string $baslangicTarihi, array $gunler, array $saatler): array
+    {
+        if ($gunler === []) {
+            return [];
+        }
+        $secilenTarih = new \DateTimeImmutable($baslangicTarihi);
+        $cursor = $secilenTarih->modify('first day of this month');
+        $aySonu = $secilenTarih->modify('last day of this month');
+        $plan = [];
+        while ($cursor <= $aySonu) {
+            $gun = (int) $cursor->format('N');
+            if (in_array($gun, $gunler, true)) {
+                $plan[] = [
+                    'tarih' => $cursor->format('Y-m-d'),
+                    'saat' => self::programSaati($saatler, $gun),
+                ];
+            }
+            $cursor = $cursor->modify('+1 day');
+        }
         return $plan;
     }
 

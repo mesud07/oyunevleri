@@ -1,66 +1,131 @@
 <section class="page-head">
     <div>
         <h1>Tahsilatlar</h1>
-        <p>Yaklasan ve gecikmis odemeler ile tamamlanan tahsilat kayitlari.</p>
+        <p>Tamamlanan tahsilat kayıtları, ödeme dağılımı ve KDV özeti.</p>
     </div>
     <button class="btn btn-primary" type="button" data-open-dialog="#tahsilat-dialog">Yeni Tahsilat</button>
 </section>
 
-<section class="report-grid payment-tracking-grid">
-    <article class="panel-card report-panel">
-        <h2>Yaklasan Tahsilatlar</h2>
-        <p class="report-helper">Ilk ders tarihi onumuzdeki 7 gun icinde olan ve paketinde kalan borcu bulunan ogrenciler.</p>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>Odeme Vadesi</th><th>Ogrenci</th><th>Son Paket</th><th>Kayit Yenileme</th><th>Kalan Ders</th><th>Telafi</th><th>Paket Tutari</th><th>Odenen</th><th>Beklenen</th></tr></thead>
-                <tbody>
-                    <?php if (empty($yaklasanTahsilatlar)) : ?><tr><td colspan="9">Yaklasan tahsilat bulunamadi.</td></tr><?php endif; ?>
-                    <?php foreach (($yaklasanTahsilatlar ?? []) as $row) : ?>
-                        <tr>
-                            <td><?= e(tarih_goster($row['odeme_vade_tarihi'])) ?></td>
-                            <td><?= e($row['ogrenci']) ?></td>
-                            <td><?= e($row['paket_adi']) ?></td>
-                            <td><?= e(tarih_goster($row['kayit_yenileme_tarihi'])) ?></td>
-                            <td><?= e($row['kalan_ders']) ?></td>
-                            <td><?= e($row['kalan_telafi']) ?></td>
-                            <td><?= e(para_goster($row['paket_tutari'])) ?></td>
-                            <td><?= e(para_goster($row['mevcut_tahsilat'])) ?></td>
-                            <td><strong><?= e(para_goster($row['beklenen_tahsilat'])) ?></strong></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-    </article>
+<?php
+$analiz = $tahsilatAnalizi ?? [];
+$grafikDilimleri = [];
+$grafikBaslangic = 0.0;
+foreach (($analiz['yontemler'] ?? []) as $yontem) {
+    $yuzde = max(0.0, (float) ($yontem['yuzde'] ?? 0));
+    if ($yuzde <= 0) {
+        continue;
+    }
+    $grafikBitis = min(100.0, $grafikBaslangic + $yuzde);
+    $grafikDilimleri[] = sprintf('%s %.2f%% %.2f%%', (string) ($yontem['renk'] ?? '#9aa9bb'), $grafikBaslangic, $grafikBitis);
+    $grafikBaslangic = $grafikBitis;
+}
+$grafikArkaPlan = $grafikDilimleri
+    ? 'conic-gradient(' . implode(', ', $grafikDilimleri) . ')'
+    : 'conic-gradient(#dbe5ef 0 100%)';
+?>
 
-    <article class="panel-card report-panel">
-        <h2>Gecikmis Tahsilatlar</h2>
-        <p class="report-helper">Ilk ders tarihi gecmis ve paketinde kalan borcu bulunan ogrenciler.</p>
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>Odeme Vadesi</th><th>Ogrenci</th><th>Son Paket</th><th>Kayit Yenileme</th><th>Kalan Ders</th><th>Telafi</th><th>Paket Tutari</th><th>Odenen</th><th>Beklenen</th></tr></thead>
-                <tbody>
-                    <?php if (empty($gecikmisTahsilatlar)) : ?><tr><td colspan="9">Gecikmis tahsilat bulunamadi.</td></tr><?php endif; ?>
-                    <?php foreach (($gecikmisTahsilatlar ?? []) as $row) : ?>
-                        <tr>
-                            <td><?= e(tarih_goster($row['odeme_vade_tarihi'])) ?></td>
-                            <td><?= e($row['ogrenci']) ?></td>
-                            <td><?= e($row['paket_adi']) ?></td>
-                            <td><?= e(tarih_goster($row['kayit_yenileme_tarihi'])) ?></td>
-                            <td><?= e($row['kalan_ders']) ?></td>
-                            <td><?= e($row['kalan_telafi']) ?></td>
-                            <td><?= e(para_goster($row['paket_tutari'])) ?></td>
-                            <td><?= e(para_goster($row['mevcut_tahsilat'])) ?></td>
-                            <td><strong><?= e(para_goster($row['beklenen_tahsilat'])) ?></strong></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+<section class="collection-analysis" aria-labelledby="tahsilat-analizi-baslik">
+    <article class="panel-card collection-analysis-card">
+        <div class="collection-analysis-head">
+            <div>
+                <span class="collection-analysis-kicker">Finansal görünüm</span>
+                <h2 id="tahsilat-analizi-baslik"><?= e($analiz['ay_etiketi'] ?? '') ?> Tahsilat Analizi</h2>
+                <p>Seçili dönemde alınan tahsilatların ödeme türüne göre dağılımı ve KDV özeti.</p>
+            </div>
+            <form class="collection-month-filter" method="get" action="/panel/odemeler/tahsilatlar">
+                <label for="tahsilat-analiz-ayi">Analiz Dönemi</label>
+                <div>
+                    <input id="tahsilat-analiz-ayi" type="month" name="ay" value="<?= e($analizAy ?? date('Y-m')) ?>" required>
+                    <select name="donem" aria-label="Analiz süre aralığı">
+                        <option value="ay" <?= ($analizDonem ?? 'ay') === 'ay' ? 'selected' : '' ?>>Aylık</option>
+                        <option value="3ay" <?= ($analizDonem ?? '') === '3ay' ? 'selected' : '' ?>>3 Aylık</option>
+                        <option value="6ay" <?= ($analizDonem ?? '') === '6ay' ? 'selected' : '' ?>>6 Aylık</option>
+                        <option value="bu_yil" <?= ($analizDonem ?? '') === 'bu_yil' ? 'selected' : '' ?>>Bu Sene</option>
+                        <option value="1yil" <?= ($analizDonem ?? '') === '1yil' ? 'selected' : '' ?>>1 Yıl</option>
+                    </select>
+                    <button class="btn btn-sky" type="submit">Göster</button>
+                    <a class="btn btn-ghost" href="/panel/odemeler/tahsilatlar.xlsx?ay=<?= e(rawurlencode($analizAy ?? date('Y-m'))) ?>&amp;donem=<?= e(rawurlencode($analizDonem ?? 'ay')) ?>">Excel İndir</a>
+                </div>
+            </form>
         </div>
+
+        <form class="collection-vat-settings" data-vat-method-form>
+            <div>
+                <strong>KDV Hesabına Dahil Edilecek Ödeme Yöntemleri</strong>
+                <small>Toplam tahsilat değişmez; yalnızca hesaplanan KDV ve KDV hariç gelir yeniden hesaplanır.</small>
+            </div>
+            <div class="collection-vat-options">
+                <?php foreach (['nakit' => 'Nakit', 'kredi_karti' => 'Kredi Kartı', 'havale_eft' => 'Havale / EFT', 'odeme_baglantisi' => 'Ödeme Bağlantısı', 'diger' => 'Diğer'] as $kod => $etiket) : ?>
+                    <label><input type="checkbox" name="yontemler[]" value="<?= e($kod) ?>" <?= in_array($kod, $kdvYontemleri ?? [], true) ? 'checked' : '' ?>> <span><?= e($etiket) ?></span></label>
+                <?php endforeach; ?>
+            </div>
+            <div class="collection-vat-actions">
+                <span data-vat-method-message aria-live="polite"></span>
+                <button class="btn btn-sky" type="submit">KDV Ayarını Kaydet</button>
+            </div>
+        </form>
+
+        <div class="collection-kpi-grid">
+            <article>
+                <span>Dönem Tahsilatı</span>
+                <strong><?= e(para_goster($analiz['toplam_tahsilat'] ?? 0)) ?></strong>
+                <small><?= e((string) ($analiz['tahsilat_adedi'] ?? 0)) ?> aktif tahsilat</small>
+            </article>
+            <article>
+                <span>Tahsilat Başına Ortalama</span>
+                <strong><?= e(para_goster($analiz['ortalama_tahsilat'] ?? 0)) ?></strong>
+                <small>Seçili dönemdeki işlem ortalaması</small>
+            </article>
+            <article>
+                <span>Hesaplanan KDV</span>
+                <strong><?= e(para_goster($analiz['kdv'] ?? 0)) ?></strong>
+                <small>Seçili ödeme yöntemleri ve paket KDV oranlarına göre</small>
+            </article>
+            <article>
+                <span>KDV Hariç Gelir</span>
+                <strong><?= e(para_goster($analiz['kdv_haric_gelir'] ?? 0)) ?></strong>
+                <small>Dönem tahsilatı eksi hesaplanan KDV</small>
+            </article>
+        </div>
+
+        <div class="collection-analysis-body">
+            <section class="collection-method-chart" aria-labelledby="odeme-dagilimi-baslik">
+                <div>
+                    <h3 id="odeme-dagilimi-baslik">Ödeme Yöntemi Dağılımı</h3>
+                    <p>Her ödeme türünün seçili dönemdeki tutarı, işlem adedi ve toplam içindeki payı.</p>
+                </div>
+                <div class="collection-chart-layout">
+                    <div class="collection-donut" role="img" aria-label="Ödeme yöntemlerine göre tahsilat dağılımı" style="--collection-chart: <?= e($grafikArkaPlan) ?>">
+                        <div>
+                            <strong><?= e(para_goster($analiz['toplam_tahsilat'] ?? 0)) ?></strong>
+                            <span>Toplam</span>
+                        </div>
+                    </div>
+                    <div class="collection-chart-legend">
+                        <?php foreach (($analiz['yontemler'] ?? []) as $yontem) : ?>
+                            <div class="collection-legend-row">
+                                <i style="--legend-color: <?= e($yontem['renk'] ?? '#9aa9bb') ?>"></i>
+                                <span>
+                                    <strong><?= e($yontem['ad'] ?? '') ?></strong>
+                                    <small><?= e((string) ($yontem['adet'] ?? 0)) ?> tahsilat · %<?= e(number_format((float) ($yontem['yuzde'] ?? 0), 1, ',', '.')) ?></small>
+                                </span>
+                                <b><?= e(para_goster($yontem['tutar'] ?? 0)) ?></b>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+        <?php if ((int) ($analiz['kdv_belirsiz_adet'] ?? 0) > 0) : ?>
+            <p class="collection-analysis-warning"><strong>Dikkat:</strong> <?= e((string) $analiz['kdv_belirsiz_adet']) ?> tahsilatın paketinde KDV oranı olmadığı için bu kayıtların KDV tutarı sıfır kabul edildi.</p>
+        <?php endif; ?>
+        <p class="collection-analysis-note">KDV özeti yönetim amaçlı yaklaşık hesaplamadır; resmî beyan veya mali müşavir hesabı yerine geçmez.</p>
     </article>
 </section>
 
-<section class="panel-grid single-wide">
+<section class="panel-grid single-wide" id="tahsilat-listesi">
     <article class="panel-card">
         <div class="definition-head">
             <h2>Tahsilat Listesi</h2>
@@ -71,7 +136,22 @@
                 <button class="btn btn-sky" type="button" data-open-dialog="#tahsilat-dialog">Yeni Tahsilat</button>
             </div>
         </div>
-        <div id="odeme-tablosu" class="table-wrap fast-table-wrap" data-payment-table></div>
+        <div class="filter-grid payment-list-filters">
+            <label><span>Tahsilat Ayı</span><input type="month" value="<?= e(date('Y-m')) ?>" data-payment-month-filter></label>
+            <label><span>Ödeme Yöntemi</span><select data-payment-method-filter><option value="">Tüm yöntemler</option><option value="havale">Havale / EFT</option><option value="nakit">Nakit</option><option value="kredi_karti">Kredi Kartı</option><option value="odeme_baglantisi">Ödeme Bağlantısı</option><option value="diger">Diğer</option></select></label>
+            <label><span>Sıralama</span><select data-payment-sort><option value="tarih_desc">Ödeme tarihi — yeniden eskiye</option><option value="tarih_asc">Ödeme tarihi — eskiden yeniye</option><option value="yontem_asc">Ödeme yöntemi — A’dan Z’ye</option><option value="yontem_desc">Ödeme yöntemi — Z’den A’ya</option></select></label>
+            <div class="record-actions">
+                <a class="btn btn-sky" href="#" data-payment-filter-export>Filtreleneni Excel'e Aktar</a>
+                <button class="btn btn-ghost" type="button" data-payment-filter-clear>Filtreyi Temizle</button>
+            </div>
+        </div>
+        <div
+            id="odeme-tablosu"
+            class="table-wrap fast-table-wrap"
+            data-payment-table
+            data-institution-name="<?= e($kullanici['kurum_adi'] ?? 'Kurum') ?>"
+            data-institution-logo="<?= e($kurumLogosuVar ? $kurumLogoYolu : '') ?>"
+        ></div>
     </article>
 </section>
 
@@ -143,6 +223,24 @@
             <button class="btn btn-ghost" type="button" data-close-dialog>Vazgec</button>
             <button class="btn btn-primary" type="submit">Tahsilati Kaydet</button>
         </div>
+    </form>
+</dialog>
+
+<dialog id="fatura-kes-dialog" class="appointment-dialog payment-dialog">
+    <form method="dialog" class="appointment-dialog-form" data-invoice-create-form>
+        <div class="dialog-head"><div><h2>Fatura Taslağı Oluştur</h2><p data-invoice-payment-info></p></div><button type="button" data-close-dialog>x</button></div>
+        <input type="hidden" name="odeme_id">
+        <div class="dialog-grid">
+            <label><span>Fatura Profili</span><select name="profil_turu" data-invoice-profile-type required><option value="bireysel">Bireysel</option><option value="kurumsal">Kurumsal</option></select></label>
+            <label><span>VKN / TCKN</span><input name="vkn_tckn" maxlength="11" inputmode="numeric" required></label>
+            <label data-individual-field><span>Ad</span><input name="ad"></label><label data-individual-field><span>Soyad</span><input name="soyad"></label>
+            <label class="dialog-wide" data-corporate-field hidden><span>Firma Ünvanı</span><input name="unvan"></label><label data-corporate-field hidden><span>Vergi Dairesi</span><input name="vergi_dairesi"></label>
+            <label><span>İl</span><input name="il" required></label><label><span>İlçe</span><input name="ilce" required></label><label class="dialog-wide"><span>Adres</span><textarea name="adres" rows="3" required></textarea></label>
+            <label><span>E-posta</span><input type="email" name="eposta"></label><label><span>Telefon</span><input name="telefon"></label><input type="hidden" name="ulke" value="TÜRKİYE">
+            <label><span>KDV Oranı (%)</span><input type="number" name="kdv_orani" min="0" max="100" step="0.01" required placeholder="Hizmete uygulanan oran"></label>
+        </div>
+        <div class="info-box compact-info"><strong>Önce taslak oluşturulur</strong><p>VKN/TCKN sorgusuna göre e-Fatura veya e-Arşiv taslağı hazırlanır. Taslak PDF’yi kontrol ettikten sonra ayrı bir onayla belgeyi resmileştirebilirsiniz.</p></div>
+        <div class="record-actions compact-actions"><span data-form-message></span><button class="btn btn-ghost" type="button" data-close-dialog>Vazgeç</button><button class="btn btn-primary" type="submit">Taslak Oluştur</button></div>
     </form>
 </dialog>
 

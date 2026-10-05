@@ -1,11 +1,14 @@
 <?php
 $rapor = $rapor ?? [];
 $raporOzet = $rapor['ozet'] ?? [];
-$borcluPaketSayisi = (int) ($rapor['borclu_paket_sayisi'] ?? 0);
+$yaklasanTahsilatlar = $rapor['yaklasan_tahsilatlar'] ?? [];
+$gecikmisTahsilatlar = $rapor['gecikmis_tahsilatlar'] ?? [];
+$borcluPaketler = $rapor['borclu_paketler'] ?? [];
 $bugunSonDersler = $rapor['bugun_son_dersler'] ?? [];
+$grupKontenjanlari = $rapor['grup_kontenjanlari'] ?? [];
+$kayitYenilemeleri = $rapor['kayit_yenilemeleri'] ?? [];
 $kayitYenilemeTakvimi = $rapor['kayit_yenileme_takvimi'] ?? [];
-$veliPortalAnahtari = $veliPortalAnahtari ?? '';
-$veliPortalYolu = $veliPortalAnahtari !== '' ? '/veli-portal?k=' . rawurlencode($veliPortalAnahtari) : '';
+$dogumGunleri = $dogumGunleri ?? [];
 $gunAdlari = [
     1 => 'Pazartesi',
     2 => 'Sali',
@@ -17,140 +20,98 @@ $gunAdlari = [
 ];
 $saatGoster = static fn(?string $saat): string => $saat ? substr($saat, 0, 5) : '-';
 $canStudents = yetki_var('ogrenci_listele');
+$canGroups = yetki_var('grup_listele');
 $canAppointments = yetki_var('randevu_listele');
+$canCreateAppointments = yetki_var('randevu_ekle');
 $canEditAppointments = yetki_var('randevu_ekle');
 $canChangeAppointmentStatus = yetki_var('randevu_durum_degistir');
 $canPayments = yetki_var('odeme_listele');
 $canReports = yetki_var('rapor_ozet');
 $canSendSms = yetki_var('sms_gonder');
-$bugun = new DateTimeImmutable('today');
-$ayAdlari = [
-    1 => 'Ocak',
-    2 => 'Şubat',
-    3 => 'Mart',
-    4 => 'Nisan',
-    5 => 'Mayıs',
-    6 => 'Haziran',
-    7 => 'Temmuz',
-    8 => 'Ağustos',
-    9 => 'Eylül',
-    10 => 'Ekim',
-    11 => 'Kasım',
-    12 => 'Aralık',
-];
-$gunAdlariOzet = [
-    1 => 'Pazartesi',
-    2 => 'Salı',
-    3 => 'Çarşamba',
-    4 => 'Perşembe',
-    5 => 'Cuma',
-    6 => 'Cumartesi',
-    7 => 'Pazar',
-];
-$tarihEtiketi = $bugun->format('j') . ' ' . $ayAdlari[(int) $bugun->format('n')] . ' ' . $bugun->format('Y') . ', ' . $gunAdlariOzet[(int) $bugun->format('N')];
 ?>
 
-<section class="dashboard-day-summary" aria-labelledby="dashboard-day-title">
-    <div class="dashboard-day-heading">
-        <div>
-            <h1 id="dashboard-day-title">Günün Özeti</h1>
-            <p>Bugünkü operasyonel durumunuz</p>
+<section class="page-head">
+    <div>
+        <h1>Genel Bakis</h1>
+        <p>Oyun Evleri operasyonunun gunluk durumunu hizli takip edin.</p>
+    </div>
+    <?php if ($canCreateAppointments) : ?>
+        <div class="appointment-toolbar-actions">
+            <button class="btn btn-ghost" type="button" data-open-dialog="#hizli-randevu-dialog">Hizli Randevu Olustur</button>
+            <a class="btn btn-ghost" href="/panel/randevular/yeni">Toplu Randevu</a>
+            <a class="btn btn-primary" href="/panel/paketler/tanimla">Randevu Olustur</a>
         </div>
-        <time class="dashboard-date-pill" datetime="<?= e($bugun->format('Y-m-d')) ?>">
-            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="5" width="18" height="16" rx="2"></rect>
-                <path d="M16 3v4M8 3v4M3 10h18"></path>
-            </svg>
-            <span><?= e($tarihEtiketi) ?></span>
-        </time>
-    </div>
-
-    <div class="dashboard-day-cards">
-        <?php if ($canAppointments) : ?>
-            <article class="dashboard-day-card is-blue">
-                <div class="dashboard-day-card-main">
-                    <span class="dashboard-day-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="5" width="18" height="16" rx="2"></rect>
-                            <path d="M16 3v4M8 3v4M3 10h18"></path>
-                        </svg>
-                    </span>
-                    <div><span>Bugünkü Randevu</span><strong><?= e($ozet['randevu'] ?? 0) ?></strong></div>
-                </div>
-                <div class="dashboard-day-card-foot">
-                    <a href="/panel/randevular">Tüm randevular <span aria-hidden="true">›</span></a>
-                    <em>Bugün</em>
-                </div>
-            </article>
-        <?php endif; ?>
-
-        <?php if ($canStudents) : ?>
-            <article class="dashboard-day-card is-green">
-                <div class="dashboard-day-card-main">
-                    <span class="dashboard-day-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="9" cy="7" r="4"></circle>
-                            <path d="M19 8v6M22 11h-6"></path>
-                        </svg>
-                    </span>
-                    <div><span>Aktif Öğrenci</span><strong><?= e($ozet['ogrenci'] ?? 0) ?></strong></div>
-                </div>
-                <div class="dashboard-day-card-foot">
-                    <a href="/panel/ogrenciler">Tüm öğrenciler <span aria-hidden="true">›</span></a>
-                    <em>Aktif</em>
-                </div>
-            </article>
-        <?php endif; ?>
-
-        <?php if ($canPayments || $canReports) : ?>
-            <article class="dashboard-day-card is-orange">
-                <div class="dashboard-day-card-main">
-                    <span class="dashboard-day-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M20 7V5a2 2 0 0 0-2-2H5a3 3 0 0 0 0 6h15v10a2 2 0 0 1-2 2H5a3 3 0 0 1-3-3V6"></path>
-                            <path d="M16 13h5"></path>
-                        </svg>
-                    </span>
-                    <div><span>Bekleyen Alacak</span><strong><?= e(para_goster($raporOzet['bekleyen_alacak'] ?? 0)) ?></strong></div>
-                </div>
-                <div class="dashboard-day-card-foot">
-                    <a href="/panel/odemeler/borclular">Tahsilat bekleyenler <span aria-hidden="true">›</span></a>
-                    <em><?= e($borcluPaketSayisi) ?> kayıt</em>
-                </div>
-            </article>
-
-            <article class="dashboard-day-card is-teal">
-                <div class="dashboard-day-card-main">
-                    <span class="dashboard-day-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M4 20v-7M9 20V9M14 20V5M19 20V2"></path>
-                        </svg>
-                    </span>
-                    <div><span>Bu Ay Tahsilat</span><strong><?= e(para_goster($raporOzet['bu_ay_tahsilat'] ?? 0)) ?></strong></div>
-                </div>
-                <div class="dashboard-day-card-foot">
-                    <a href="/panel/odemeler/tahsilatlar">Aylık tahsilat <span aria-hidden="true">›</span></a>
-                    <em>Bu ay</em>
-                </div>
-            </article>
-        <?php endif; ?>
-    </div>
+    <?php endif; ?>
 </section>
 
-<?php if ($veliPortalYolu !== '') : ?>
-<section class="dashboard-portal-info" data-parent-portal-info data-parent-portal-path="<?= e($veliPortalYolu) ?>">
-    <div class="dashboard-portal-info-copy">
-        <span>Veli Bilgi Ekranı</span>
-        <strong>Velilerinizle paylaşacağınız kuruma özel bağlantı</strong>
-        <p>Bu bağlantıyı velilere göndererek telefon numaralarıyla öğrenci bilgilerine güvenli biçimde ulaşmalarını sağlayabilirsiniz.</p>
+<section class="stats-grid dashboard-summary-grid">
+    <?php if ($canStudents) : ?><article class="stat-card"><span>Aktif Ogrenci</span><strong><?= e($ozet['ogrenci'] ?? 0) ?></strong></article><?php endif; ?>
+    <?php if ($canGroups) : ?><article class="stat-card"><span>Aktif Grup</span><strong><?= e($ozet['grup'] ?? 0) ?></strong></article><?php endif; ?>
+    <?php if ($canAppointments) : ?><article class="stat-card"><span>Bugunku Randevu</span><strong><?= e($ozet['randevu'] ?? 0) ?></strong></article><?php endif; ?>
+    <?php if ($canStudents) : ?>
+        <article class="stat-card birthday-stat-card">
+            <span>Bu Hafta Dogum Gunu</span>
+            <strong><?= e($ozet['dogum_gunu'] ?? 0) ?></strong>
+            <?php if ($dogumGunleri) : ?>
+                <ul>
+                    <?php foreach (array_slice($dogumGunleri, 0, 4) as $dogumGunu) : ?>
+                        <li>
+                            <a href="/panel/ogrenciler/profil?id=<?= e($dogumGunu['id']) ?>"><?= e($dogumGunu['ad_soyad']) ?></a>
+                            <small><?= e($dogumGunu['dogum_gunu']) ?> / <?= e($dogumGunu['yas']) ?> yas</small>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+                <?php if (count($dogumGunleri) > 4) : ?>
+                    <button class="birthday-more-button" type="button" data-open-dialog="#haftalik-dogum-gunleri-dialog">
+                        +<?= e(count($dogumGunleri) - 4) ?> ogrenci daha
+                    </button>
+                <?php endif; ?>
+            <?php else : ?>
+                <small>Bu hafta dogum gunu bulunmuyor.</small>
+            <?php endif; ?>
+        </article>
+    <?php endif; ?>
+</section>
+
+<?php if ($canStudents && count($dogumGunleri) > 4) : ?>
+<dialog class="appointment-dialog" id="haftalik-dogum-gunleri-dialog">
+    <div class="appointment-dialog-form">
+        <div class="dialog-head">
+            <div><h2>Bu Haftaki Dogum Gunleri</h2><p>Hafta icindeki tum dogum gunleri.</p></div>
+            <button type="button" data-close-dialog aria-label="Kapat">x</button>
+        </div>
+        <ul class="birthday-dialog-list">
+            <?php foreach ($dogumGunleri as $dogumGunu) : ?>
+                <li>
+                    <a href="/panel/ogrenciler/profil?id=<?= e($dogumGunu['id']) ?>"><?= e($dogumGunu['ad_soyad']) ?></a>
+                    <span><?= e($dogumGunu['dogum_gunu']) ?></span>
+                    <strong><?= e($dogumGunu['yas']) ?> yas</strong>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+        <div class="record-actions compact-actions">
+            <button class="btn btn-primary" type="button" data-close-dialog>Kapat</button>
+        </div>
     </div>
-    <div class="dashboard-portal-link-row">
-        <input type="text" readonly value="<?= e($veliPortalYolu) ?>" data-parent-portal-link aria-label="Veli bilgi ekranı bağlantısı">
-        <button class="btn btn-sky" type="button" data-parent-portal-copy>Bağlantıyı Kopyala</button>
-        <a class="btn btn-ghost" href="<?= e($veliPortalYolu) ?>" target="_blank" rel="noopener">Ekranı Aç</a>
-    </div>
-    <small class="dashboard-portal-message" data-parent-portal-message aria-live="polite"></small>
+</dialog>
+<?php endif; ?>
+
+<?php if ($canPayments || $canReports) : ?>
+<section class="report-grid report-summary dashboard-finance-summary">
+    <?php if ($canPayments || $canReports) : ?>
+    <article class="report-card accent-blue">
+        <span>Bu Ay Tahsilat</span>
+        <strong><?= e(para_goster($raporOzet['bu_ay_tahsilat'] ?? 0)) ?></strong>
+    </article>
+    <article class="report-card accent-red">
+        <span>Bekleyen Alacak</span>
+        <strong><?= e(para_goster($raporOzet['bekleyen_alacak'] ?? 0)) ?></strong>
+    </article>
+    <article class="report-card accent-dark">
+        <span>Yapilacak Odemeler</span>
+        <strong><?= e(para_goster($raporOzet['yapilacak_odeme_30_gun'] ?? 0)) ?></strong>
+    </article>
+    <?php endif; ?>
 </section>
 <?php endif; ?>
 
@@ -267,8 +228,8 @@ $tarihEtiketi = $bugun->format('j') . ' ' . $ayAdlari[(int) $bugun->format('n')]
             </div>
             <div class="appointment-toolbar-actions">
                 <div class="calendar-view-switch" aria-label="Takvim gorunumu">
-                    <button class="btn btn-ghost is-active" type="button" data-calendar-view="month">Ay</button>
-                    <button class="btn btn-ghost" type="button" data-calendar-view="week">Hafta</button>
+                    <button class="btn btn-ghost" type="button" data-calendar-view="month">Ay</button>
+                    <button class="btn btn-ghost is-active" type="button" data-calendar-view="week">Hafta</button>
                     <button class="btn btn-ghost" type="button" data-calendar-view="day">Gun</button>
                 </div>
                 <button class="btn btn-ghost" type="button" data-calendar-prev>&lt;</button>

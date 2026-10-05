@@ -1,6 +1,6 @@
-# app.talyakids.com Tasima Notlari
+# app.oyunevleri.com Tasima Notlari
 
-Bu dosya mevcut lokal kurulumu `app.talyakids.com` alan adinda calisir hale getirmek icin uygulanacak kisa kontrol listesidir.
+Bu dosya mevcut lokal kurulumu `app.oyunevleri.com` alan adinda calisir hale getirmek icin uygulanacak kisa kontrol listesidir.
 
 ## Zorunlu ortam ayarlari
 
@@ -9,7 +9,7 @@ Canli ortamda uygulama linkleri ve SMS katilim linkleri icin:
 ```env
 APP_ENV=production
 APP_DEBUG=false
-APP_URL=https://app.talyakids.com
+APP_URL=https://app.oyunevleri.com
 SMS_ENABLED=true
 SMS_TEST_MODE=false
 SMS_FORCE_TO=TEST_TELEFON
@@ -32,7 +32,7 @@ DB_PASSWORD=guclu-uygulama-sifresi
 
 ## Domain ve SSL
 
-1. `app.talyakids.com` DNS kaydini sunucu IP adresine yonlendir.
+1. `app.oyunevleri.com` DNS kaydini sunucu IP adresine yonlendir.
 2. Sunucuda HTTPS sertifikasi kur. Cloudflare, Nginx Proxy Manager, Caddy veya nginx + certbot kullanilabilir.
 3. Reverse proxy varsa hedef port mevcut compose ayarina gore `http://127.0.0.1:8080` olmalidir.
 4. Uygulama production modunda session cookie'lerini `secure` olarak isaretler; bu nedenle canli domain HTTPS olmadan giris stabil calismaz.
@@ -42,16 +42,16 @@ Nginx kullaniyorsan temel reverse proxy hedefi:
 ```nginx
 server {
     listen 80;
-    server_name app.talyakids.com;
+    server_name app.oyunevleri.com;
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name app.talyakids.com;
+    server_name app.oyunevleri.com;
 
-    ssl_certificate /etc/letsencrypt/live/app.talyakids.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/app.talyakids.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/app.oyunevleri.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/app.oyunevleri.com/privkey.pem;
 
     client_max_body_size 32m;
 
@@ -88,7 +88,7 @@ podman compose up -d --force-recreate app
 Sunucuda hedef klasor ornegi:
 
 ```bash
-mkdir -p /opt/app-talya
+mkdir -p /opt/oyunevleri
 ```
 
 Lokal makineden sunucuya proje dosyalarini aktar:
@@ -97,13 +97,13 @@ Lokal makineden sunucuya proje dosyalarini aktar:
 rsync -av --delete \
   --exclude='.git' \
   --exclude='talya_db.sql' \
-  ./ kullanici@sunucu-ip:/opt/app-talya/
+  ./ kullanici@sunucu-ip:/opt/oyunevleri/
 ```
 
 VPS sunucuda:
 
 ```bash
-cd /opt/app-talya
+cd /opt/oyunevleri
 podman compose -f compose.production.yaml up -d --build
 ```
 
@@ -124,34 +124,34 @@ FTP_PASSWORD=FTP_SIFRESI
 GitHub `Variables` altina su degerleri ekleyebilirsin. Eklenmezse workflow varsayilanlari kullanir:
 
 ```text
-FTP_SERVER=ftp.talyakids.com
+FTP_SERVER=ftp.oyunevleri.com
 FTP_PORT=21
-FTP_USERNAME=talyakidsmesud@app.talyakids.com
-FTP_SERVER_DIR=/app-talya/
+FTP_USERNAME=FTP_KULLANICI_ADI
+FTP_SERVER_DIR=/oyunevleri/
 ```
 
-`FTP_SERVER_DIR` FTP kullanicisinin kok dizinine gore hesaplanir. cPanel'de giris dizini `/home/talyakid` ise `/app-talya/` sunucuda `/home/talyakid/app-talya` anlamina gelir.
+`FTP_SERVER_DIR` FTP kullanicisinin kok dizinine gore hesaplanir. cPanel'de giris dizini `/home/KULLANICI` ise `/oyunevleri/` sunucuda `/home/KULLANICI/oyunevleri` anlamina gelir.
 
-Workflow `.env` dosyasini repodan tasimaz. Hosting uzerinde `/home/talyakid/app-talya/.env` dosyasi manuel bulunmali.
+Workflow `.env` dosyasini repodan tasimaz. Hosting uzerinde `/home/KULLANICI/oyunevleri/.env` dosyasi manuel bulunmali.
 
 ### cPanel document root
 
-`app.talyakids.com` domain veya subdomain document root degeri su klasore bakmali:
+`app.oyunevleri.com` domain veya subdomain document root degeri su klasore bakmali:
 
 ```bash
-/home/talyakid/app-talya/public
+/home/KULLANICI/oyunevleri/public
 ```
 
-Document root `/home/talyakid/app-talya` olursa `app/`, `config/`, `.env` gibi dosyalar webden gorunebilir. Bu nedenle document root mutlaka `public` klasoru olmali.
+Document root `/home/KULLANICI/oyunevleri` olursa `app/`, `config/`, `.env` gibi dosyalar webden gorunebilir. Bu nedenle document root mutlaka `public` klasoru olmali.
 
 ### Hosting uzerinde .env
 
-cPanel Terminal veya File Manager ile `/home/talyakid/app-talya/.env` dosyasi olustur:
+cPanel Terminal veya File Manager ile `/home/KULLANICI/oyunevleri/.env` dosyasi olustur:
 
 ```env
 APP_ENV=production
 APP_DEBUG=false
-APP_URL=https://app.talyakids.com
+APP_URL=https://app.oyunevleri.com
 APP_TIMEZONE=Europe/Istanbul
 
 DB_HOST=localhost
@@ -186,19 +186,23 @@ SMS_APPOINTMENT_REMINDER_ENABLED=true
 SMS_APPOINTMENT_REMINDER_HOURS=24
 SMS_PAYMENT_PROMISE_REMINDER_ENABLED=true
 SMS_PAYMENT_PROMISE_REMINDER_HOURS=24
+
+BACKUP_ENCRYPTION_KEY=EN_AZ_32_KARAKTER_RASTGELE_YEDEK_ANAHTARI
+BACKUP_DIR=/home/CPANEL_KULLANICISI/backups/oyunevleri
+BACKUP_RETENTION_DAYS=30
 ```
 
 GitHub'da bos ve private bir repo olusturduktan sonra lokal projeyi bagla:
 
 ```bash
-git remote add origin git@github.com:KULLANICI_ADI/app-talya.git
+git remote add origin git@github.com:KULLANICI_ADI/oyunevleri.git
 git push -u origin main
 ```
 
 HTTPS remote kullanacaksan:
 
 ```bash
-git remote add origin https://github.com/KULLANICI_ADI/app-talya.git
+git remote add origin https://github.com/KULLANICI_ADI/oyunevleri.git
 git push -u origin main
 ```
 
@@ -215,13 +219,13 @@ podman exec talya_db mysqldump -u root -p talya_db > talya_db.sql
 Komut sifre sorarsa lokal root sifresini gir. Yedegi sunucuya aktar:
 
 ```bash
-scp talya_db.sql kullanici@sunucu-ip:/opt/app-talya/talya_db.sql
+scp talya_db.sql kullanici@sunucu-ip:/opt/oyunevleri/talya_db.sql
 ```
 
 Sunucuda veriyi geri yukle:
 
 ```bash
-cd /opt/app-talya
+cd /opt/oyunevleri
 podman exec -i talya_db mysql -u root -p talya_db < talya_db.sql
 ```
 
@@ -236,13 +240,60 @@ rm talya_db.sql
 SMS ve otomasyonlar icin sunucuda cron calistir:
 
 ```cron
-* * * * * podman exec talya_app php /var/www/html/cron/sms-kuyrugu.php 50
-*/10 * * * * podman exec talya_app php /var/www/html/cron/randevu-sms-hatirlatma.php
-*/15 * * * * podman exec talya_app php /var/www/html/cron/sms-durum-sorgula.php
+* * * * * podman exec talya_app php /var/www/html/cron/sms-otomasyon.php 100
 */15 * * * * podman exec talya_app php /var/www/html/cron/otomatik-gelmedi.php
 */30 * * * * podman exec talya_app php /var/www/html/cron/otomatik-telafi.php
 0 9 * * * podman exec talya_app php /var/www/html/cron/geciken-odemeler.php
 ```
+
+`compose.production.yaml` ile kurulumda `scheduler` servisi bu SMS komutunu her dakika
+kendiliginden calistirir. Paylasimli hostingde ise proje yolunuza gore su tek cron yeterlidir:
+
+```cron
+* * * * * cd /sunucudaki/proje/yolu && /usr/local/bin/php cron/sms-otomasyon.php 100 >> storage/logs/cron-sms-otomasyon.log 2>&1
+```
+
+Cron gecici olarak calisamazsa `SMS_WEB_AUTOMATION_ENABLED=true` ayari, gercek web
+trafiginde tum aktif kurumlari en fazla 10 dakikada bir isleyen yedek mekanizmayi etkin tutar.
+
+## Günlük şifreli yedekleme
+
+Yedek anahtarını sunucuda üretip `.env` içindeki `BACKUP_ENCRYPTION_KEY` alanına yaz:
+
+```bash
+openssl rand -base64 48
+```
+
+Anahtarın bir kopyasını sunucu dışında, güvenli bir parola kasasında sakla. Anahtar
+kaybolursa şifreli yedekler geri açılamaz. `BACKUP_DIR` web kökünün ve proje klasörünün
+dışında mutlak bir dizin olmalıdır.
+
+cPanel Cron Jobs ekranında her gece 03:15 için şu komutu tanımla:
+
+```cron
+15 3 * * * /bin/sh /home/CPANEL_KULLANICISI/oyunevleri/bin/daily-backup.sh >> /home/CPANEL_KULLANICISI/oyunevleri/storage/logs/cron-daily-backup.log 2>&1
+```
+
+Komut veritabanını, `storage/faturalar` arşivini ve `public/uploads` altındaki kurum
+dosyalarını tek arşivde toplar; AES-256 ile şifreler, SHA-256 bütünlük dosyası üretir,
+oluşan yedeği otomatik doğrular ve varsayılan olarak 30 günden eski yedekleri temizler.
+
+İlk kurulumu beklemeden sınamak için:
+
+```bash
+cd /home/CPANEL_KULLANICISI/oyunevleri
+/bin/sh bin/daily-backup.sh
+```
+
+Son yedeği ayrıca doğrulamak için:
+
+```bash
+set -a; . ./.env; set +a
+/bin/sh bin/verify-encrypted-backup.sh /home/CPANEL_KULLANICISI/backups/oyunevleri/talya-YYYYMMDD-HHMMSS.tar.enc
+```
+
+`compose.production.yaml` kullanılan VPS kurulumunda scheduler servisi aynı günlük
+yedeklemeyi otomatik çalıştırır ve şifreli dosyaları `talya_backups` volume'ünde saklar.
 
 ## Kontrol
 
@@ -254,7 +305,7 @@ podman exec talya_app php -r '$c=require "/var/www/html/config/sms.php"; echo js
 Beklenen sonuc:
 
 ```text
-https://app.talyakids.com
+https://app.oyunevleri.com
 [true,false,"TEST_TELEFON"]
 ```
 

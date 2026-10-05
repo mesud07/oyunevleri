@@ -1,0 +1,43 @@
+CREATE TABLE IF NOT EXISTS onam_form_ayarlari (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  kurum_id BIGINT UNSIGNED NOT NULL,
+  public_token CHAR(48) NOT NULL,
+  baslik VARCHAR(190) NOT NULL DEFAULT 'Oyun Grubu Katılımcı Bilgi ve Veli Onam Formu',
+  aciklama TEXT NULL,
+  onam_metni LONGTEXT NULL,
+  form_surumu INT UNSIGNED NOT NULL DEFAULT 1,
+  aktif TINYINT(1) NOT NULL DEFAULT 1,
+  olusturulma_tarihi DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  guncellenme_tarihi DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_onam_form_ayari_kurum (kurum_id),
+  UNIQUE KEY uq_onam_form_public_token (public_token),
+  CONSTRAINT fk_onam_form_ayari_kurum FOREIGN KEY (kurum_id) REFERENCES kurumlar(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS veli_onam_kayitlari (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  kurum_id BIGINT UNSIGNED NOT NULL,
+  onam_form_ayari_id BIGINT UNSIGNED NOT NULL,
+  veli_id BIGINT UNSIGNED NULL,
+  ogrenci_id BIGINT UNSIGNED NULL,
+  veli_ad_soyad VARCHAR(190) NOT NULL,
+  veli_telefon VARCHAR(40) NOT NULL,
+  veli_eposta VARCHAR(190) NULL,
+  ogrenci_ad_soyad VARCHAR(190) NOT NULL,
+  ogrenci_dogum_tarihi DATE NULL,
+  form_surumu INT UNSIGNED NOT NULL,
+  form_verisi_json JSON NULL,
+  onam_metni LONGTEXT NOT NULL,
+  dijital_onay TINYINT(1) NOT NULL DEFAULT 1,
+  ip_hash CHAR(64) NULL,
+  tarayici_bilgisi VARCHAR(500) NULL,
+  onay_tarihi DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_veli_onam_kurum_tarih (kurum_id, onay_tarihi),
+  KEY idx_veli_onam_telefon (kurum_id, veli_telefon),
+  KEY idx_veli_onam_veli (veli_id),
+  KEY idx_veli_onam_ogrenci (ogrenci_id),
+  CONSTRAINT fk_veli_onam_kurum FOREIGN KEY (kurum_id) REFERENCES kurumlar(id) ON DELETE CASCADE,
+  CONSTRAINT fk_veli_onam_ayar FOREIGN KEY (onam_form_ayari_id) REFERENCES onam_form_ayarlari(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_veli_onam_veli FOREIGN KEY (veli_id) REFERENCES veliler(id) ON DELETE SET NULL,
+  CONSTRAINT fk_veli_onam_ogrenci FOREIGN KEY (ogrenci_id) REFERENCES ogrenciler(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

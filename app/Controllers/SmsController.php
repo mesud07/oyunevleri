@@ -10,9 +10,11 @@ use App\Core\Response;
 use App\Core\Validator;
 use App\Models\Ayar;
 use App\Models\Grup;
+use App\Models\Ogrenci;
 use App\Models\SmsKaydi;
 use App\Services\NetgsmServisi;
 use App\Services\SmsServisi;
+use App\Services\YetkiServisi;
 
 final class SmsController extends Controller
 {
@@ -25,15 +27,32 @@ final class SmsController extends Controller
     private function baglantiDurumu(): array
     {
         $ayarlar = Ayar::coklu([
-            'sms_netgsm_last_check_at',
-            'sms_netgsm_last_check_status',
-            'sms_netgsm_last_check_message',
+            'sms_netgsm_last_check_at' => '',
+            'sms_netgsm_last_check_status' => '',
+            'sms_netgsm_last_check_message' => '',
         ]);
 
         return [
             'son_test_tarihi' => trim((string) ($ayarlar['sms_netgsm_last_check_at'] ?? '')),
             'son_test_durumu' => trim((string) ($ayarlar['sms_netgsm_last_check_status'] ?? '')),
             'son_test_mesaji' => trim((string) ($ayarlar['sms_netgsm_last_check_message'] ?? '')),
+        ];
+    }
+
+    private function otomasyonDurumu(): array
+    {
+        $ayarlar = Ayar::coklu([
+            'sms_automation_last_run_at' => '',
+            'sms_automation_last_status' => '',
+            'sms_automation_last_source' => '',
+            'sms_automation_last_result' => '',
+        ]);
+
+        return [
+            'son_calisma' => trim((string) $ayarlar['sms_automation_last_run_at']),
+            'durum' => trim((string) $ayarlar['sms_automation_last_status']),
+            'kaynak' => trim((string) $ayarlar['sms_automation_last_source']),
+            'sonuc' => trim((string) $ayarlar['sms_automation_last_result']),
         ];
     }
 
@@ -54,6 +73,11 @@ final class SmsController extends Controller
         $connectTimeout = max(1, min(120, (int) ($data['sms_netgsm_connect_timeout'] ?? 10)));
         $timeout = max(1, min(300, (int) ($data['sms_netgsm_timeout'] ?? 30)));
 
+        $password = (string) ($data['sms_netgsm_password'] ?? '');
+        if ($password === '') {
+            $password = (string) ($this->smsConfig()['netgsm']['password'] ?? '');
+        }
+
         return compact(
             'enabled',
             'testMode',
@@ -71,7 +95,7 @@ final class SmsController extends Controller
             'timeout'
         ) + [
             'usercode' => trim((string) ($data['sms_netgsm_usercode'] ?? '')),
-            'password' => (string) ($data['sms_netgsm_password'] ?? ''),
+            'password' => $password,
             'header' => trim((string) ($data['sms_netgsm_header'] ?? '')),
         ];
     }
@@ -143,6 +167,11 @@ final class SmsController extends Controller
         if (!Auth::check()) {
             Response::redirect('/giris');
         }
+        if (!(new YetkiServisi())->izinliMi('sms_goruntule')) {
+            http_response_code(403);
+            require BASE_PATH . '/resources/views/errors/403.php';
+            return;
+        }
 
         $config = $this->smsConfig();
         $smsServisi = new SmsServisi($config);
@@ -153,9 +182,11 @@ final class SmsController extends Controller
             'csrf' => Csrf::token(),
             'smsConfig' => $config,
             'smsConnectionStatus' => $this->baglantiDurumu(),
+            'smsAutomationStatus' => $this->otomasyonDurumu(),
             'smsReminderSettings' => $smsServisi->hatirlatmaAyarlari(),
             'sablonlar' => SmsKaydi::sablonlar(),
             'gruplar' => Grup::liste(),
+            'smsOgrencileri' => Ogrenci::smsAliciSecenekleri(),
         ], 'panel');
     }
 
@@ -163,6 +194,11 @@ final class SmsController extends Controller
     {
         if (!Auth::check()) {
             Response::redirect('/giris');
+        }
+        if (!(new YetkiServisi())->izinliMi('sms_rapor_goruntule')) {
+            http_response_code(403);
+            require BASE_PATH . '/resources/views/errors/403.php';
+            return;
         }
 
         $this->view('panel/sms-raporlari', [
@@ -235,6 +271,9 @@ final class SmsController extends Controller
         $aktif = isset($data['appointment_reminder_enabled'])
             && (string) $data['appointment_reminder_enabled'] !== ''
             && (string) $data['appointment_reminder_enabled'] !== '0';
+        $dogumGunuAktif = isset($data['birthday_message_enabled'])
+            && (string) $data['birthday_message_enabled'] !== ''
+            && (string) $data['birthday_message_enabled'] !== '0';
         $gunOnce = max(0, min(30, (int) ($data['appointment_reminder_days_before'] ?? 1)));
         $saat = trim((string) ($data['appointment_reminder_time'] ?? '14:00'));
         if (!preg_match('/^(\d{1,2}):(\d{2})$/', $saat, $eslesme)) {
@@ -249,14 +288,30 @@ final class SmsController extends Controller
         }
 
         $gonderimSaati = sprintf('%02d:%02d', $saatDegeri, $dakika);
+        $dogumGunuSaati = trim((string) ($data['birthday_message_time'] ?? '09:00'));
+        if (!preg_match('/^(\d{1,2}):(\d{2})$/', $dogumGunuSaati, $dogumGunuEslesme)) {
+            Response::json(['basari' => false, 'mesaj' => 'Dogum gunu mesaji saati HH:MM formatinda olmalidir.', 'hatalar' => []], 422);
+            return;
+        }
+        $dogumGunuSaatDegeri = (int) $dogumGunuEslesme[1];
+        $dogumGunuDakika = (int) $dogumGunuEslesme[2];
+        if ($dogumGunuSaatDegeri < 0 || $dogumGunuSaatDegeri > 23 || $dogumGunuDakika < 0 || $dogumGunuDakika > 59) {
+            Response::json(['basari' => false, 'mesaj' => 'Gecerli bir dogum gunu mesaji saati girin.', 'hatalar' => []], 422);
+            return;
+        }
+        $dogumGunuGonderimSaati = sprintf('%02d:%02d', $dogumGunuSaatDegeri, $dogumGunuDakika);
         Ayar::kaydetCoklu([
             'sms_appointment_reminder_enabled' => $aktif ? '1' : '0',
             'sms_appointment_reminder_days_before' => (string) $gunOnce,
             'sms_appointment_reminder_time' => $gonderimSaati,
+            'sms_birthday_message_enabled' => $dogumGunuAktif ? '1' : '0',
+            'sms_birthday_message_time' => $dogumGunuGonderimSaati,
         ], [
             'sms_appointment_reminder_enabled' => 'Randevu hatirlatma SMS otomasyonu aktiflik bilgisi.',
             'sms_appointment_reminder_days_before' => 'Randevudan kac gun once hatirlatma SMS kuyruga alinacak.',
             'sms_appointment_reminder_time' => 'Hatirlatma SMS kuyruga alma saati.',
+            'sms_birthday_message_enabled' => 'Dogum gunu SMS otomasyonu aktiflik bilgisi.',
+            'sms_birthday_message_time' => 'Dogum gunu SMS kuyruga alma saati.',
         ]);
 
         Response::json([
@@ -266,6 +321,8 @@ final class SmsController extends Controller
                 'appointment_reminder_enabled' => $aktif,
                 'appointment_reminder_days_before' => $gunOnce,
                 'appointment_reminder_time' => $gonderimSaati,
+                'birthday_message_enabled' => $dogumGunuAktif,
+                'birthday_message_time' => $dogumGunuGonderimSaati,
             ],
         ]);
     }
@@ -318,10 +375,15 @@ final class SmsController extends Controller
             'sms_netgsm_timeout' => 'NetGSM istek timeout saniyesi.',
         ]);
 
+        $guncelConfig = $this->smsConfig();
+        $sifreKayitli = trim((string) ($guncelConfig['netgsm']['password'] ?? '')) !== '';
+        $guncelConfig['netgsm']['password'] = '';
+        $guncelConfig['netgsm']['password_configured'] = $sifreKayitli;
+
         Response::json([
             'basari' => true,
             'mesaj' => 'NetGSM baglanti ayarlari kaydedildi.',
-            'veri' => $this->smsConfig(),
+            'veri' => $guncelConfig,
         ]);
     }
 
@@ -440,15 +502,47 @@ final class SmsController extends Controller
     public function topluGonder(): void
     {
         $data = $GLOBALS['talya_ajax_data'] ?? [];
-        $hatalar = Validator::gerekli($data, ['telefonlar', 'mesaj']);
-        if ($hatalar) {
-            Response::json(['basari' => false, 'mesaj' => 'Alicilar ve mesaj zorunludur.', 'hatalar' => $hatalar], 422);
+        $mesaj = trim((string) ($data['mesaj'] ?? ''));
+        if ($mesaj === '') {
+            Response::json(['basari' => false, 'mesaj' => 'Mesaj zorunludur.', 'hatalar' => ['mesaj' => 'Bu alan zorunludur.']], 422);
             return;
         }
-        $telefonlar = preg_split('/[\s,;]+/', trim((string) $data['telefonlar'])) ?: [];
+
+        $telefonlar = preg_split('/[\s,;]+/', trim((string) ($data['telefonlar'] ?? ''))) ?: [];
         $telefonlar = array_values(array_filter($telefonlar));
+        $ogrenciIdleri = $data['ogrenci_idleri'] ?? [];
+        if (!is_array($ogrenciIdleri)) {
+            $ogrenciIdleri = [$ogrenciIdleri];
+        }
+        $ogrenciIdleri = array_slice(array_values(array_unique(array_filter(
+            array_map('intval', $ogrenciIdleri),
+            static fn(int $id): bool => $id > 0
+        ))), 0, 1000);
+
+        $ogrenciKayitlari = $ogrenciIdleri === [] ? [] : Ogrenci::smsAliciSecenekleri($ogrenciIdleri);
+        $ogrenciAlicilari = [];
+        foreach ($ogrenciKayitlari as $ogrenci) {
+            if (trim((string) ($ogrenci['telefon'] ?? '')) === '') {
+                continue;
+            }
+            $ogrenciAlicilari[] = [
+                'telefon' => (string) $ogrenci['telefon'],
+                'ogrenci_id' => (int) $ogrenci['id'],
+                'veli_id' => !empty($ogrenci['veli_id']) ? (int) $ogrenci['veli_id'] : null,
+                'alici_tipi' => 'veli',
+            ];
+        }
+        $manuelAlicilar = array_map(static fn(string $telefon): array => ['telefon' => $telefon], $telefonlar);
+        $alicilar = array_merge($ogrenciAlicilari, $manuelAlicilar);
+        if ($alicilar === []) {
+            Response::json(['basari' => false, 'mesaj' => 'En az bir ogrenci veya telefon numarasi secin.', 'hatalar' => []], 422);
+            return;
+        }
+
         $smsServisi = new SmsServisi();
-        $sonuc = $smsServisi->manuelToplu($telefonlar, trim((string) $data['mesaj']), (int) (Auth::user()['id'] ?? 0));
+        $sonuc = $smsServisi->manuelTopluAlicilar($alicilar, $mesaj, (int) (Auth::user()['id'] ?? 0));
+        $sonuc['secili_ogrenci_sayisi'] = count($ogrenciIdleri);
+        $sonuc['telefonu_bulunan_ogrenci_sayisi'] = count($ogrenciAlicilari);
         $sonuc['gonderim'] = $smsServisi->kuyrukIsle(100);
         Response::json(['basari' => true, 'mesaj' => 'Toplu SMS gonderim kuyruguna alindi ve islendi.', 'veri' => $sonuc], 201);
     }

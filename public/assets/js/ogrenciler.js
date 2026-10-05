@@ -2,25 +2,11 @@
 
 const talyaDistricts = {
   Antalya: [
-    'Akseki',
-    'Aksu',
-    'Alanya',
-    'Demre',
-    'Dosemealti',
-    'Elmali',
-    'Finike',
-    'Gazipasa',
-    'Gundogmus',
-    'Ibradi',
-    'Kas',
-    'Kemer',
+    'Muratpaşa',
     'Kepez',
-    'Konyaalti',
-    'Korkuteli',
-    'Kumluca',
-    'Manavgat',
-    'Muratpasa',
-    'Serik'
+    'Konyaaltı',
+    'Döşemealtı',
+    'Aksu'
   ]
 };
 
@@ -95,3 +81,59 @@ document.addEventListener('change', (event) => {
     : '<option value="">Once il seciniz.</option>';
   district.disabled = items.length === 0;
 });
+
+(() => {
+  const dialog = document.querySelector('#ogrenci-toplu-import-dialog');
+  const form = dialog?.querySelector('[data-student-import-form]');
+  const result = dialog?.querySelector('[data-student-import-result]');
+  if (!dialog || !form || !result) {
+    return;
+  }
+
+  document.querySelector('[data-open-student-import]')?.addEventListener('click', () => {
+    result.innerHTML = '';
+    openDialogElement(dialog);
+  });
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const submit = form.querySelector('button[type="submit"]');
+    submit.disabled = true;
+    result.className = 'import-result is-loading';
+    result.textContent = 'Excel dosyası kontrol ediliyor ve öğrenciler aktarılıyor...';
+
+    try {
+      const response = await fetch(form.action, {
+        method: 'POST',
+        credentials: 'same-origin',
+        body: new FormData(form)
+      });
+      const payload = await response.json();
+      const details = payload.veri?.hatalar || [];
+      result.className = `import-result ${payload.basari ? 'is-success' : 'is-error'}`;
+      result.innerHTML = `
+        <strong>${escapeHtml(payload.mesaj || 'Aktarım tamamlandı.')}</strong>
+        ${details.length ? `
+          <details>
+            <summary>Atlanan ve hatalı satırları göster (${details.length})</summary>
+            <ul>${details.map((item) => `<li><b>Satır ${escapeHtml(item.satir || '-')}:</b> ${escapeHtml(item.mesaj || '')}</li>`).join('')}</ul>
+          </details>
+        ` : ''}
+      `;
+
+      if (Number(payload.veri?.eklenen || 0) > 0) {
+        form.querySelector('[name="excel_dosyasi"]').value = '';
+        const table = document.querySelector('[data-table="ogrenci_listele"]');
+        if (table) {
+          table.dataset.page = '1';
+          await loadAjaxTable(table);
+        }
+      }
+    } catch (error) {
+      result.className = 'import-result is-error';
+      result.textContent = 'Sunucudan geçerli bir aktarım yanıtı alınamadı. Lütfen tekrar deneyin.';
+    } finally {
+      submit.disabled = false;
+    }
+  });
+})();

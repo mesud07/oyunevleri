@@ -32,13 +32,56 @@ final class Grup extends Model
     public static function secenekler(): array
     {
         $stmt = self::db()->prepare(
-            'SELECT id, ad, yas_araligi, aktif
-             FROM gruplar
-             WHERE kurum_id = :kurum_id
-             ORDER BY aktif DESC, ad ASC, id ASC'
+            'SELECT g.id, g.ad, g.yas_araligi, g.aktif,
+                    dp.id AS program_id, dp.gun, dp.baslangic_saati, dp.bitis_saati
+             FROM gruplar g
+             LEFT JOIN ders_programlari dp
+               ON dp.grup_id = g.id AND dp.kurum_id = g.kurum_id AND dp.aktif = 1
+             WHERE g.kurum_id = :kurum_id
+             ORDER BY g.aktif DESC,
+                      CASE WHEN dp.gun IS NULL THEN 8 ELSE dp.gun END ASC,
+                      dp.baslangic_saati ASC,
+                      g.ad ASC,
+                      g.id ASC'
         );
         $stmt->execute(self::kurumParam());
-        return $stmt->fetchAll();
+        $gruplar = [];
+        foreach ($stmt->fetchAll() as $satir) {
+            $grupId = (int) $satir['id'];
+            if (!isset($gruplar[$grupId])) {
+                $gruplar[$grupId] = [
+                    'id' => $grupId,
+                    'ad' => (string) $satir['ad'],
+                    'yas_araligi' => $satir['yas_araligi'],
+                    'aktif' => (int) $satir['aktif'],
+                    'programlar' => [],
+                ];
+            }
+            if (!empty($satir['program_id'])) {
+                $gun = (int) $satir['gun'];
+                $gruplar[$grupId]['programlar'][] = [
+                    'gun' => $gun,
+                    'gun_adi' => self::gunAdi($gun),
+                    'baslangic_saati' => substr((string) $satir['baslangic_saati'], 0, 5),
+                    'bitis_saati' => substr((string) $satir['bitis_saati'], 0, 5),
+                ];
+            }
+        }
+
+        return array_values($gruplar);
+    }
+
+    private static function gunAdi(int $gun): string
+    {
+        return [
+            1 => 'Pazartesi',
+            2 => 'Salı',
+            3 => 'Çarşamba',
+            4 => 'Perşembe',
+            5 => 'Cuma',
+            6 => 'Cumartesi',
+            7 => 'Pazar',
+        ][$gun] ?? 'Gün belirtilmedi';
     }
 
     public static function programListe(): array
@@ -48,7 +91,8 @@ final class Grup extends Model
             'SELECT dp.id, dp.grup_id, dp.gun, dp.baslangic_saati, dp.bitis_saati,
                     g.yas_araligi, g.ad AS program_adi, COALESCE(g.durum, "durum_yok") AS durum,
                     g.kontenjan, g.aktif,
-                    COUNT(DISTINCT rw.ogrenci_id) AS ogrenci_sayisi
+                    COUNT(DISTINCT rw.ogrenci_id) AS ogrenci_sayisi,
+                    COALESCE(MAX(bv.bekleyen_veli_sayisi), 0) AS bekleyen_veli_sayisi
              FROM ders_programlari dp
              INNER JOIN gruplar g ON g.id = dp.grup_id AND g.kurum_id = dp.kurum_id
              LEFT JOIN randevular rw
@@ -59,12 +103,21 @@ final class Grup extends Model
               AND rw.baslangic_saati >= dp.baslangic_saati
               AND rw.baslangic_saati < dp.bitis_saati
               AND COALESCE(rw.durum, "planlandi") NOT IN ("iptal", "kurum_iptali")
+             LEFT JOIN (
+                SELECT bvg.grup_id, COUNT(DISTINCT bvg.bekleyen_veli_id) AS bekleyen_veli_sayisi
+                FROM bekleyen_veli_gruplari bvg
+                INNER JOIN bekleyen_veliler bvl ON bvl.id = bvg.bekleyen_veli_id AND bvl.kurum_id = bvg.kurum_id
+                WHERE bvg.kurum_id = :kurum_id_bekleyen
+                  AND bvl.durum NOT IN ("kayda_donustu", "iptal")
+                GROUP BY bvg.grup_id
+             ) bv ON bv.grup_id = g.id
              WHERE dp.kurum_id = :kurum_id
              GROUP BY dp.id
              ORDER BY dp.gun ASC, dp.baslangic_saati ASC, dp.bitis_saati ASC, g.ad ASC'
         );
         $stmt->execute([
             'kurum_id' => self::kurumId(),
+            'kurum_id_bekleyen' => self::kurumId(),
             'hafta_baslangic' => $haftaBaslangic,
             'hafta_bitis' => $haftaBitis,
         ]);

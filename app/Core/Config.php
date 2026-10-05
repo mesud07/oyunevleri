@@ -10,7 +10,7 @@ final class Config
 
     public static function load(string $envPath): void
     {
-        if (is_file($envPath)) {
+        if (is_file($envPath) && is_readable($envPath)) {
             $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
             foreach ($lines ?: [] as $line) {
                 $line = trim($line);

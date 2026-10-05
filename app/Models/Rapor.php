@@ -586,7 +586,9 @@ final class Rapor extends Model
     {
         $stmt = self::db()->prepare(
             'SELECT p.id AS paket_id, CONCAT(o.ad, " ", o.soyad) AS ogrenci, p.paket_adi,
-                    p.tahmini_son_ders_tarihi, p.kalan_normal_hak, p.kalan_telafi_hak, p.yenileme_durumu,
+                    COALESCE(sr.son_ders_tarihi, p.tahmini_son_ders_tarihi) AS tahmini_son_ders_tarihi,
+                    p.tahmini_son_ders_tarihi AS paket_bitis_tarihi,
+                    p.kalan_normal_hak, p.kalan_telafi_hak, p.yenileme_durumu,
                     p.net_paket_tutari AS paket_ucreti,
                     0 AS mevcut_tahsilat,
                     p.net_paket_tutari AS yenileme_ucreti,
@@ -599,15 +601,23 @@ final class Rapor extends Model
                 WHERE kurum_id = :kurum_id_sub AND paket_durumu = "aktif" AND toplam_normal_hak > 1
                 GROUP BY ogrenci_id
              ) sp ON sp.son_paket_id = p.id
+             LEFT JOIN (
+                SELECT paket_id, MAX(tarih) AS son_ders_tarihi
+                FROM randevular
+                WHERE kurum_id = :kurum_id_randevu
+                  AND paket_id IS NOT NULL
+                  AND durum NOT IN ("kurum_iptali", "ertelendi")
+                GROUP BY paket_id
+             ) sr ON sr.paket_id = p.id
              WHERE p.kurum_id = :kurum_id
                 AND p.paket_durumu <> "iptal"
                 AND p.toplam_normal_hak > 1
-                AND p.tahmini_son_ders_tarihi IS NOT NULL
-                AND p.tahmini_son_ders_tarihi >= CURDATE()
-             ORDER BY p.tahmini_son_ders_tarihi ASC, o.ad ASC, o.soyad ASC
+                AND COALESCE(sr.son_ders_tarihi, p.tahmini_son_ders_tarihi) IS NOT NULL
+                AND COALESCE(sr.son_ders_tarihi, p.tahmini_son_ders_tarihi) >= CURDATE()
+             ORDER BY COALESCE(sr.son_ders_tarihi, p.tahmini_son_ders_tarihi) ASC, o.ad ASC, o.soyad ASC
              LIMIT 100'
         );
-        $stmt->execute(['kurum_id' => self::kurumId(), 'kurum_id_sub' => self::kurumId()]);
+        $stmt->execute(['kurum_id' => self::kurumId(), 'kurum_id_sub' => self::kurumId(), 'kurum_id_randevu' => self::kurumId()]);
         $satirlar = $stmt->fetchAll();
 
         $haftalar = [];
@@ -640,12 +650,20 @@ final class Rapor extends Model
                 WHERE kurum_id = :kurum_id_sub AND paket_durumu = "aktif" AND toplam_normal_hak > 1
                 GROUP BY ogrenci_id
              ) sp ON sp.son_paket_id = p.id
+             LEFT JOIN (
+                SELECT paket_id, MAX(tarih) AS son_ders_tarihi
+                FROM randevular
+                WHERE kurum_id = :kurum_id_randevu
+                  AND paket_id IS NOT NULL
+                  AND durum NOT IN ("kurum_iptali", "ertelendi")
+                GROUP BY paket_id
+             ) sr ON sr.paket_id = p.id
              WHERE p.kurum_id = :kurum_id
                 AND p.paket_durumu <> "iptal"
                 AND p.toplam_normal_hak > 1
-                AND p.tahmini_son_ders_tarihi IS NOT NULL
-                AND p.tahmini_son_ders_tarihi >= CURDATE()',
-            ['kurum_id_sub' => self::kurumId()]
+                AND COALESCE(sr.son_ders_tarihi, p.tahmini_son_ders_tarihi) IS NOT NULL
+                AND COALESCE(sr.son_ders_tarihi, p.tahmini_son_ders_tarihi) >= CURDATE()',
+            ['kurum_id_sub' => self::kurumId(), 'kurum_id_randevu' => self::kurumId()]
         );
     }
 
@@ -654,11 +672,13 @@ final class Rapor extends Model
         $tarihKosulu = '';
         if ($gun !== null) {
             $gun = max(1, min(365, $gun));
-            $tarihKosulu = ' AND p.tahmini_son_ders_tarihi <= DATE_ADD(CURDATE(), INTERVAL :gun DAY)';
+            $tarihKosulu = ' AND COALESCE(sr.son_ders_tarihi, p.tahmini_son_ders_tarihi) <= DATE_ADD(CURDATE(), INTERVAL :gun DAY)';
         }
 
         $stmt = self::db()->prepare(
-            'SELECT p.id AS paket_id, o.id AS ogrenci_id, p.tahmini_son_ders_tarihi AS tarih,
+            'SELECT p.id AS paket_id, o.id AS ogrenci_id,
+                    COALESCE(sr.son_ders_tarihi, p.tahmini_son_ders_tarihi) AS tarih,
+                    p.tahmini_son_ders_tarihi AS paket_bitis_tarihi,
                     CONCAT(o.ad, " ", o.soyad) AS ogrenci, p.paket_adi,
                     p.net_paket_tutari AS paket_ucreti,
                     0 AS mevcut_tahsilat,
@@ -673,18 +693,27 @@ final class Rapor extends Model
                 WHERE kurum_id = :kurum_id_sub AND paket_durumu = "aktif" AND toplam_normal_hak > 1
                 GROUP BY ogrenci_id
              ) sp ON sp.son_paket_id = p.id
+             LEFT JOIN (
+                SELECT paket_id, MAX(tarih) AS son_ders_tarihi
+                FROM randevular
+                WHERE kurum_id = :kurum_id_randevu
+                  AND paket_id IS NOT NULL
+                  AND durum NOT IN ("kurum_iptali", "ertelendi")
+                GROUP BY paket_id
+             ) sr ON sr.paket_id = p.id
              WHERE p.kurum_id = :kurum_id
                 AND p.paket_durumu <> "iptal"
                 AND p.toplam_normal_hak > 1
-                AND p.tahmini_son_ders_tarihi IS NOT NULL
-                AND p.tahmini_son_ders_tarihi >= CURDATE()' . $tarihKosulu . '
-             ORDER BY p.tahmini_son_ders_tarihi ASC, o.ad ASC, o.soyad ASC'
+                AND COALESCE(sr.son_ders_tarihi, p.tahmini_son_ders_tarihi) IS NOT NULL
+                AND COALESCE(sr.son_ders_tarihi, p.tahmini_son_ders_tarihi) >= CURDATE()' . $tarihKosulu . '
+             ORDER BY COALESCE(sr.son_ders_tarihi, p.tahmini_son_ders_tarihi) ASC, o.ad ASC, o.soyad ASC'
         );
         if ($gun !== null) {
             $stmt->bindValue('gun', $gun, \PDO::PARAM_INT);
         }
         $stmt->bindValue('kurum_id', self::kurumId(), \PDO::PARAM_INT);
         $stmt->bindValue('kurum_id_sub', self::kurumId(), \PDO::PARAM_INT);
+        $stmt->bindValue('kurum_id_randevu', self::kurumId(), \PDO::PARAM_INT);
         $stmt->execute();
 
         return $stmt->fetchAll();

@@ -6,15 +6,17 @@ final class OdemeSozu extends Model
 {
     public static function liste(): array
     {
-        $stmt = self::db()->query(
-            'SELECT os.id, CONCAT(o.ad, " ", o.soyad) AS ogrenci, p.paket_adi, os.soz_verilen_tutar,
+        $stmt = self::db()->prepare(
+            'SELECT os.id, os.kurum_id, CONCAT(o.ad, " ", o.soyad) AS ogrenci, p.paket_adi, os.soz_verilen_tutar,
                     os.soz_verilen_tarih, os.hatirlatma_tarihi, os.durum
              FROM odeme_sozleri os
-             INNER JOIN ogrenciler o ON o.id = os.ogrenci_id
-             INNER JOIN paketler p ON p.id = os.paket_id
+             INNER JOIN ogrenciler o ON o.id = os.ogrenci_id AND o.kurum_id = os.kurum_id
+             INNER JOIN paketler p ON p.id = os.paket_id AND p.kurum_id = os.kurum_id
+             WHERE os.kurum_id = :kurum_id
              ORDER BY os.soz_verilen_tarih ASC, os.id DESC
              LIMIT 100'
         );
+        $stmt->execute(self::kurumParam());
         return $stmt->fetchAll();
     }
 
@@ -27,11 +29,12 @@ final class OdemeSozu extends Model
 
         $stmt = self::db()->prepare(
             'INSERT INTO odeme_sozleri
-             (ogrenci_id, veli_id, paket_id, soz_verilen_tutar, soz_verilen_tarih, hatirlatma_tarihi, durum, aciklama, olusturan_kullanici_id, olusturulma_tarihi)
+             (kurum_id, ogrenci_id, veli_id, paket_id, soz_verilen_tutar, soz_verilen_tarih, hatirlatma_tarihi, durum, aciklama, olusturan_kullanici_id, olusturulma_tarihi)
              VALUES
-             (:ogrenci_id, :veli_id, :paket_id, :soz_verilen_tutar, :soz_verilen_tarih, :hatirlatma_tarihi, "bekleniyor", :aciklama, :olusturan_kullanici_id, NOW())'
+             (:kurum_id, :ogrenci_id, :veli_id, :paket_id, :soz_verilen_tutar, :soz_verilen_tarih, :hatirlatma_tarihi, "bekleniyor", :aciklama, :olusturan_kullanici_id, NOW())'
         );
         $stmt->execute([
+            'kurum_id' => self::kurumId(),
             'ogrenci_id' => (int) $paket['ogrenci_id'],
             'veli_id' => $veri['veli_id'] ?: null,
             'paket_id' => $veri['paket_id'],

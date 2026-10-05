@@ -17,6 +17,12 @@ $uzunTarihGoster = static function (?string $tarih): string {
     $zaman = strtotime($tarih);
     return $zaman ? date('d.m.Y', $zaman) . ' ' . $gunler[(int) date('w', $zaman)] : $tarih;
 };
+$haftaAraligiGoster = static function (?string $baslangic, ?string $bitis): string {
+    if (!$baslangic || !$bitis) {
+        return '-';
+    }
+    return tarih_goster($baslangic) . ' - ' . tarih_goster($bitis);
+};
 $ayHesapla = static function (?string $dogumTarihi): ?int {
     if (!$dogumTarihi) {
         return null;
@@ -37,38 +43,45 @@ $ayHesapla = static function (?string $dogumTarihi): ?int {
 <main class="parent-portal-shell">
     <section class="parent-hero">
         <div>
-            <span class="parent-brand">
-                <?php if (!empty($kurum['logo_yolu'])) : ?>
-                    <img class="parent-institution-logo" src="<?= e($kurum['logo_yolu']) ?>" alt="<?= e($kurum['ad'] ?? 'Kurum') ?> logosu">
-                <?php else : ?>
-                    <?= e($kurum['ad'] ?? 'Oyun Evleri Yönetim Sistemi') ?>
-                <?php endif; ?>
-            </span>
-            <h1>Veli Bilgi Ekranı</h1>
-            <?php if (!empty($kurum)) : ?>
-                <p><?= e($kurum['ad']) ?> öğrencilerinin yaş ve randevu bilgilerini kayıtlı telefon numaranızla görüntüleyin.</p>
-            <?php else : ?>
-                <p>Bu sayfaya kurumunuzun size ilettiği benzersiz veli portalı bağlantısıyla ulaşabilirsiniz.</p>
-            <?php endif; ?>
+            <span class="parent-brand">Oyun Evleri</span>
+            <h1>Veli Bilgi Ekrani</h1>
+            <p>SMS ile doğrulanan telefon numaranıza bağlı öğrenci bilgilerini güvenle görüntüleyin.</p>
         </div>
     </section>
 
     <section class="panel-card parent-verify-card">
-        <?php if (!empty($kurum)) : ?>
-            <form method="post" action="/veli-portal?k=<?= e($portalAnahtari) ?>" class="parent-phone-form">
+        <?php if (($adim ?? 'telefon') === 'kod') : ?>
+            <form method="post" action="/veli-portal" class="parent-phone-form">
                 <input type="hidden" name="csrf" value="<?= e($csrf) ?>">
-                <input type="hidden" name="portal_anahtari" value="<?= e($portalAnahtari) ?>">
+                <input type="hidden" name="islem" value="kod_dogrula">
+                <label>
+                    <span>SMS Doğrulama Kodu</span>
+                    <input type="text" name="kod" placeholder="6 haneli kod" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required autofocus>
+                </label>
+                <button class="btn btn-primary" type="submit">Doğrula</button>
+            </form>
+            <form method="post" action="/veli-portal">
+                <input type="hidden" name="csrf" value="<?= e($csrf) ?>">
+                <input type="hidden" name="islem" value="kod_gonder">
+                <input type="hidden" name="telefon" value="<?= e($telefon) ?>">
+                <button class="btn" type="submit">Yeni Kod Gönder</button>
+            </form>
+        <?php elseif (($adim ?? 'telefon') !== 'dogrulandi') : ?>
+            <form method="post" action="/veli-portal" class="parent-phone-form">
+                <input type="hidden" name="csrf" value="<?= e($csrf) ?>">
+                <input type="hidden" name="islem" value="kod_gonder">
                 <label>
                     <span>Telefon Numarası</span>
                     <input type="tel" name="telefon" value="<?= e($telefon) ?>" placeholder="0(5__) ___ __ __" inputmode="tel" autocomplete="tel" required autofocus>
                 </label>
-                <button class="btn btn-primary" type="submit">Bilgilerimi Göster</button>
+                <button class="btn btn-primary" type="submit">SMS Kodu Gönder</button>
             </form>
-        <?php else : ?>
-            <div class="parent-invalid-link">
-                <strong>Kurum bağlantısı gerekli</strong>
-                <p>Veli bilgilerinizi görüntülemek için kurumunuzdan size özel veli portalı bağlantısını isteyin.</p>
-            </div>
+        <?php endif; ?>
+        <?php if (!empty($mesaj)) : ?>
+            <div class="alert alert-success"><?= e($mesaj) ?></div>
+        <?php endif; ?>
+        <?php if (!empty($testKodu)) : ?>
+            <div class="alert">Yalnızca geliştirme ortamı test kodu: <?= e($testKodu) ?></div>
         <?php endif; ?>
         <?php if (!empty($hata)) : ?>
             <div class="alert alert-error"><?= e($hata) ?></div>
@@ -79,6 +92,7 @@ $ayHesapla = static function (?string $dogumTarihi): ?int {
         <section class="parent-result-list">
             <?php foreach ($sonuc['cocuklar'] as $cocuk) : ?>
                 <article class="panel-card parent-child-card">
+                    <?php $tabId = 'parent-child-' . (int) ($cocuk['id'] ?? 0); ?>
                     <div class="parent-child-head">
                         <div>
                             <h2><?= e($cocuk['ad_soyad']) ?></h2>
@@ -91,8 +105,15 @@ $ayHesapla = static function (?string $dogumTarihi): ?int {
                         <span class="status-pill"><?= e($cocuk['durum'] ?: 'aktif') ?></span>
                     </div>
 
-                    <div class="parent-child-content">
-                        <section class="parent-appointments-panel">
+                    <div class="parent-child-tabs">
+                        <input type="radio" id="<?= e($tabId) ?>-appointments" name="<?= e($tabId) ?>-tab" checked>
+                        <input type="radio" id="<?= e($tabId) ?>-activities" name="<?= e($tabId) ?>-tab">
+                        <div class="parent-tab-menu">
+                            <label for="<?= e($tabId) ?>-appointments">Randevular</label>
+                            <label for="<?= e($tabId) ?>-activities">Tema Etkinlikleri</label>
+                        </div>
+
+                        <section class="parent-tab-panel parent-appointments-panel">
                             <div class="parent-section-title">
                                 <h3>Randevular</h3>
                                 <span>Planlanan ve gecmis randevular</span>
@@ -120,6 +141,36 @@ $ayHesapla = static function (?string $dogumTarihi): ?int {
                                         <?php endforeach; ?>
                                     </tbody>
                                 </table>
+                            </div>
+                        </section>
+
+                        <section class="parent-tab-panel parent-activities-panel">
+                            <div class="parent-section-title">
+                                <h3>Tema Etkinlikleri</h3>
+                                <span>Yapilan tema ve etkinlik icerikleri</span>
+                            </div>
+                            <div class="parent-activity-list">
+                                <?php if (empty($cocuk['tema_etkinlikleri'])) : ?>
+                                    <div class="parent-empty">Yapilan tema etkinligi bulunamadi.</div>
+                                <?php endif; ?>
+                                <?php foreach ($cocuk['tema_etkinlikleri'] as $etkinlik) : ?>
+                                    <article class="parent-activity-item">
+                                        <div>
+                                            <time><?= e(tarih_goster($etkinlik['completed_at'] ?? null)) ?></time>
+                                            <strong><?= e($etkinlik['theme_title'] ?? '-') ?></strong>
+                                            <span><?= e($haftaAraligiGoster($etkinlik['week_start'] ?? null, $etkinlik['week_end'] ?? null)) ?></span>
+                                        </div>
+                                        <div>
+                                            <h4><?= e($etkinlik['activity_title'] ?? '-') ?></h4>
+                                            <?php if (!empty($etkinlik['activity_description'])) : ?>
+                                                <p><?= nl2br(e($etkinlik['activity_description'])) ?></p>
+                                            <?php endif; ?>
+                                            <?php if (!empty($etkinlik['age_groups'])) : ?>
+                                                <small><?= e($etkinlik['age_groups']) ?></small>
+                                            <?php endif; ?>
+                                        </div>
+                                    </article>
+                                <?php endforeach; ?>
                             </div>
                         </section>
                     </div>

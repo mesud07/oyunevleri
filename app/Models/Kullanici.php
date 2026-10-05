@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Core\SecretBox;
 use App\Core\Model;
 
 final class Kullanici extends Model
@@ -11,9 +12,15 @@ final class Kullanici extends Model
     public static function liste(): array
     {
         $stmt = self::db()->prepare(
-             'SELECT k.id, k.ad, k.soyad, k.eposta, k.telefon, k.aktif, k.sistem_yoneticisi, k.son_giris_tarihi,
+             'SELECT k.id, k.ad, k.soyad, k.eposta, k.telefon, k.aktif, k.sistem_yoneticisi, k.son_giris_tarihi, k.oturum_surumu,
                     k.kurum_id, ku.ad AS kurum_adi, ku.kod AS kurum_kodu,
-                    r.id AS rol_id, r.kod AS rol_kodu, r.ad AS rol_adi
+                    r.id AS rol_id, r.kod AS rol_kodu, r.ad AS rol_adi, k.mfa_enabled,
+                    (SELECT GROUP_CONCAT(ry.yetki ORDER BY ry.yetki SEPARATOR ",")
+                     FROM rol_yetkileri ry
+                     WHERE ry.rol_id = k.rol_id) AS rol_yetkiler,
+                    (SELECT GROUP_CONCAT(keyt.yetki ORDER BY keyt.yetki SEPARATOR ",")
+                     FROM kullanici_ek_yetkileri keyt
+                     WHERE keyt.kullanici_id = k.id AND keyt.kurum_id = k.kurum_id) AS ek_yetkiler
              FROM kullanicilar k
              INNER JOIN kurumlar ku ON ku.id = k.kurum_id
              INNER JOIN roller r ON r.id = k.rol_id
@@ -21,16 +28,32 @@ final class Kullanici extends Model
              ORDER BY k.aktif DESC, k.ad ASC, k.soyad ASC'
         );
         $stmt->execute(['kurum_id' => self::kurumId()]);
-        return $stmt->fetchAll();
+        return array_map(static function (array $kullanici): array {
+            $kullanici['rol_yetkiler'] = !empty($kullanici['rol_yetkiler'])
+                ? explode(',', (string) $kullanici['rol_yetkiler'])
+                : [];
+            $kullanici['ek_yetkiler'] = !empty($kullanici['ek_yetkiler'])
+                ? explode(',', (string) $kullanici['ek_yetkiler'])
+                : [];
+            return $kullanici;
+        }, $stmt->fetchAll());
     }
 
     public static function roller(): array
     {
-        return self::db()->query(
-            'SELECT id, kod, ad
-             FROM roller
+        $roller = self::db()->query(
+            'SELECT r.id, r.kod, r.ad,
+                    GROUP_CONCAT(ry.yetki ORDER BY ry.yetki SEPARATOR ",") AS yetkiler
+             FROM roller r
+             LEFT JOIN rol_yetkileri ry ON ry.rol_id = r.id
+             GROUP BY r.id
              ORDER BY FIELD(kod, "kurucu", "yonetici", "resepsiyon", "ogretmen", "muhasebe"), ad ASC'
         )->fetchAll();
+
+        return array_map(static function (array $rol): array {
+            $rol['yetkiler'] = $rol['yetkiler'] ? explode(',', (string) $rol['yetkiler']) : [];
+            return $rol;
+        }, $roller);
     }
 
     public static function rollerDetayli(): array
@@ -69,6 +92,7 @@ final class Kullanici extends Model
             ['kod' => 'rapor_ozet', 'ad' => 'Raporlar ve finans analizleri', 'grup' => 'Rapor', 'kategori' => 'menu', 'bolum' => 'Finans', 'aciklama' => 'Raporlar ve gelir gider analiz sayfalarini gorur.'],
             ['kod' => 'paket_ekle', 'ad' => 'Paket ekle, duzenle', 'grup' => 'Hizmet', 'kategori' => 'islem', 'bolum' => 'Finans', 'aciklama' => 'Paket olusturma ve paket bilgilerini duzenleme yetkisi.'],
             ['kod' => 'odeme_ekle', 'ad' => 'Tahsilat, gider ve kasa islemleri', 'grup' => 'Finans', 'kategori' => 'islem', 'bolum' => 'Finans', 'aciklama' => 'Tahsilat yapma, gider ekleme ve kasa hareketleri olusturma.'],
+            ['kod' => 'fatura_entegrasyon_yonet', 'ad' => 'Fatura entegrasyon ayarlarini yonet', 'grup' => 'Finans', 'kategori' => 'islem', 'bolum' => 'Finans', 'aciklama' => 'NES API, firma ve belge serisi ayarlarini degistirebilir.'],
 
             ['kod' => 'yoklama_listele', 'ad' => 'Günlük kayıtlar / yoklama görüntüleme', 'grup' => 'Öğrenci', 'kategori' => 'menu', 'bolum' => 'Öğrenci İşlemleri', 'aciklama' => 'Günlük kayıt ve yoklama liste ekranlarını görebilir.'],
 
@@ -81,6 +105,8 @@ final class Kullanici extends Model
             ['kod' => 'sms_ayar_yonet', 'ad' => 'SMS ayarlarina erisim', 'grup' => 'SMS', 'kategori' => 'islem', 'bolum' => 'SMS', 'aciklama' => 'NetGSM ayarlari ve otomasyon ayarlari uzerinde degisiklik yapabilir.'],
 
             ['kod' => 'kullanici_yonet', 'ad' => 'Yonetim menusu ve kullanici yetkileri', 'grup' => 'Yonetim', 'kategori' => 'menu', 'bolum' => 'Yonetim', 'aciklama' => 'Kullanicilar, roller ve yetki tanim ekranlarina erisim verir.'],
+            ['kod' => 'personel_listele', 'ad' => 'Personel ve puantaj ekranini goruntule', 'grup' => 'Personel', 'kategori' => 'menu', 'bolum' => 'Yonetim', 'aciklama' => 'Personel listesi, gunluk giris cikis ve aylik puantaj raporlarini gorebilir.'],
+            ['kod' => 'personel_yonet', 'ad' => 'Personel ve puantaj kayitlarini yonet', 'grup' => 'Personel', 'kategori' => 'islem', 'bolum' => 'Yonetim', 'aciklama' => 'Personel karti, gunluk giris cikis ve puantaj durumlarini duzenleyebilir.'],
         ];
     }
 
@@ -110,6 +136,50 @@ final class Kullanici extends Model
             }
             $db->commit();
             return $rolId;
+        } catch (\Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    public static function ekYetkileriKaydet(int $kullaniciId, array $yetkiler): void
+    {
+        $gecerliKodlar = array_column(self::yetkiSecenekleri(), 'kod');
+        $yetkiler = array_values(array_unique(array_intersect(
+            $gecerliKodlar,
+            array_map('strval', $yetkiler)
+        )));
+
+        $kontrol = self::db()->prepare(
+            'SELECT 1 FROM kullanicilar WHERE id = :id AND kurum_id = :kurum_id LIMIT 1'
+        );
+        $kontrol->execute(['id' => $kullaniciId, 'kurum_id' => self::kurumId()]);
+        if (!$kontrol->fetchColumn()) {
+            throw new \RuntimeException('Kullanıcı bulunamadı.');
+        }
+
+        $db = self::db();
+        $db->beginTransaction();
+        try {
+            $sil = $db->prepare(
+                'DELETE FROM kullanici_ek_yetkileri WHERE kullanici_id = :kullanici_id AND kurum_id = :kurum_id'
+            );
+            $sil->execute(['kullanici_id' => $kullaniciId, 'kurum_id' => self::kurumId()]);
+
+            $ekle = $db->prepare(
+                'INSERT INTO kullanici_ek_yetkileri (kurum_id, kullanici_id, yetki)
+                 VALUES (:kurum_id, :kullanici_id, :yetki)'
+            );
+            foreach ($yetkiler as $yetki) {
+                $ekle->execute([
+                    'kurum_id' => self::kurumId(),
+                    'kullanici_id' => $kullaniciId,
+                    'yetki' => $yetki,
+                ]);
+            }
+            $db->commit();
         } catch (\Throwable $e) {
             if ($db->inTransaction()) {
                 $db->rollBack();
@@ -153,6 +223,7 @@ final class Kullanici extends Model
             'eposta = :eposta',
             'telefon = :telefon',
             'aktif = :aktif',
+            'oturum_surumu = oturum_surumu + 1',
         ];
         $params = [
             'id' => $id,
@@ -174,6 +245,19 @@ final class Kullanici extends Model
         return $stmt->rowCount() > 0;
     }
 
+    public static function oturumSurumu(int $id): ?int
+    {
+        $stmt = self::db()->prepare(
+            'SELECT oturum_surumu
+             FROM kullanicilar
+             WHERE id = :id AND kurum_id = :kurum_id AND aktif = 1
+             LIMIT 1'
+        );
+        $stmt->execute(['id' => $id, 'kurum_id' => self::kurumId()]);
+        $surum = $stmt->fetchColumn();
+        return $surum === false ? null : (int) $surum;
+    }
+
     public static function epostaVarMi(string $eposta, int $haricId = 0): bool
     {
         $stmt = self::db()->prepare(
@@ -190,10 +274,43 @@ final class Kullanici extends Model
         return (bool) $stmt->fetchColumn();
     }
 
+    public static function rolKodu(int $rolId): ?string
+    {
+        $stmt = self::db()->prepare('SELECT kod FROM roller WHERE id = :id LIMIT 1');
+        $stmt->execute(['id' => $rolId]);
+        $kod = $stmt->fetchColumn();
+        return $kod === false ? null : (string) $kod;
+    }
+
+    public static function yonetimIcinBul(int $id): ?array
+    {
+        $stmt = self::db()->prepare(
+            'SELECT k.id, k.aktif, k.rol_id, r.kod AS rol_kodu
+             FROM kullanicilar k
+             INNER JOIN roller r ON r.id = k.rol_id
+             WHERE k.id = :id AND k.kurum_id = :kurum_id LIMIT 1'
+        );
+        $stmt->execute(['id' => $id, 'kurum_id' => self::kurumId()]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
+    public static function aktifKurucuSayisi(): int
+    {
+        $stmt = self::db()->prepare(
+            'SELECT COUNT(*) FROM kullanicilar k
+             INNER JOIN roller r ON r.id = k.rol_id
+             WHERE k.kurum_id = :kurum_id AND k.aktif = 1 AND r.kod = "kurucu"'
+        );
+        $stmt->execute(self::kurumParam());
+        return (int) $stmt->fetchColumn();
+    }
+
     public static function epostaIleBul(string $eposta, string $kurumKodu = 'TALYA'): ?array
     {
         $stmt = self::db()->prepare(
-            'SELECT k.*, ku.ad AS kurum_adi, ku.kod AS kurum_kodu, r.kod AS rol_kodu, r.ad AS rol_adi
+            'SELECT k.*, ku.ad AS kurum_adi, ku.kod AS kurum_kodu, ku.logo_yolu AS kurum_logo_yolu,
+                    r.kod AS rol_kodu, r.ad AS rol_adi
              FROM kullanicilar k
              INNER JOIN kurumlar ku ON ku.id = k.kurum_id
              INNER JOIN roller r ON r.id = k.rol_id
@@ -214,8 +331,8 @@ final class Kullanici extends Model
     public static function idIleBul(int $id): ?array
     {
         $stmt = self::db()->prepare(
-            'SELECT k.id, k.kurum_id, k.ad, k.soyad, k.eposta, k.telefon, k.aktif, k.sistem_yoneticisi,
-                    ku.ad AS kurum_adi, ku.kod AS kurum_kodu,
+            'SELECT k.id, k.kurum_id, k.ad, k.soyad, k.eposta, k.telefon, k.aktif, k.sistem_yoneticisi, k.mfa_enabled, k.oturum_surumu,
+                    ku.ad AS kurum_adi, ku.kod AS kurum_kodu, ku.logo_yolu AS kurum_logo_yolu,
                     r.kod AS rol_kodu, r.ad AS rol_adi
              FROM kullanicilar k
              INNER JOIN kurumlar ku ON ku.id = k.kurum_id
@@ -234,5 +351,77 @@ final class Kullanici extends Model
             'UPDATE kullanicilar SET son_giris_tarihi = NOW() WHERE id = :id AND kurum_id = :kurum_id'
         );
         $stmt->execute(['id' => $id, 'kurum_id' => self::kurumId()]);
+    }
+
+    public static function sifreHashGuncelle(int $id, string $hash): void
+    {
+        $stmt = self::db()->prepare('UPDATE kullanicilar SET sifre = :sifre WHERE id = :id');
+        $stmt->execute(['id' => $id, 'sifre' => $hash]);
+    }
+
+    public static function mfaIcinBul(int $id): ?array
+    {
+        $stmt = self::db()->prepare(
+            'SELECT k.*, ku.ad AS kurum_adi, ku.kod AS kurum_kodu, ku.logo_yolu AS kurum_logo_yolu,
+                    r.kod AS rol_kodu, r.ad AS rol_adi
+             FROM kullanicilar k
+             INNER JOIN kurumlar ku ON ku.id = k.kurum_id AND ku.aktif = 1
+             INNER JOIN roller r ON r.id = k.rol_id
+             WHERE k.id = :id AND k.aktif = 1 LIMIT 1'
+        );
+        $stmt->execute(['id' => $id]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
+    public static function mfaEtkinlestir(int $id, string $secretSifreli, string $kurtarmaKodlariSifreli): void
+    {
+        $stmt = self::db()->prepare(
+            'UPDATE kullanicilar
+             SET mfa_enabled = 1, mfa_secret_sifreli = :secret, mfa_kurtarma_kodlari_sifreli = :kodlar
+             WHERE id = :id AND kurum_id = :kurum_id'
+        );
+        $stmt->execute(['id' => $id, 'kurum_id' => self::kurumId(), 'secret' => $secretSifreli, 'kodlar' => $kurtarmaKodlariSifreli]);
+    }
+
+    public static function mfaKurtarmaKoduKullan(int $id, string $kod): bool
+    {
+        $db = self::db();
+        $db->beginTransaction();
+        try {
+            $stmt = $db->prepare('SELECT mfa_kurtarma_kodlari_sifreli FROM kullanicilar WHERE id = :id FOR UPDATE');
+            $stmt->execute(['id' => $id]);
+            $encrypted = (string) ($stmt->fetchColumn() ?: '');
+            if ($encrypted === '') {
+                $db->commit();
+                return false;
+            }
+            $hashler = json_decode(SecretBox::decrypt($encrypted), true);
+            if (!is_array($hashler)) {
+                $db->commit();
+                return false;
+            }
+            $bulunan = null;
+            foreach ($hashler as $index => $hash) {
+                if (is_string($hash) && password_verify($kod, $hash)) {
+                    $bulunan = $index;
+                    break;
+                }
+            }
+            if ($bulunan === null) {
+                $db->commit();
+                return false;
+            }
+            unset($hashler[$bulunan]);
+            $update = $db->prepare('UPDATE kullanicilar SET mfa_kurtarma_kodlari_sifreli = :kodlar WHERE id = :id');
+            $update->execute(['id' => $id, 'kodlar' => SecretBox::encrypt(json_encode(array_values($hashler), JSON_THROW_ON_ERROR))]);
+            $db->commit();
+            return true;
+        } catch (\Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
     }
 }

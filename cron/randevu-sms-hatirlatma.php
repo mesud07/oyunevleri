@@ -8,6 +8,8 @@ if (PHP_SAPI !== 'cli') {
 
 require dirname(__DIR__) . '/bootstrap.php';
 
+use App\Core\Session;
+use App\Models\Kurum;
 use App\Services\SmsServisi;
 
 $lockPath = BASE_PATH . '/storage/randevu-sms-hatirlatma.lock';
@@ -17,12 +19,20 @@ if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) {
     exit(0);
 }
 
-$servis = new SmsServisi();
-$adet = $servis->randevuHatirlatmalariOlustur();
-$dogumGunuAdet = $servis->dogumGunuMesajlariOlustur();
 $limit = max(1, (int) ($argv[1] ?? 100));
-$sonuc = $servis->kuyrukIsle($limit);
-
-echo "Kuyruga eklenen randevu hatirlatmasi: {$adet}\n";
-echo "Kuyruga eklenen dogum gunu mesaji: {$dogumGunuAdet}\n";
-echo 'SMS kuyruk sonucu: ' . json_encode($sonuc, JSON_UNESCAPED_UNICODE) . PHP_EOL;
+$sonuclar = [];
+foreach (Kurum::aktifIdler() as $kurumId) {
+    Session::set('kurum_id', $kurumId);
+    try {
+        $servis = new SmsServisi();
+        $sonuclar[] = [
+            'kurum_id' => $kurumId,
+            'randevu_hatirlatmasi' => $servis->randevuHatirlatmalariOlustur(),
+            'dogum_gunu_mesaji' => $servis->dogumGunuMesajlariOlustur(),
+            'kuyruk' => $servis->kuyrukIsle($limit),
+        ];
+    } catch (Throwable $e) {
+        $sonuclar[] = ['kurum_id' => $kurumId, 'hata' => $e->getMessage()];
+    }
+}
+echo json_encode($sonuclar, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . PHP_EOL;

@@ -1,16 +1,24 @@
 services:
   db:
-    image: mysql:8.0
+    image: mysql:8.0.43
     container_name: talya_db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_pass}
-      MYSQL_DATABASE: ${DB_DATABASE:-talya_db}
-      MYSQL_USER: ${DB_USERNAME:-talya_user}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-talya_pass}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+      MYSQL_DATABASE: ${DB_DATABASE:?DB_DATABASE is required}
+      MYSQL_USER: ${DB_USERNAME:?DB_USERNAME is required}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     volumes:
       - talya_db_data:/var/lib/mysql
       - ./database/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
@@ -22,13 +30,72 @@ services:
     container_name: talya_app
     restart: unless-stopped
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
       - "127.0.0.1:8080:80"
     env_file:
       - .env
     volumes:
-      - ./:/var/www/html
+      - talya_storage:/var/www/html/storage
+      - talya_uploads:/var/www/html/public/uploads
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+      - /var/run/apache2:rw,noexec,nosuid,size=8m
+      - /var/lock/apache2:rw,noexec,nosuid,size=8m
+    healthcheck:
+      test: ["CMD", "php", "-r", "$$c=@file_get_contents('http://127.0.0.1/giris'); exit($$c===false?1:0);"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    command:
+      - sh
+      - -c
+      - |
+        while true; do
+          php /var/www/html/cron/sms-otomasyon.php 100
+          if [ -n "$${BACKUP_ENCRYPTION_KEY:-}" ]; then
+            /bin/sh /var/www/html/bin/daily-backup.sh --if-due
+          fi
+          sleep 60
+        done
+    volumes:
+      - talya_storage:/var/www/html/storage
+      - talya_uploads:/var/www/html/public/uploads:ro
+      - talya_backups:/var/backups/talya
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
 
 volumes:
   talya_db_data:
+  talya_storage:
+  talya_uploads:
+  talya_backups:

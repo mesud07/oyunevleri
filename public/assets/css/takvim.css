@@ -579,6 +579,9 @@
   padding: 22px;
   background: #fff;
 }
+.appointment-dialog-form [hidden] {
+  display: none !important;
+}
 .dialog-head {
   display: flex;
   justify-content: space-between;

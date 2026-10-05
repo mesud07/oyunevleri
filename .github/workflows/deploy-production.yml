@@ -8,10 +8,53 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  security:
+    name: Security gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_mysql, curl, openssl, zip, mbstring, dom
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Validate PHP and Composer
+        run: |
+          composer validate --strict --no-check-publish
+          find app config public cron bin resources/views -name '*.php' -print0 | xargs -0 -n1 php -l
+          composer test
+
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Filesystem vulnerability scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
   deploy:
     name: Deploy to app.oyunevleri.com
+    needs: security
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    environment: production
 
     steps:
       - name: Checkout
@@ -21,11 +64,11 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: pdo_mysql, dom
+          extensions: pdo_mysql, curl, openssl, zip, mbstring, dom
           coverage: none
 
       - name: Install production dependencies
-        run: composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+        run: composer install --no-dev --no-interaction --no-progress --prefer-dist --optimize-autoloader
 
       - name: Guard secret files
         run: |
@@ -60,14 +103,21 @@ jobs:
             **/.git*
             **/.git*/**
             **/.github/**
+            **/.dockerignore
             **/.env
             **/.env.*
+            **/Dockerfile
+            **/compose*.yml
+            **/compose*.yaml
+            **/docs/**
+            **/output/**
+            **/tmp/**
+            **/swagger.json
+            **/info.md
+            **/cron/nes-test-faturasi.php
+            **/cron/nes-ornek-ogrenci-faturasi.php
             **/.DS_Store
-            **/storage/*.lock
-            **/storage/logs/**
-            **/storage/cache/**
-            **/storage/sessions/**
-            **/storage/uploads/**
+            **/storage/**
             **/*.sql
             **/*.dump
             **/*.bak

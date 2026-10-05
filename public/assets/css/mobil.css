@@ -85,15 +85,6 @@
   .sidebar-collapsed .menu button::before {
     content: none;
   }
-  .sidebar-collapsed .menu-icon {
-    width: 20px;
-    height: 20px;
-    flex-basis: 20px;
-    margin-right: 10px;
-  }
-  .sidebar-collapsed .menu-label {
-    display: inline;
-  }
   .sidebar-collapsed .menu-group > button::after {
     display: block;
   }
@@ -133,28 +124,34 @@
   .renewal-calendar-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .appointment-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .appointment-toolbar { flex-direction: column; }
+  .appointment-dialog.waiting-parent-edit-dialog { width: calc(100vw - 20px); }
   .appointment-toolbar-actions { justify-content: flex-start; }
   .report-section-head { flex-direction: column; }
   .capacity-week-filter { justify-content: flex-start; width: 100%; }
   .record-grid { grid-template-columns: 1fr; }
   .record-titlebar { align-items: flex-start; flex-direction: column; padding: 16px; }
   .page-head { align-items: flex-start; flex-direction: column; }
-  .student-profile-hero { grid-template-columns: 72px minmax(0, 1fr); align-items: center; }
-  .student-profile-hero .student-avatar { width: 68px; height: 68px; font-size: 28px; }
-  .student-profile-hero h1 { font-size: 26px; white-space: normal; overflow-wrap: normal; word-break: normal; }
-  .student-profile-hero > .appointment-toolbar-actions { grid-column: 1 / -1; width: 100%; }
-  .student-profile-meta { flex-wrap: wrap; }
+  .student-profile-hero { grid-template-columns: 1fr; }
+  .student-special-note { align-items: flex-start; flex-wrap: wrap; }
+  .student-special-note-form { width: 100%; }
+  .student-special-note-message { display: none; }
+  .special-notes-summary { grid-template-columns: 1fr 1fr; }
+  .special-notes-filters { align-items: stretch; flex-direction: column; }
+  .special-notes-filters label,
+  .special-notes-filters label:nth-child(2) { min-width: 0; width: 100%; }
+  .special-note-card { grid-template-columns: 1fr; gap: 12px; }
+  .special-note-card .btn { justify-self: start; }
   .profile-grid { grid-template-columns: 1fr; }
+  .finance-overview-grid { grid-template-columns: 1fr; }
+  .finance-heading { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .finance-action-grid { grid-template-columns: 1fr; }
+  .finance-metric { align-items: flex-start; flex-direction: column; gap: 6px; }
+  .finance-balance-note { align-items: flex-start; flex-direction: column; gap: 5px; }
 }
 
 @media (max-width: 560px) {
+  .birthday-dialog-list li { grid-template-columns: 1fr; gap: 4px; }
   .main { padding: 16px; }
-  .student-profile-hero { gap: 12px; padding: 16px; }
-  .student-profile-hero h1 { margin-bottom: 3px; font-size: 22px; }
-  .student-profile-hero p { font-size: 14px; }
-  .student-profile-meta { gap: 6px; margin-top: 8px; }
-  .student-profile-meta span { min-height: 27px; padding: 5px 9px; font-size: 12px; }
-  .student-profile-hero > .appointment-toolbar-actions .btn { flex: 1 1 auto; }
   .capacity-week-filter .btn,
   .capacity-week-filter label,
   .capacity-week-filter input { width: 100%; }
@@ -174,6 +171,13 @@
     width: 36px;
     height: 36px;
     border-radius: 10px;
+  }
+  .brand-mark.has-institution-logo,
+  .sidebar-collapsed .brand-mark.has-institution-logo {
+    width: 46px;
+    height: 46px;
+    padding: 4px;
+    border-radius: 13px;
   }
   .menu a {
     padding: 9px 10px;
@@ -208,4 +212,14 @@
   .expense-chart-row-head { align-items: flex-start; flex-direction: column; gap: 4px; }
   .textarea-row small { grid-column: 1; }
   .record-actions { align-items: stretch; flex-direction: column; }
+}
+
+@media (max-width: 760px) {
+  .consent-form-grid { grid-template-columns: 1fr; }
+  .consent-question { grid-template-columns: 1fr; }
+  .consent-form-grid label.full { grid-column: auto; }
+  .consent-public-form { padding: 20px 16px; }
+  .consent-admin-grid { grid-template-columns: 1fr; }
+  .consent-share-card { grid-template-columns: 1fr; }
+  .consent-qr { width: min(230px, 100%); }
 }

@@ -14,8 +14,12 @@ $smsReminderSettings = $smsReminderSettings ?? [
     'appointment_reminder_enabled' => $smsConfig['appointment_reminder_enabled'] ?? true,
     'appointment_reminder_days_before' => $smsConfig['appointment_reminder_days_before'] ?? 1,
     'appointment_reminder_time' => $smsConfig['appointment_reminder_time'] ?? '14:00',
+    'birthday_message_enabled' => $smsConfig['birthday_message_enabled'] ?? true,
+    'birthday_message_time' => $smsConfig['birthday_message_time'] ?? '09:00',
 ];
 $smsConnectionStatus = $smsConnectionStatus ?? [];
+$smsAutomationStatus = $smsAutomationStatus ?? [];
+$smsOgrencileri = $smsOgrencileri ?? [];
 ?>
 
 <section class="definition-card sms-page" data-sms-page>
@@ -79,6 +83,7 @@ $smsConnectionStatus = $smsConnectionStatus ?? [];
                         <input type="checkbox" name="sms_test_mode" value="1" <?= !empty($smsConfig['test_mode']) ? 'checked' : '' ?>>
                     </label>
                 </div>
+                <div class="info-box" data-sms-service-change-warning hidden></div>
 
                 <div class="sms-settings-grid">
                     <label class="sms-field">
@@ -97,7 +102,7 @@ $smsConnectionStatus = $smsConnectionStatus ?? [];
                                 </div>
                             </details>
                         </span>
-                        <input type="password" name="sms_netgsm_password" value="<?= e((string) ($smsConfig['netgsm']['password'] ?? '')) ?>" autocomplete="new-password">
+                        <input type="password" name="sms_netgsm_password" value="" autocomplete="new-password" placeholder="<?= !empty($smsConfig['netgsm']['password']) ? 'Kayıtlı şifreyi korumak için boş bırakın' : 'NetGSM API şifresini girin' ?>">
                     </label>
                     <label class="sms-field">
                         <span>Onayli Gonderici Basligi</span>
@@ -175,8 +180,19 @@ $smsConnectionStatus = $smsConnectionStatus ?? [];
         <article class="form-card sms-section-card sms-reminder-settings">
             <div class="sms-section-head">
                 <div>
-                    <h2>Randevu Hatirlatma Ayarlari</h2>
-                    <p>Hatirlatma cron'u calistiginda bu ayarlara gore SMS kuyrugu olusturulur.</p>
+                    <h2>Otomatik SMS Ayarlari</h2>
+                    <p>Zamanlayici calistiginda randevu ve dogum gunu mesajlari bu ayarlara gore olusturulur.</p>
+                </div>
+            </div>
+            <div class="info-box sms-connection-status">
+                <div class="sms-status-icon"><?= ($smsAutomationStatus['durum'] ?? '') === 'basarili' ? '✓' : '!' ?></div>
+                <div class="sms-status-content">
+                    <strong>Otomatik Gonderim Zamanlayicisi</strong>
+                    <?php if (!empty($smsAutomationStatus['son_calisma'])) : ?>
+                        <p>Son calisma: <?= e($smsAutomationStatus['son_calisma']) ?> · Durum: <?= e($smsAutomationStatus['durum'] ?: '-') ?> · Kaynak: <?= e($smsAutomationStatus['kaynak'] ?: '-') ?></p>
+                    <?php else : ?>
+                        <p>Zamanlayici henuz calisma kaydi olusturmadi. Sunucu cron ayarini kontrol edin.</p>
+                    <?php endif; ?>
                 </div>
             </div>
             <form class="sms-reminder-form" data-sms-reminder-form>
@@ -201,8 +217,19 @@ $smsConnectionStatus = $smsConnectionStatus ?? [];
                     <span>Gonderim saati</span>
                     <input type="time" name="appointment_reminder_time" value="<?= e((string) ($smsReminderSettings['appointment_reminder_time'] ?? '14:00')) ?>">
                 </label>
+                <label class="sms-switch-card">
+                    <div>
+                        <strong>Dogum gunu SMS'leri aktif</strong>
+                        <small>Aktif ogrencilerin dogum gununde birincil velisine otomatik kutlama mesaji gonderilir.</small>
+                    </div>
+                    <input type="checkbox" name="birthday_message_enabled" value="1" <?= !empty($smsReminderSettings['birthday_message_enabled']) ? 'checked' : '' ?>>
+                </label>
+                <label class="sms-field">
+                    <span>Dogum gunu mesaji saati</span>
+                    <input type="time" name="birthday_message_time" value="<?= e((string) ($smsReminderSettings['birthday_message_time'] ?? '09:00')) ?>">
+                </label>
                 <div class="sms-form-footer">
-                    <small data-sms-reminder-message>Ornek: 1 gun once / 14:00 ayari, yarinki randevulari bugun 14:00'ten sonra kuyruga alir.</small>
+                    <small data-sms-reminder-message>Randevu hatirlatmalari ve dogum gunu kutlamalari zamanlayici tarafindan otomatik gonderilir.</small>
                     <button class="btn btn-primary" type="submit">Ayarlari Kaydet</button>
                 </div>
             </form>
@@ -233,7 +260,36 @@ $smsConnectionStatus = $smsConnectionStatus ?? [];
         <article class="form-card">
             <h2>Toplu SMS</h2>
             <form class="form-grid compact-form" data-sms-bulk-form>
-                <label class="full"><span>Telefonlar</span><textarea name="telefonlar" rows="5" placeholder="Her satira bir numara veya virgul ile ayirin" required></textarea></label>
+                <div class="full sms-student-picker" data-sms-student-picker>
+                    <div class="sms-student-picker-head">
+                        <div>
+                            <strong>Mevcut Ogrencilerden Sec</strong>
+                            <small>SMS, secilen ogrencinin birincil velisine gonderilir.</small>
+                        </div>
+                        <div class="sms-student-picker-actions">
+                            <button class="mini-btn" type="button" data-sms-students-select-visible>Gorunenleri Sec</button>
+                            <button class="mini-btn" type="button" data-sms-students-clear>Temizle</button>
+                        </div>
+                    </div>
+                    <input class="search-input" type="search" placeholder="Ogrenci veya veli ara" data-sms-student-search>
+                    <div class="sms-student-list" data-sms-student-list>
+                        <?php foreach ($smsOgrencileri as $ogrenci) :
+                            $telefon = trim((string) ($ogrenci['telefon'] ?? ''));
+                            $aranabilir = mb_strtolower(trim((string) (($ogrenci['ad_soyad'] ?? '') . ' ' . ($ogrenci['veli_adi'] ?? '') . ' ' . $telefon)));
+                        ?>
+                            <label class="sms-student-option <?= $telefon === '' ? 'is-disabled' : '' ?>" data-sms-student-option data-search="<?= e($aranabilir) ?>">
+                                <input type="checkbox" name="ogrenci_idleri[]" value="<?= (int) $ogrenci['id'] ?>" <?= $telefon === '' ? 'disabled' : '' ?>>
+                                <span>
+                                    <strong><?= e($ogrenci['ad_soyad'] ?? '-') ?></strong>
+                                    <small><?= e($ogrenci['veli_adi'] ?? 'Veli') ?> · <?= e($telefon !== '' ? $telefon : 'Telefon bulunamadi') ?></small>
+                                </span>
+                                <em><?= e($ogrenci['durum'] ?? '-') ?></em>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                    <small data-sms-student-count>0 ogrenci secildi</small>
+                </div>
+                <label class="full"><span>Ek Telefonlar (istege bagli)</span><textarea name="telefonlar" rows="3" placeholder="Listede olmayan numaralari her satira bir tane veya virgul ile girin"></textarea></label>
                 <label class="full"><span>Mesaj</span><textarea name="mesaj" rows="5" required></textarea></label>
                 <div class="form-actions full">
                     <small data-sms-bulk-counter>0 karakter / 0 parca</small>

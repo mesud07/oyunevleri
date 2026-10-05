@@ -13,6 +13,12 @@
   const newButton = document.querySelector('[data-institution-new]');
   const founderFields = form.querySelector('[data-institution-founder-fields]');
   const founderInputs = Array.from(founderFields?.querySelectorAll('input') || []);
+  const founderStatus = form.querySelector('[data-institution-founder-status]');
+  const founderDescription = form.querySelector('[data-institution-founder-description]');
+  const moduleBoxes = Array.from(form.querySelectorAll('[name="moduller[]"]'));
+  const pageBoxes = Array.from(form.querySelectorAll('[name="sayfalar[]"]'));
+  const modulesToggle = form.querySelector('[data-institution-modules-toggle]');
+  const managerStatus = form.querySelector('[data-institution-manager-status]');
   const logoSection = form.querySelector('[data-institution-logo-section]');
   const logoPreview = form.querySelector('[data-institution-logo-preview]');
   const logoInput = form.querySelector('[data-institution-logo-input]');
@@ -24,6 +30,20 @@
   const portalOpen = form.querySelector('[data-institution-portal-open]');
   const portalMessage = form.querySelector('[data-institution-portal-message]');
   let rows = [];
+
+  function syncModulePages(moduleBox) {
+    const card = moduleBox.closest('[data-institution-module]');
+    Array.from(card?.querySelectorAll('[data-institution-page-option]') || []).forEach((box) => {
+      box.disabled = !moduleBox.checked;
+    });
+  }
+
+  function syncModuleControls() {
+    moduleBoxes.forEach(syncModulePages);
+    if (modulesToggle) {
+      modulesToggle.textContent = moduleBoxes.every((box) => box.checked) ? 'Tümünü Kaldır' : 'Tümünü Seç';
+    }
+  }
 
   function openDialog() {
     if (typeof dialog.showModal === 'function') {
@@ -47,6 +67,27 @@
     form.elements.ad.value = row?.ad || '';
     form.elements.kod.value = row?.kod || '';
     form.elements.aktif.value = String(row?.aktif ?? 0);
+    moduleBoxes.forEach((box) => {
+      box.checked = row ? row.moduller?.[box.value] !== false : true;
+    });
+    pageBoxes.forEach((box) => {
+      box.checked = row ? row.sayfalar?.[box.value] !== false : true;
+    });
+    syncModuleControls();
+    form.elements.mudur_ad.value = row?.mudur_ad || '';
+    form.elements.mudur_soyad.value = row?.mudur_soyad || '';
+    form.elements.mudur_eposta.value = row?.mudur_eposta || '';
+    form.elements.mudur_telefon.value = row?.mudur_telefon || '';
+    form.elements.mudur_aktif.value = String(row?.mudur_aktif ?? 1);
+    form.elements.mudur_sifre.value = '';
+    form.elements.mudur_sifre.required = false;
+    form.elements.mudur_sifre.placeholder = row?.mudur_id
+      ? 'Değiştirmeyecekseniz boş bırakın'
+      : 'Yeni hesap için en az 12 karakter';
+    if (managerStatus) {
+      managerStatus.textContent = row?.mudur_id ? (Number(row.mudur_aktif) === 1 ? 'Aktif' : 'Pasif') : 'Tanımlı değil';
+      managerStatus.className = `status-pill ${row?.mudur_id && Number(row.mudur_aktif) === 1 ? 'is-success' : 'is-danger'}`;
+    }
     if (logoSection) {
       logoSection.hidden = !row;
     }
@@ -78,7 +119,24 @@
     }
     const founderRequired = !row || Number(row.kurucu_sayisi || 0) === 0;
     if (founderFields) {
-      founderFields.hidden = !founderRequired;
+      founderFields.hidden = false;
+    }
+    form.elements.kurucu_ad.value = row?.kurucu_ad || '';
+    form.elements.kurucu_soyad.value = row?.kurucu_soyad || '';
+    form.elements.kurucu_eposta.value = row?.kurucu_eposta || '';
+    form.elements.kurucu_telefon.value = row?.kurucu_telefon || '';
+    form.elements.kurucu_sifre.value = '';
+    form.elements.kurucu_sifre.placeholder = founderRequired
+      ? 'Yeni hesap için en az 12 karakter'
+      : 'Şifre güvenlik nedeniyle gösterilmez';
+    if (founderStatus) {
+      founderStatus.textContent = row?.kurucu_id ? (Number(row.kurucu_aktif) === 1 ? 'Aktif' : 'Pasif') : 'Tanımlı değil';
+      founderStatus.className = `status-pill ${row?.kurucu_id && Number(row.kurucu_aktif) === 1 ? 'is-success' : 'is-danger'}`;
+    }
+    if (founderDescription) {
+      founderDescription.textContent = founderRequired
+        ? 'Kurum için tüm panel yetkilerine sahip yeni kurucu hesabını tanımlayın.'
+        : 'Mevcut kurucu hesabı görüntüleniyor. Şifre güvenlik nedeniyle gösterilmez.';
     }
     founderInputs.forEach((input) => {
       input.required = founderRequired && input.name !== 'kurucu_telefon';
@@ -97,7 +155,7 @@
     table.innerHTML = `
       <table>
         <thead>
-            <tr><th>#</th><th>Logo</th><th>Kurum</th><th>Kod</th><th>Veli Portalı</th><th>Kullanici</th><th>Kurucu</th><th>Ogrenci</th><th>Durum</th><th>Islem</th></tr>
+            <tr><th>#</th><th>Logo</th><th>Kurum</th><th>Kod</th><th>Veli Portalı</th><th>Modül</th><th>Kullanici</th><th>Kurucu</th><th>Müdür</th><th>Ogrenci</th><th>Durum</th><th>Islem</th></tr>
         </thead>
         <tbody>
           ${rows.map((row, index) => `
@@ -107,8 +165,10 @@
               <td><strong>${escapeHtml(row.ad || '-')}</strong><br><small>${escapeHtml(row.olusturulma_tarihi || '')}</small></td>
               <td><span class="status-pill">${escapeHtml(row.kod || '-')}</span></td>
               <td>${row.veli_portal_anahtari ? `<button class="mini-btn" type="button" data-institution-portal-copy-row="${escapeHtml(row.id)}">Linki Kopyala</button>` : '-'}</td>
+              <td><span class="status-pill">${Object.values(row.moduller || {}).filter(Boolean).length}/${moduleBoxes.length}</span></td>
               <td>${escapeHtml(row.kullanici_sayisi || 0)}</td>
-              <td><span class="status-pill ${Number(row.kurucu_sayisi) > 0 ? 'is-success' : 'is-danger'}">${Number(row.kurucu_sayisi) > 0 ? 'Var' : 'Yok'}</span></td>
+              <td>${row.kurucu_id ? `<strong>${escapeHtml(`${row.kurucu_ad || ''} ${row.kurucu_soyad || ''}`.trim())}</strong><br><small>${escapeHtml(row.kurucu_eposta || '')}</small><br><span class="status-pill ${Number(row.kurucu_aktif) === 1 ? 'is-success' : 'is-danger'}">${Number(row.kurucu_aktif) === 1 ? 'Aktif' : 'Pasif'}</span>` : '<span class="status-pill is-danger">Yok</span>'}</td>
+              <td>${row.mudur_id ? `<strong>${escapeHtml(`${row.mudur_ad || ''} ${row.mudur_soyad || ''}`.trim())}</strong><br><small>${escapeHtml(row.mudur_eposta || '')}</small>` : '<span class="status-pill is-danger">Yok</span>'}</td>
               <td>${escapeHtml(row.ogrenci_sayisi || 0)}</td>
               <td><span class="status-pill ${Number(row.aktif) === 1 ? 'is-success' : 'is-danger'}">${Number(row.aktif) === 1 ? 'Aktif' : 'Pasif'}</span></td>
               <td><button class="mini-btn" type="button" data-institution-edit="${escapeHtml(row.id)}">Duzenle</button></td>
@@ -130,6 +190,18 @@
     fillForm();
     openDialog();
   });
+
+  modulesToggle?.addEventListener('click', () => {
+    const shouldCheck = !moduleBoxes.every((box) => box.checked);
+    moduleBoxes.forEach((box) => {
+      box.checked = shouldCheck;
+    });
+    syncModuleControls();
+  });
+
+  moduleBoxes.forEach((box) => box.addEventListener('change', () => {
+    syncModuleControls();
+  }));
 
   page.addEventListener('click', (event) => {
     if (event.target.closest('[data-institution-dialog-close]')) {
@@ -234,7 +306,10 @@
     event.preventDefault();
     formMessage.textContent = 'Kaydediliyor...';
     try {
-      const result = await talyaAjax('kurum_kaydet', formValues(form));
+      const values = formValues(form);
+      values.moduller = moduleBoxes.filter((box) => box.checked).map((box) => box.value);
+      values.sayfalar = pageBoxes.filter((box) => box.checked).map((box) => box.value);
+      const result = await talyaAjax('kurum_kaydet', values);
       message.textContent = result.mesaj;
       closeDialog();
       await load();

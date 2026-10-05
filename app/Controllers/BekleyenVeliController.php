@@ -10,6 +10,7 @@ use App\Core\Csrf;
 use App\Core\Response;
 use App\Core\Validator;
 use App\Models\BekleyenVeli;
+use App\Models\Grup;
 
 final class BekleyenVeliController extends Controller
 {
@@ -19,11 +20,17 @@ final class BekleyenVeliController extends Controller
             Response::redirect('/giris');
         }
 
+        $gruplar = array_values(array_filter(
+            Grup::secenekler(),
+            static fn(array $grup): bool => (int) ($grup['aktif'] ?? 0) === 1
+        ));
+
         $this->view('panel/bekleyen-veliler', [
             'baslik' => 'Bekleyen Veliler',
             'aktif' => 'bekleyen-veliler',
             'kullanici' => Auth::user(),
             'csrf' => Csrf::token(),
+            'gruplar' => $gruplar,
         ], 'panel');
     }
 
@@ -60,7 +67,66 @@ final class BekleyenVeliController extends Controller
             'olusturan_kullanici_id' => (int) (Auth::user()['id'] ?? 0),
         ]);
 
+        $grupIdleri = $data['grup_ids'] ?? [];
+        if (is_array($grupIdleri) && $grupIdleri !== []) {
+            BekleyenVeli::gruplariGuncelle($id, $grupIdleri, (int) (Auth::user()['id'] ?? 0));
+        }
+
         Response::json(['basari' => true, 'mesaj' => 'Bekleyen veli kaydi olusturuldu.', 'veri' => ['id' => $id]], 201);
+    }
+
+    public function guncelle(): void
+    {
+        $data = $GLOBALS['talya_ajax_data'] ?? [];
+        $id = (int) ($data['id'] ?? 0);
+        $hatalar = Validator::gerekli($data, ['ogrenci_ad_soyad', 'veli_ad_soyad', 'veli_telefon']);
+        if ($id < 1) $hatalar['id'] = 'Düzenlenecek kayıt seçilmelidir.';
+
+        $dogumTarihi = trim((string) ($data['ogrenci_dogum_tarihi'] ?? ''));
+        if ($dogumTarihi !== '') {
+            $tarih = \DateTimeImmutable::createFromFormat('!Y-m-d', $dogumTarihi);
+            if (!$tarih || $tarih->format('Y-m-d') !== $dogumTarihi || $tarih > new \DateTimeImmutable('today')) {
+                $hatalar['ogrenci_dogum_tarihi'] = 'Doğum tarihi geçersiz.';
+            }
+        }
+        $zamanTercihi = trim((string) ($data['zaman_tercihi'] ?? 'farketmez'));
+        if (!in_array($zamanTercihi, ['hafta_ici', 'hafta_sonu', 'farketmez'], true)) {
+            $hatalar['zaman_tercihi'] = 'Zaman tercihi geçersiz.';
+        }
+        $notlar = trim((string) ($data['notlar'] ?? ''));
+        if (mb_strlen($notlar) > 500) $hatalar['notlar'] = 'Not en fazla 500 karakter olabilir.';
+        $eposta = trim((string) ($data['veli_eposta'] ?? ''));
+        if ($eposta !== '' && !filter_var($eposta, FILTER_VALIDATE_EMAIL)) $hatalar['veli_eposta'] = 'E-posta adresi geçersiz.';
+
+        if ($hatalar) {
+            Response::json(['basari' => false, 'mesaj' => 'Bilgileri kontrol edin.', 'hatalar' => $hatalar], 422);
+            return;
+        }
+
+        $kayit = BekleyenVeli::bul($id);
+        if (!$kayit || in_array((string) $kayit['durum'], ['kayda_donustu', 'iptal'], true)) {
+            Response::json(['basari' => false, 'mesaj' => 'Bu kayıt artık bekleme listesinde düzenlenemez.', 'hatalar' => []], 409);
+            return;
+        }
+
+        $basarili = BekleyenVeli::guncelle($id, [
+            'ogrenci_ad_soyad' => trim((string) $data['ogrenci_ad_soyad']),
+            'ogrenci_dogum_tarihi' => $dogumTarihi,
+            'veli_ad_soyad' => trim((string) $data['veli_ad_soyad']),
+            'veli_telefon' => $this->telefonFormatla((string) $data['veli_telefon']),
+            'veli_eposta' => $eposta,
+            'ay_grubu' => trim((string) ($data['ay_grubu'] ?? '')),
+            'zaman_tercihi' => $zamanTercihi,
+            'notlar' => $notlar,
+        ], (int) (Auth::user()['id'] ?? 0));
+        if (!$basarili) {
+            Response::json(['basari' => false, 'mesaj' => 'Bekleyen veli kaydı güncellenemedi.', 'hatalar' => []], 404);
+            return;
+        }
+
+        $grupIdleri = $data['grup_ids'] ?? [];
+        BekleyenVeli::gruplariGuncelle($id, is_array($grupIdleri) ? $grupIdleri : [], (int) (Auth::user()['id'] ?? 0));
+        Response::json(['basari' => true, 'mesaj' => 'Bekleyen veli ve öğrenci bilgileri güncellendi.', 'veri' => ['id' => $id]]);
     }
 
     public function durumGuncelle(): void
@@ -73,12 +139,85 @@ final class BekleyenVeliController extends Controller
             return;
         }
 
-        if (!BekleyenVeli::durumGuncelle($id, $durum)) {
+        if (!BekleyenVeli::durumGuncelle($id, $durum, (int) (Auth::user()['id'] ?? 0))) {
             Response::json(['basari' => false, 'mesaj' => 'Bekleyen veli kaydi bulunamadi veya durum gecersiz.', 'hatalar' => []], 404);
             return;
         }
 
         Response::json(['basari' => true, 'mesaj' => 'Bekleyen veli durumu guncellendi.', 'veri' => ['id' => $id]]);
+    }
+
+    public function gorusmeler(): void
+    {
+        $data = $GLOBALS['talya_ajax_data'] ?? [];
+        $id = (int) ($data['id'] ?? 0);
+        $veli = $id > 0 ? BekleyenVeli::bul($id) : null;
+        if (!$veli) {
+            Response::json(['basari' => false, 'mesaj' => 'Bekleyen veli kaydı bulunamadı.', 'hatalar' => []], 404);
+            return;
+        }
+        Response::json([
+            'basari' => true,
+            'mesaj' => 'Görüşme tarihçesi listelendi.',
+            'veri' => [
+                'veli' => $veli,
+                'gorusmeler' => BekleyenVeli::gorusmeler($id),
+                'gruplar' => BekleyenVeli::grupSecenekleri($id),
+            ],
+        ]);
+    }
+
+    public function gorusmeEkle(): void
+    {
+        $data = $GLOBALS['talya_ajax_data'] ?? [];
+        $id = (int) ($data['bekleyen_veli_id'] ?? 0);
+        $ozet = trim((string) ($data['ozet'] ?? ''));
+        $kanal = trim((string) ($data['kanal'] ?? 'telefon'));
+        $sonuc = trim((string) ($data['sonuc'] ?? 'bilgi_verildi'));
+        $gorusmeTarihi = trim((string) ($data['gorusme_tarihi'] ?? ''));
+        $takipTarihi = trim((string) ($data['sonraki_takip_tarihi'] ?? ''));
+        $hatalar = [];
+        if ($id < 1) $hatalar['bekleyen_veli_id'] = 'Veli seçilmelidir.';
+        if ($ozet === '') $hatalar['ozet'] = 'Görüşme özeti zorunludur.';
+        if (mb_strlen($ozet) > 2000) $hatalar['ozet'] = 'Görüşme özeti en fazla 2000 karakter olabilir.';
+        if (!in_array($kanal, ['telefon', 'whatsapp', 'yuz_yuze', 'sms', 'diger'], true)) $hatalar['kanal'] = 'Görüşme kanalı geçersiz.';
+        if (!in_array($sonuc, ['bilgi_verildi', 'tekrar_aranacak', 'randevu_planlandi', 'kararsiz', 'ulasilamadi', 'katilmadi', 'olumsuz', 'diger'], true)) $hatalar['sonuc'] = 'Görüşme sonucu geçersiz.';
+        $tarih = \DateTimeImmutable::createFromFormat('!Y-m-d\TH:i', $gorusmeTarihi);
+        if (!$tarih || $tarih->format('Y-m-d\TH:i') !== $gorusmeTarihi) $hatalar['gorusme_tarihi'] = 'Görüşme tarihi geçersiz.';
+        if ($takipTarihi !== '') {
+            $takip = \DateTimeImmutable::createFromFormat('!Y-m-d', $takipTarihi);
+            if (!$takip || $takip->format('Y-m-d') !== $takipTarihi) $hatalar['sonraki_takip_tarihi'] = 'Takip tarihi geçersiz.';
+        }
+        if ($hatalar) {
+            Response::json(['basari' => false, 'mesaj' => 'Görüşme bilgilerini kontrol edin.', 'hatalar' => $hatalar], 422);
+            return;
+        }
+        $gorusmeId = BekleyenVeli::gorusmeEkle($id, [
+            'gorusme_tarihi' => $tarih->format('Y-m-d H:i:s'),
+            'kanal' => $kanal,
+            'ozet' => $ozet,
+            'sonuc' => $sonuc,
+            'sonraki_takip_tarihi' => $takipTarihi,
+            'olusturan_kullanici_id' => (int) (Auth::user()['id'] ?? 0),
+        ]);
+        if ($gorusmeId < 1) {
+            Response::json(['basari' => false, 'mesaj' => 'Bekleyen veli kaydı bulunamadı.', 'hatalar' => []], 404);
+            return;
+        }
+        Response::json(['basari' => true, 'mesaj' => 'Görüşme tarihçeye eklendi.', 'veri' => ['id' => $gorusmeId]]);
+    }
+
+    public function gruplariGuncelle(): void
+    {
+        $data = $GLOBALS['talya_ajax_data'] ?? [];
+        $id = (int) ($data['bekleyen_veli_id'] ?? 0);
+        $grupIdleri = $data['grup_ids'] ?? [];
+        if (!is_array($grupIdleri)) $grupIdleri = [];
+        if ($id < 1 || !BekleyenVeli::gruplariGuncelle($id, $grupIdleri, (int) (Auth::user()['id'] ?? 0))) {
+            Response::json(['basari' => false, 'mesaj' => 'Bekleyen veli kaydı bulunamadı.', 'hatalar' => []], 404);
+            return;
+        }
+        Response::json(['basari' => true, 'mesaj' => 'Beklenen gruplar güncellendi.', 'veri' => ['id' => $id]]);
     }
 
     public function ogrenciyeDonustur(): void
@@ -90,7 +229,7 @@ final class BekleyenVeliController extends Controller
             return;
         }
 
-        $ogrenciId = BekleyenVeli::ogrenciyeDonustur($id);
+        $ogrenciId = BekleyenVeli::ogrenciyeDonustur($id, (int) (Auth::user()['id'] ?? 0));
         if ($ogrenciId < 1) {
             Response::json(['basari' => false, 'mesaj' => 'Bekleyen veli kaydi aktif ogrenciye aktarilamadi.', 'hatalar' => []], 422);
             return;

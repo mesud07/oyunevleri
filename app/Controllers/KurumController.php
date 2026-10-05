@@ -10,6 +10,7 @@ use App\Core\Csrf;
 use App\Core\Response;
 use App\Core\Validator;
 use App\Models\Kurum;
+use App\Services\KurumModuluServisi;
 
 final class KurumController extends Controller
 {
@@ -29,6 +30,7 @@ final class KurumController extends Controller
             'aktif' => 'kurumlar',
             'kullanici' => Auth::user(),
             'csrf' => Csrf::token(),
+            'modulTanimlari' => KurumModuluServisi::TANIMLAR,
         ], 'panel');
     }
 
@@ -79,6 +81,8 @@ final class KurumController extends Controller
             return;
         }
 
+        $mevcutMudur = $id > 0 ? Kurum::mudurIleBul($id) : null;
+
         $kurucuGerekli = $id < 1 || !Kurum::kurucuVarMi($id);
         $kurucu = null;
         if ($kurucuGerekli) {
@@ -106,11 +110,11 @@ final class KurumController extends Controller
                 ], 422);
                 return;
             }
-            if (strlen($kurucuVerisi['sifre']) < 8) {
+            if (strlen($kurucuVerisi['sifre']) < 12 || strlen($kurucuVerisi['sifre']) > 128) {
                 Response::json([
                     'basari' => false,
-                    'mesaj' => 'Kurucu sifresi en az 8 karakter olmalidir.',
-                    'hatalar' => ['kurucu_sifre' => 'Sifre kisa.'],
+                    'mesaj' => 'Kurucu sifresi 12-128 karakter arasında olmalıdır.',
+                    'hatalar' => ['kurucu_sifre' => 'Şifre uzunluğu geçersiz.'],
                 ], 422);
                 return;
             }
@@ -127,12 +131,76 @@ final class KurumController extends Controller
             return;
         }
 
+        $mudurVerisi = [
+            'ad' => trim((string) ($data['mudur_ad'] ?? '')),
+            'soyad' => trim((string) ($data['mudur_soyad'] ?? '')),
+            'eposta' => trim((string) ($data['mudur_eposta'] ?? '')),
+            'telefon' => trim((string) ($data['mudur_telefon'] ?? '')),
+            'sifre' => (string) ($data['mudur_sifre'] ?? ''),
+            'aktif' => (int) ($data['mudur_aktif'] ?? 1) === 1 ? 1 : 0,
+        ];
+        $mudurIstendi = $mevcutMudur !== null
+            || $mudurVerisi['ad'] !== ''
+            || $mudurVerisi['soyad'] !== ''
+            || $mudurVerisi['eposta'] !== ''
+            || $mudurVerisi['telefon'] !== ''
+            || $mudurVerisi['sifre'] !== '';
+        $mudur = null;
+        if ($mudurIstendi) {
+            $mudurHatalari = Validator::gerekli($mudurVerisi, ['ad', 'soyad', 'eposta']);
+            if ($mudurHatalari) {
+                Response::json([
+                    'basari' => false,
+                    'mesaj' => 'Kurum müdürü adı, soyadı ve kullanıcı adı zorunludur.',
+                    'hatalar' => $mudurHatalari,
+                ], 422);
+                return;
+            }
+            if (!preg_match('/^[A-Za-z0-9._@-]{3,190}$/', $mudurVerisi['eposta'])) {
+                Response::json([
+                    'basari' => false,
+                    'mesaj' => 'Geçerli bir kurum müdürü kullanıcı adı veya e-posta yazın.',
+                    'hatalar' => ['mudur_eposta' => 'Geçersiz giriş bilgisi.'],
+                ], 422);
+                return;
+            }
+            if (($mevcutMudur === null && $mudurVerisi['sifre'] === '')
+                || ($mudurVerisi['sifre'] !== '' && (strlen($mudurVerisi['sifre']) < 12 || strlen($mudurVerisi['sifre']) > 128))) {
+                Response::json([
+                    'basari' => false,
+                    'mesaj' => 'Yeni kurum müdürü şifresi 12-128 karakter olmalıdır.',
+                    'hatalar' => ['mudur_sifre' => 'Şifre uzunluğu geçersiz.'],
+                ], 422);
+                return;
+            }
+            $mudur = $mudurVerisi;
+        }
+
+        $modulServisi = new KurumModuluServisi();
+        $aktifModuller = array_key_exists('moduller', $data)
+            ? array_values(array_intersect(
+                array_keys(KurumModuluServisi::TANIMLAR),
+                array_map('strval', is_array($data['moduller']) ? $data['moduller'] : [])
+            ))
+            : ($id > 0
+                ? array_keys(array_filter($modulServisi->kurumIcin($id)))
+                : array_keys(KurumModuluServisi::TANIMLAR));
+        $sayfaTanimlari = KurumModuluServisi::sayfaTanimlari();
+        $aktifSayfalar = array_key_exists('sayfalar', $data)
+            ? array_values(array_intersect(
+                array_keys($sayfaTanimlari),
+                array_map('strval', is_array($data['sayfalar']) ? $data['sayfalar'] : [])
+            ))
+            : ($id > 0
+                ? array_keys(array_filter($modulServisi->sayfalarKurumIcin($id)))
+                : array_keys($sayfaTanimlari));
+
         try {
             $sonuc = Kurum::kurucuIleKaydet($id, [
                 'ad' => trim((string) $data['ad']),
                 'kod' => $kod,
                 'aktif' => $aktif,
-            ], $kurucu);
+            ], $kurucu, $mudur, $aktifModuller, $aktifSayfalar);
         } catch (\Throwable $e) {
             Response::json(['basari' => false, 'mesaj' => $e->getMessage(), 'hatalar' => []], 422);
             return;
@@ -143,7 +211,11 @@ final class KurumController extends Controller
             'mesaj' => $id > 0
                 ? ($kurucu !== null ? 'Kurum guncellendi ve kurucu kullanici olusturuldu.' : 'Kurum guncellendi.')
                 : 'Kurum ve kurucu kullanici olusturuldu.',
-            'veri' => ['id' => $sonuc['kurum_id'], 'kurucu_id' => $sonuc['kurucu_id']],
+            'veri' => [
+                'id' => $sonuc['kurum_id'],
+                'kurucu_id' => $sonuc['kurucu_id'],
+                'mudur_id' => $sonuc['mudur_id'],
+            ],
         ], $id > 0 ? 200 : 201);
     }
 

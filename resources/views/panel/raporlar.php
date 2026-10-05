@@ -28,7 +28,7 @@ $yenilemeBitisi = $yenilemeTarihleri ? $yenilemeTarihleri[array_key_last($yenile
         <h1>Raporlar</h1>
         <p>Finans, paket, randevu ve operasyon ozetleri.</p>
     </div>
-    <button class="btn btn-ghost" type="button" onclick="window.print()">Yazdir</button>
+    <button class="btn btn-ghost" type="button" data-print-page>Yazdir</button>
 </section>
 
 <section class="report-grid report-summary report-summary-six">

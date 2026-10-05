@@ -10,6 +10,7 @@ use App\Core\Csrf;
 use App\Core\Response;
 use App\Core\Validator;
 use App\Models\Grup;
+use App\Models\BekleyenVeli;
 use App\Models\Ogrenci;
 use App\Models\Rapor;
 
@@ -173,6 +174,17 @@ final class GrupController extends Controller
         }
 
         Response::json(['basari' => true, 'mesaj' => 'Grup ogrencileri listelendi.', 'veri' => Grup::grupOgrencileri($grupId)]);
+    }
+
+    public function bekleyenVeliler(): void
+    {
+        $data = $GLOBALS['talya_ajax_data'] ?? [];
+        $grupId = (int) ($data['grup_id'] ?? 0);
+        if ($grupId < 1) {
+            Response::json(['basari' => false, 'mesaj' => 'Grup seçilmelidir.', 'hatalar' => []], 422);
+            return;
+        }
+        Response::json(['basari' => true, 'mesaj' => 'Grubu bekleyen veliler listelendi.', 'veri' => BekleyenVeli::grubaGoreListe($grupId)]);
     }
 
     public function aylikTakip(): void

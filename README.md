@@ -15,10 +15,11 @@ Adresler:
 - Panel: http://localhost:8080/panel
 - phpMyAdmin: http://localhost:8081
 
-Ilk kullanici:
+İlk kullanıcı kurulum şemasında hazır parola ile oluşturulmaz. Kurum kaydını oluşturduktan sonra güvenli kurucu hesabını etkileşimli komutla oluşturun:
 
-- E-posta: `kurucu@talyakids.local`
-- Sifre: `Talya2026!`
+```bash
+php bin/create-admin.php
+```
 
 ## Dogrulama
 
@@ -27,9 +28,9 @@ find app config public resources cron -type f -name '*.php' | sort | xargs -n1 p
 podman exec talya_app php /var/www/html/cron/otomatik-gelmedi.php
 podman exec talya_app php /var/www/html/cron/otomatik-telafi.php
 podman exec talya_app php /var/www/html/cron/geciken-odemeler.php
+podman exec talya_app php /var/www/html/cron/nes-fatura-arsivleme.php
 ```
 
 ## Not
 
 `public/` disindaki uygulama dosyalari Apache tarafindan dogrudan yayinlanmaz. Ortam ayarlari `.env` uzerinden okunur.
-# talyakids

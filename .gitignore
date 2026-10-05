@@ -12,6 +12,9 @@ storage/cache/
 storage/sessions/
 storage/uploads/
 storage/backups/
+storage/faturalar/
+storage/*.ready
+output/pdf/
 
 # Database dumps and backups
 talya_db.sql

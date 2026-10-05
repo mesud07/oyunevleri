@@ -9,19 +9,28 @@ if (PHP_SAPI !== 'cli') {
 
 require dirname(__DIR__) . '/bootstrap.php';
 
+use App\Core\Session;
 use App\Core\Veritabani;
+use App\Models\Ayar;
+use App\Models\Kurum;
 
 $db = Veritabani::baglan();
-$bekleme = (int) ($db->query("SELECT deger FROM ayarlar WHERE anahtar = 'otomatik_gelmedi_bekleme_dakika'")->fetchColumn() ?: 60);
-
 $stmt = $db->prepare(
     "UPDATE randevular
      SET durum = 'gelmedi', otomatik_gelmedi_islendi = 1
-     WHERE durum = 'planlandi'
+     WHERE kurum_id = :kurum_id
+       AND durum = 'planlandi'
        AND otomatik_gelmedi_islendi = 0
        AND TIMESTAMP(tarih, bitis_saati) < (NOW() - INTERVAL :bekleme MINUTE)"
 );
-$stmt->bindValue('bekleme', $bekleme, \PDO::PARAM_INT);
-$stmt->execute();
+$toplam = 0;
+foreach (Kurum::aktifIdler() as $kurumId) {
+    Session::set('kurum_id', $kurumId);
+    $bekleme = max(1, (int) Ayar::deger('otomatik_gelmedi_bekleme_dakika', '60'));
+    $stmt->bindValue('kurum_id', $kurumId, \PDO::PARAM_INT);
+    $stmt->bindValue('bekleme', $bekleme, \PDO::PARAM_INT);
+    $stmt->execute();
+    $toplam += $stmt->rowCount();
+}
 
-echo 'Otomatik gelmedi islenen randevu: ' . $stmt->rowCount() . PHP_EOL;
+echo 'Otomatik gelmedi islenen randevu: ' . $toplam . PHP_EOL;

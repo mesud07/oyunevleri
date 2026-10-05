@@ -16,6 +16,11 @@
   const groupMonth = page.querySelector('[data-group-month]');
   const groupMonthlyList = page.querySelector('[data-group-monthly-list]');
   const studentMessage = page.querySelector('[data-group-student-message]');
+  const waitingDialog = page.querySelector('[data-group-waiting-dialog]');
+  const waitingList = page.querySelector('[data-group-waiting-list]');
+  const waitingTitle = page.querySelector('[data-group-waiting-title]');
+  const waitingMessage = page.querySelector('[data-group-waiting-message]');
+  const canManageWaiting = page.dataset.canManageWaiting === '1';
   const vacancyDialog = page.querySelector('[data-group-vacancy-dialog]');
   const vacancyCalendar = page.querySelector('[data-group-vacancy-calendar]');
   const vacancySummary = page.querySelector('[data-group-vacancy-summary]');
@@ -28,6 +33,7 @@
   const vacancyRangeLabel = page.querySelector('[data-group-vacancy-range-label]');
   const ageSortButton = page.querySelector('[data-sort-age-group]');
   let currentGroupId = 0;
+  let currentWaitingGroupId = 0;
   let lastVacancyRows = [];
   let programRows = [];
   let programSort = {
@@ -234,6 +240,10 @@
   function rowTemplate(row = {}) {
     const id = row.id || '';
     const groupId = row.grup_id || '';
+    const capacity = Number(row.kontenjan || 0);
+    const studentCount = Number(row.ogrenci_sayisi || 0);
+    const vacancy = Math.max(capacity - studentCount, 0);
+    const waitingCount = Number(row.bekleyen_veli_sayisi || 0);
     return `
       <tr data-program-row data-id="${escapeHtml(id)}" data-group-id="${escapeHtml(groupId)}">
         <td>
@@ -254,12 +264,45 @@
         <td>
           <div class="weekly-actions">
             <button class="is-assign" type="button" data-assign-student ${groupId ? '' : 'disabled'}>Ogrenci Ata${row.ogrenci_sayisi ? ` (${escapeHtml(row.ogrenci_sayisi)})` : ''}</button>
+            <button class="is-waiting ${vacancy > 0 ? 'has-vacancy' : ''}" type="button" data-show-waiting ${groupId ? '' : 'disabled'}>Bekleyen Veliler (${escapeHtml(waitingCount)})${vacancy > 0 ? ` · ${escapeHtml(vacancy)} boş` : ''}</button>
             <button class="is-copy" type="button" data-copy-program>Kopyala</button>
             <button class="is-delete" type="button" data-delete-program>Sil</button>
           </div>
         </td>
       </tr>
     `;
+  }
+
+  const waitingStatusLabels = {
+    bekliyor: 'Bekliyor', iletisime_gecildi: 'İletişime Geçildi', bilgi_verildi: 'Bilgi Verildi',
+    ulasilamadi: 'Ulaşılamadı', katilmadi: 'Katılmadı', kayda_donustu: 'Kayda Dönüştü', iptal: 'İptal'
+  };
+
+  async function loadWaitingParents() {
+    if (!currentWaitingGroupId || !waitingList) return;
+    waitingList.innerHTML = '<div class="empty-table">Yükleniyor...</div>';
+    const response = await talyaAjax('grup_bekleyen_veli_listele', {grup_id: currentWaitingGroupId});
+    const rows = response.veri || [];
+    waitingList.innerHTML = rows.length ? rows.map((row) => `
+      <article class="group-waiting-card">
+        <div><strong>${escapeHtml(row.ogrenci_ad_soyad || '-')}</strong><small>${escapeHtml(row.veli_ad_soyad || '-')} · ${escapeHtml(row.veli_telefon || '-')}</small></div>
+        <div><span class="status-pill">${escapeHtml(waitingStatusLabels[row.durum] || row.durum)}</span><p>${escapeHtml(row.son_gorusme_ozeti || 'Henüz görüşme notu yok')}</p><small>${row.son_gorusme_tarihi ? `Son görüşme: ${escapeHtml(String(row.son_gorusme_tarihi).slice(0, 16))}` : ''}</small></div>
+        ${canManageWaiting ? `<div class="group-waiting-actions">
+          <button class="btn btn-ghost" type="button" data-group-waiting-status="bilgi_verildi" data-waiting-parent-id="${escapeHtml(row.id)}">Bilgi Verildi</button>
+          <button class="btn btn-ghost" type="button" data-group-waiting-status="ulasilamadi" data-waiting-parent-id="${escapeHtml(row.id)}">Ulaşılamadı</button>
+          <button class="btn btn-danger" type="button" data-group-waiting-status="katilmadi" data-waiting-parent-id="${escapeHtml(row.id)}">Katılmadı</button>
+        </div>` : ''}
+      </article>
+    `).join('') : '<div class="empty-table">Bu grubu bekleyen aktif veli bulunmuyor.</div>';
+  }
+
+  async function openWaitingParents(row) {
+    currentWaitingGroupId = Number(row.dataset.groupId || 0);
+    if (!currentWaitingGroupId || !waitingDialog) return;
+    waitingTitle.textContent = `${row.querySelector('[name="program_adi"]')?.value || '-'} · ${row.querySelector('[name="yas_araligi"]')?.value || '-'}`;
+    waitingMessage.textContent = '';
+    openDialog(waitingDialog);
+    await loadWaitingParents();
   }
 
   function renderRows() {
@@ -838,6 +881,8 @@
     try {
       if (event.target.closest('[data-assign-student]')) {
         await openStudentDialog(row);
+      } else if (event.target.closest('[data-show-waiting]')) {
+        await openWaitingParents(row);
       } else if (event.target.closest('[data-copy-program]')) {
         await copyRow(row);
       } else if (event.target.closest('[data-delete-program]')) {
@@ -845,6 +890,27 @@
       }
     } catch (error) {
       setMessage(error.message);
+    }
+  });
+
+  page.addEventListener('click', async (event) => {
+    if (event.target.closest('[data-group-waiting-close]')) {
+      closeDialog(waitingDialog);
+      return;
+    }
+    const statusButton = event.target.closest('[data-group-waiting-status]');
+    if (!statusButton) return;
+    statusButton.disabled = true;
+    try {
+      await talyaAjax('bekleyen_veli_durum_guncelle', {
+        id: Number(statusButton.getAttribute('data-waiting-parent-id')),
+        durum: statusButton.getAttribute('data-group-waiting-status')
+      });
+      waitingMessage.textContent = 'Veli durumu güncellendi ve görüşme tarihçesine eklendi.';
+      await Promise.all([loadWaitingParents(), loadRows()]);
+    } catch (error) {
+      waitingMessage.textContent = error.message;
+      statusButton.disabled = false;
     }
   });
 

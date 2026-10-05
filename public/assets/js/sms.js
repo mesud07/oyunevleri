@@ -27,10 +27,45 @@
   const connectionForm = page.querySelector('[data-sms-connection-form]');
   const connectionMessage = page.querySelector('[data-sms-connection-message]');
   const connectionStatus = page.querySelector('[data-sms-connection-status]');
+  const smsEnabledSwitch = connectionForm?.querySelector('[name="sms_enabled"]');
+  const smsServiceChangeWarning = page.querySelector('[data-sms-service-change-warning]');
   const singleMessage = singleForm?.querySelector('[name="mesaj"]');
   const bulkMessage = bulkForm?.querySelector('[name="mesaj"]');
   const singleCounter = page.querySelector('[data-sms-counter]');
   const bulkCounter = page.querySelector('[data-sms-bulk-counter]');
+  const studentPicker = page.querySelector('[data-sms-student-picker]');
+  const studentSearch = studentPicker?.querySelector('[data-sms-student-search]');
+  const studentCount = studentPicker?.querySelector('[data-sms-student-count]');
+
+  function updateStudentCount() {
+    if (!studentCount) return;
+    const count = studentPicker.querySelectorAll('[name="ogrenci_idleri[]"]:checked').length;
+    studentCount.textContent = `${count} ogrenci secildi`;
+  }
+
+  function filterStudents() {
+    const query = String(studentSearch?.value || '').trim().toLocaleLowerCase('tr-TR');
+    studentPicker?.querySelectorAll('[data-sms-student-option]').forEach((option) => {
+      option.hidden = query !== '' && !String(option.dataset.search || '').toLocaleLowerCase('tr-TR').includes(query);
+    });
+  }
+
+  studentSearch?.addEventListener('input', filterStudents);
+  studentPicker?.addEventListener('change', (event) => {
+    if (event.target.matches('[name="ogrenci_idleri[]"]')) updateStudentCount();
+  });
+  studentPicker?.querySelector('[data-sms-students-select-visible]')?.addEventListener('click', () => {
+    studentPicker.querySelectorAll('[data-sms-student-option]:not([hidden]) input:not(:disabled)').forEach((input) => {
+      input.checked = true;
+    });
+    updateStudentCount();
+  });
+  studentPicker?.querySelector('[data-sms-students-clear]')?.addEventListener('click', () => {
+    studentPicker.querySelectorAll('[name="ogrenci_idleri[]"]').forEach((input) => {
+      input.checked = false;
+    });
+    updateStudentCount();
+  });
 
   singleMessage?.addEventListener('input', () => updateCounter(singleMessage, singleCounter));
   bulkMessage?.addEventListener('input', () => updateCounter(bulkMessage, bulkCounter));
@@ -48,6 +83,21 @@
     values.sms_test_mode = connectionForm?.querySelector('[name="sms_test_mode"]')?.checked ? '1' : '0';
     return values;
   }
+
+  smsEnabledSwitch?.addEventListener('change', () => {
+    const enabling = smsEnabledSwitch.checked;
+    const warning = enabling
+      ? 'SMS servisini aktif etmek üzeresiniz. Test modu kapalıysa kuyruktaki ve yeni SMS mesajları gerçek alıcılara gönderilebilir. Devam etmek istiyor musunuz?'
+      : 'SMS servisini pasife almak üzeresiniz. Otomatik randevu hatırlatmaları, doğum günü mesajları ve kuyruktaki SMS mesajları gönderilmeyecektir. Devam etmek istiyor musunuz?';
+    if (!window.confirm(warning)) {
+      smsEnabledSwitch.checked = !enabling;
+      return;
+    }
+    if (smsServiceChangeWarning) {
+      smsServiceChangeWarning.hidden = false;
+      smsServiceChangeWarning.textContent = `${warning} Değişikliğin uygulanması için NetGSM Ayarlarını Kaydet butonuna basın.`;
+    }
+  });
 
   function updateConnectionStatus(result) {
     if (!connectionStatus || !result) return;
@@ -103,6 +153,8 @@
       const values = formValues(bulkForm);
       await talyaAjax('sms_toplu_gonder', values);
       bulkForm.reset();
+      filterStudents();
+      updateStudentCount();
       updateCounter(bulkMessage, bulkCounter);
       await loadSms();
     } catch (error) {
@@ -121,6 +173,7 @@
     try {
       const values = formValues(reminderForm);
       values.appointment_reminder_enabled = reminderForm.querySelector('[name="appointment_reminder_enabled"]')?.checked ? '1' : '0';
+      values.birthday_message_enabled = reminderForm.querySelector('[name="birthday_message_enabled"]')?.checked ? '1' : '0';
       const response = await talyaAjax('sms_hatirlatma_ayarlari_kaydet', values);
       if (message) message.textContent = response.mesaj || 'Hatirlatma ayarlari kaydedildi.';
     } catch (error) {
@@ -139,6 +192,10 @@
     try {
       const response = await talyaAjax('sms_baglanti_ayarlari_kaydet', connectionValues());
       if (connectionMessage) connectionMessage.textContent = response.mesaj || 'NetGSM ayarlari kaydedildi.';
+      if (smsServiceChangeWarning) {
+        smsServiceChangeWarning.hidden = true;
+        smsServiceChangeWarning.textContent = '';
+      }
     } catch (error) {
       if (connectionMessage) connectionMessage.textContent = error.message;
       alert(error.message);
@@ -411,6 +468,7 @@
 
   updateCounter(singleMessage, singleCounter);
   updateCounter(bulkMessage, bulkCounter);
+  updateStudentCount();
   loadSms().catch(() => {});
   loadTemplates().catch(() => {});
 })();

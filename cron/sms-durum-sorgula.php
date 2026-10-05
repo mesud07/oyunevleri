@@ -8,6 +8,8 @@ if (PHP_SAPI !== 'cli') {
 
 require dirname(__DIR__) . '/bootstrap.php';
 
+use App\Core\Session;
+use App\Models\Kurum;
 use App\Services\SmsServisi;
 
 $lockPath = BASE_PATH . '/storage/sms-durum-sorgula.lock';
@@ -17,6 +19,14 @@ if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) {
     exit(0);
 }
 
-$limit = (int) ($argv[1] ?? 100);
-$adet = (new SmsServisi())->durumlariSorgula($limit);
-echo "Guncellenen SMS durumu: {$adet}\n";
+$limit = max(1, (int) ($argv[1] ?? 100));
+$sonuclar = [];
+foreach (Kurum::aktifIdler() as $kurumId) {
+    Session::set('kurum_id', $kurumId);
+    try {
+        $sonuclar[] = ['kurum_id' => $kurumId, 'guncellenen' => (new SmsServisi())->durumlariSorgula($limit)];
+    } catch (Throwable $e) {
+        $sonuclar[] = ['kurum_id' => $kurumId, 'hata' => $e->getMessage()];
+    }
+}
+echo json_encode($sonuclar, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . PHP_EOL;

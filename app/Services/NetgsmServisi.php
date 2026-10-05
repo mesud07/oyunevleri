@@ -10,6 +10,15 @@ final class NetgsmServisi
     public function __construct(?array $config = null)
     {
         $this->config = $config ?? require BASE_PATH . '/config/sms.php';
+        $url = (string) ($this->config['netgsm']['base_url'] ?? '');
+        $parts = parse_url($url);
+        if (!is_array($parts)
+            || ($parts['scheme'] ?? '') !== 'https'
+            || strtolower((string) ($parts['host'] ?? '')) !== 'api.netgsm.com.tr'
+            || isset($parts['user']) || isset($parts['pass']) || isset($parts['port'])
+            || isset($parts['query']) || isset($parts['fragment'])) {
+            throw new \InvalidArgumentException('NetGSM servis adresi resmi HTTPS adresi olmalıdır.');
+        }
     }
 
     public function smsGonder(array $mesajlar): array
@@ -57,6 +66,10 @@ final class NetgsmServisi
             CURLOPT_POSTFIELDS => json_encode($body, JSON_UNESCAPED_UNICODE),
             CURLOPT_CONNECTTIMEOUT => (int) $netgsm['connect_timeout'],
             CURLOPT_TIMEOUT => (int) $netgsm['timeout'],
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
         ]);
 
         $response = curl_exec($ch);
@@ -71,7 +84,7 @@ final class NetgsmServisi
                 'basarili' => false,
                 'gecici_hata' => true,
                 'islem_no' => null,
-                'cevap' => 'cURL hata: ' . $curlError,
+                'cevap' => 'NetGSM servisine güvenli bağlantı kurulamadı.',
             ];
         }
 
@@ -104,6 +117,10 @@ final class NetgsmServisi
             CURLOPT_POSTFIELDS => json_encode(['jobid' => $islemNo], JSON_UNESCAPED_UNICODE),
             CURLOPT_CONNECTTIMEOUT => (int) $netgsm['connect_timeout'],
             CURLOPT_TIMEOUT => (int) $netgsm['timeout'],
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
         ]);
         $response = curl_exec($ch);
         $error = curl_error($ch);
@@ -112,7 +129,7 @@ final class NetgsmServisi
         }
 
         if ($response === false || $error !== '') {
-            return ['durum' => 'bilinmiyor', 'cevap' => 'cURL hata: ' . $error];
+            return ['durum' => 'bilinmiyor', 'cevap' => 'NetGSM servisine güvenli bağlantı kurulamadı.'];
         }
 
         $metin = (string) $response;
@@ -141,6 +158,10 @@ final class NetgsmServisi
             CURLOPT_HTTPHEADER => ['Accept: application/json'],
             CURLOPT_CONNECTTIMEOUT => (int) $netgsm['connect_timeout'],
             CURLOPT_TIMEOUT => (int) $netgsm['timeout'],
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
         ]);
         $response = curl_exec($ch);
         $error = curl_error($ch);
@@ -149,7 +170,7 @@ final class NetgsmServisi
         }
 
         if ($response === false || $error !== '') {
-            return ['basarili' => false, 'basliklar' => [], 'cevap' => $error];
+            return ['basarili' => false, 'basliklar' => [], 'cevap' => 'NetGSM servisine güvenli bağlantı kurulamadı.'];
         }
 
         $json = json_decode((string) $response, true);

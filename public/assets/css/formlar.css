@@ -13,23 +13,35 @@
   outline: 3px solid rgba(56, 170, 245, 0.18);
   border-color: var(--primary);
 }
-.form-stack .auth-remember {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: fit-content;
+.form-stack .remember-login-option {
+  align-items: flex-start;
+  background: rgba(236, 247, 255, .72);
+  border: 1px solid var(--line);
+  border-radius: 12px;
   cursor: pointer;
-  font-weight: 600;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 22px minmax(0, 1fr);
+  padding: 12px;
 }
-.form-stack .auth-remember input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  min-height: 18px;
-  margin: 0;
-  padding: 0;
-  border-radius: 5px;
-  accent-color: var(--primary-dark);
-  box-shadow: none;
+.form-stack .remember-login-option input[type="checkbox"] {
+  accent-color: var(--primary);
+  min-height: 20px;
+  width: 20px;
+}
+.remember-login-option strong,
+.remember-login-option small {
+  display: block;
+}
+.remember-login-option strong {
+  color: var(--ink);
+}
+.remember-login-option small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+  margin-top: 3px;
 }
 .form-grid {
   display: grid;

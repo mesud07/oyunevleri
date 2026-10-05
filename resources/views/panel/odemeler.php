@@ -56,7 +56,13 @@
             <h2>Tahsilat Listesi</h2>
             <button class="btn btn-sky" type="button" data-open-dialog="#tahsilat-dialog">Yeni Tahsilat</button>
         </div>
-        <div id="odeme-tablosu" class="table-wrap fast-table-wrap" data-payment-table></div>
+        <div
+            id="odeme-tablosu"
+            class="table-wrap fast-table-wrap"
+            data-payment-table
+            data-institution-name="<?= e($kullanici['kurum_adi'] ?? 'Kurum') ?>"
+            data-institution-logo="<?= e($kurumLogosuVar ? $kurumLogoYolu : '') ?>"
+        ></div>
     </article>
 </section>
 

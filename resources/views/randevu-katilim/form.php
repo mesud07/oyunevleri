@@ -4,6 +4,7 @@ $yanitEtiket = [
     'katilacagim' => 'Katilacagim',
     'katilamayacagim' => 'Katilamayacagim',
 ];
+$katilimAcik = !empty($randevu['katilim_acik']);
 ?>
 <main class="attendance-page">
     <section class="attendance-card">
@@ -45,18 +46,24 @@ $yanitEtiket = [
 
             <article class="attendance-actions">
                 <h2>Katilim Durumu</h2>
-                <p>Lutfen randevuya katilim durumunuzu seciniz.</p>
+                <?php if ($katilimAcik) : ?>
+                    <p>Ders baslangic saatine kadar katilim durumunuzu secip degistirebilirsiniz.</p>
+                <?php elseif ($mesaj === '') : ?>
+                    <div class="attendance-notice">Ders saati gectigi icin katilim durumu artik degistirilemez.</div>
+                <?php endif; ?>
                 <?php if ($mesaj !== '') : ?>
                     <div class="attendance-notice"><?= e($mesaj) ?></div>
                 <?php endif; ?>
                 <?php if ($yanit !== '') : ?>
                     <div class="attendance-current">Mevcut yanit: <strong><?= e($yanitEtiket[$yanit] ?? $yanit) ?></strong></div>
                 <?php endif; ?>
-                <form method="post" action="/randevu-katilim">
-                    <input type="hidden" name="token" value="<?= e($token) ?>">
-                    <button class="attendance-button is-join" type="submit" name="yanit" value="katilacagim">Katilacagim</button>
-                    <button class="attendance-button is-decline" type="submit" name="yanit" value="katilamayacagim">Katilamayacagim</button>
-                </form>
+                <?php if ($katilimAcik) : ?>
+                    <form method="post" action="/randevu-katilim">
+                        <input type="hidden" name="token" value="<?= e($token) ?>">
+                        <button class="attendance-button is-join" type="submit" name="yanit" value="katilacagim">Katilacagim</button>
+                        <button class="attendance-button is-decline" type="submit" name="yanit" value="katilamayacagim">Katilamayacagim</button>
+                    </form>
+                <?php endif; ?>
             </article>
         <?php endif; ?>
     </section>

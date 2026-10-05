@@ -1,3 +1,5 @@
+<?php $modulTanimlari = $modulTanimlari ?? []; ?>
+
 <section class="page-head">
     <div>
         <h1>Kurumlar</h1>
@@ -14,7 +16,7 @@
     <div class="table-wrap fast-table-wrap" data-institution-table></div>
     <p class="form-message" data-institution-message></p>
 
-    <dialog class="appointment-dialog" data-institution-dialog>
+    <dialog class="appointment-dialog institution-dialog" data-institution-dialog>
         <form method="dialog" class="appointment-dialog-form" data-institution-form>
             <div class="dialog-head">
                 <div>
@@ -40,6 +42,62 @@
                         <option value="1">Aktif</option>
                     </select>
                 </label>
+                <section class="dialog-wide institution-module-section">
+                    <div class="institution-section-heading">
+                        <div>
+                            <strong>Kurum Modülleri</strong>
+                            <p>Genel Bakış her zaman açıktır. Modülleri ve altındaki sidebar sayfalarını ayrı ayrı yönetin.</p>
+                        </div>
+                        <button class="btn btn-ghost" type="button" data-institution-modules-toggle>Tümünü Seç</button>
+                    </div>
+                    <div class="institution-module-list">
+                        <?php foreach ($modulTanimlari as $modulKodu => $modul) : ?>
+                            <article class="institution-module-option" data-institution-module="<?= e($modulKodu) ?>">
+                                <label class="institution-module-main">
+                                    <input type="checkbox" name="moduller[]" value="<?= e($modulKodu) ?>" data-institution-module-toggle checked>
+                                    <span>
+                                    <strong><?= e($modul['ad']) ?></strong>
+                                        <small>Modülün tamamını açar veya kapatır.</small>
+                                    </span>
+                                </label>
+                                <div class="institution-page-options">
+                                    <?php foreach ($modul['sayfalar'] as $sayfaKodu => $sayfaAdi) : ?>
+                                        <label>
+                                            <input type="checkbox" name="sayfalar[]" value="<?= e($sayfaKodu) ?>" data-institution-page-option checked>
+                                            <span><?= e($sayfaAdi) ?></span>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </div>
+                            </article>
+                        <?php endforeach; ?>
+                    </div>
+                </section>
+                <section class="dialog-wide institution-manager-section" data-institution-manager-section>
+                    <div class="institution-section-heading">
+                        <div>
+                            <strong>Kurum Müdürü Hesabı</strong>
+                            <p>Hesabı buradan oluşturabilir, bilgilerini güncelleyebilir veya yeni şifre verebilirsiniz.</p>
+                        </div>
+                        <span class="status-pill" data-institution-manager-status>Tanımlı değil</span>
+                    </div>
+                    <div class="dialog-grid">
+                        <label><span>Ad</span><input name="mudur_ad" maxlength="100" autocomplete="off"></label>
+                        <label><span>Soyad</span><input name="mudur_soyad" maxlength="100" autocomplete="off"></label>
+                        <label><span>Kullanıcı Adı veya E-posta</span><input name="mudur_eposta" maxlength="190" autocomplete="off"></label>
+                        <label><span>Telefon</span><input name="mudur_telefon" maxlength="40" autocomplete="off"></label>
+                        <label>
+                            <span>Hesap Durumu</span>
+                            <select name="mudur_aktif">
+                                <option value="1">Aktif</option>
+                                <option value="0">Pasif</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Yeni Şifre</span>
+                            <input type="password" name="mudur_sifre" minlength="12" maxlength="128" autocomplete="new-password" placeholder="Mevcut hesapta boş bırakılabilir">
+                        </label>
+                    </div>
+                </section>
                 <section class="dialog-wide institution-logo-section" data-institution-logo-section hidden>
                     <div class="institution-logo-preview" data-institution-logo-preview>
                         <span>Logo yüklenmedi</span>
@@ -64,17 +122,20 @@
                     </div>
                     <span data-institution-portal-message></span>
                 </section>
-                <div class="dialog-wide institution-founder-fields" data-institution-founder-fields>
-                    <div class="info-box compact-info">
-                        <strong>Kurucu Kullanici</strong>
-                        <p>Bu kullanici yalnizca kendi kurumundaki tum panel yetkilerine sahip olur.</p>
+                <div class="dialog-wide institution-founder-fields institution-manager-section" data-institution-founder-fields>
+                    <div class="institution-section-heading">
+                        <div>
+                            <strong>Kurucu Kullanıcı</strong>
+                            <p data-institution-founder-description>Bu kullanıcı yalnızca kendi kurumundaki tüm panel yetkilerine sahip olur.</p>
+                        </div>
+                        <span class="status-pill" data-institution-founder-status>Tanımlı değil</span>
                     </div>
                     <div class="dialog-grid">
                         <label><span>Ad</span><input name="kurucu_ad" maxlength="100" autocomplete="given-name"></label>
                         <label><span>Soyad</span><input name="kurucu_soyad" maxlength="100" autocomplete="family-name"></label>
                         <label><span>Kullanici Adi veya E-posta</span><input name="kurucu_eposta" maxlength="190" autocomplete="username"></label>
                         <label><span>Telefon</span><input name="kurucu_telefon" maxlength="30" autocomplete="tel"></label>
-                        <label class="dialog-wide"><span>Sifre</span><input type="password" name="kurucu_sifre" minlength="8" autocomplete="new-password"></label>
+                        <label class="dialog-wide"><span>Şifre</span><input type="password" name="kurucu_sifre" minlength="8" autocomplete="new-password"></label>
                     </div>
                 </div>
             </div>

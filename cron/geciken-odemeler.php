@@ -9,7 +9,9 @@ if (PHP_SAPI !== 'cli') {
 
 require dirname(__DIR__) . '/bootstrap.php';
 
+use App\Core\Session;
 use App\Core\Veritabani;
+use App\Models\Kurum;
 
 $stmt = Veritabani::baglan()->prepare(
     "UPDATE odeme_sozleri
@@ -18,8 +20,14 @@ $stmt = Veritabani::baglan()->prepare(
        WHEN soz_verilen_tarih < CURDATE() THEN 'gecikti'
        ELSE durum
      END
-     WHERE durum IN ('bekleniyor', 'bugun_odenecek')"
+     WHERE kurum_id = :kurum_id
+       AND durum IN ('bekleniyor', 'bugun_odenecek')"
 );
-$stmt->execute();
+$toplam = 0;
+foreach (Kurum::aktifIdler() as $kurumId) {
+    Session::set('kurum_id', $kurumId);
+    $stmt->execute(['kurum_id' => $kurumId]);
+    $toplam += $stmt->rowCount();
+}
 
-echo 'Guncellenen odeme sozu: ' . $stmt->rowCount() . PHP_EOL;
+echo 'Guncellenen odeme sozu: ' . $toplam . PHP_EOL;

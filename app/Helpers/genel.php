@@ -41,3 +41,27 @@ function yetki_var(string $yetki): bool
 {
     return (new \App\Services\YetkiServisi())->izinliMi($yetki);
 }
+
+function fatura_durum_goster(?string $durum): string
+{
+    return match ((string) $durum) {
+        'BOS' => 'Bekliyor',
+        'TASLAK', 'DRAFT', 'Draft', 'taslak' => 'Taslak',
+        'Waiting', 'WaitingSign', 'WaitingToBeSigned', 'WaitingToBeEnvelopeCreate', 'WaitingToBeSend',
+        'EnvelopeIsWaitingToBeProcessedByGib', 'EnvelopeIsWaitingToBeSendedToReceiverByGib',
+        'EnvelopeIsBeenWaitingToBeTransferredToReceiverByGib', 'EnvelopeSystemResponseIsBeingWaitedFromReceiver' => 'İşleniyor',
+        'Signed', 'Succeed', 'EnvelopeHasBeenTransferredToReceiverSuccessfully' => 'Başarılı',
+        'Error', 'XmlFileDoesNotExist', 'XmlParseError', 'FileNotFound', 'UnknownStatus' => 'Hatalı',
+        'ARSIV_KAYIT_KUYRUGUNDA', 'GIBE_GONDERILECEK', 'KABUL_KUYRUGUNDA', 'RED_KUYRUGUNDA', 'YANIT_BEKLENIYOR' => 'İşleniyor',
+        'GIBE_GONDERILDI' => 'Gönderildi',
+        'ALICIYA_ULASTI', 'KABUL', 'ONAYLANDI' => 'Başarılı',
+        'RED', 'reddedildi' => 'Reddedildi',
+        'HATA', 'hatali' => 'Hatalı',
+        'IPTAL_EDILDI', 'Canceled', 'Cancelled', 'canceled', 'cancelled', 'iptal' => 'İptal',
+        'olusturuluyor' => 'Oluşturuluyor',
+        'gonderildi' => 'Gönderildi',
+        'isleniyor' => 'İşleniyor',
+        'basarili' => 'Başarılı',
+        default => $durum ?: 'Bekliyor',
+    };
+}

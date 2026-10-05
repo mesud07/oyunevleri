@@ -35,19 +35,23 @@ final class HizmetController extends Controller
     public function ekle(): void
     {
         $data = $GLOBALS['talya_ajax_data'] ?? [];
-        $hatalar = Validator::gerekli($data, ['hizmet_adi', 'ucret']);
+        $hatalar = Validator::gerekli($data, ['hizmet_adi', 'ucret', 'kdv_orani']);
         if ($hatalar) {
             Response::json(['basari' => false, 'mesaj' => 'Eksik alanlar var.', 'hatalar' => $hatalar], 422);
             return;
         }
 
         $haftalik = (int) ($data['haftalik_katilim_sayisi'] ?? 1);
+        $kdvOrani = $this->kdvOrani($data['kdv_orani'] ?? null);
+        if ($kdvOrani === null) { Response::json(['basari'=>false,'mesaj'=>'KDV orani 0 ile 100 arasinda olmalidir.','hatalar'=>['kdv_orani'=>'Gecersiz oran.']],422); return; }
         $id = Hizmet::ekle([
             'hizmet_adi' => trim((string) $data['hizmet_adi']),
             'ucret' => (float) $data['ucret'],
+            'kdv_orani' => $kdvOrani,
             'haftalik_katilim_sayisi' => $haftalik,
             'toplam_normal_hak' => (int) ($data['toplam_normal_hak'] ?? ($haftalik === 1 ? 4 : 8)),
             'toplam_telafi_hak' => (int) ($data['toplam_telafi_hak'] ?? ($haftalik === 1 ? 1 : 2)),
+            'hak_hesaplama_turu' => (string) ($data['hak_hesaplama_turu'] ?? 'sabit'),
         ]);
 
         Response::json(['basari' => true, 'mesaj' => 'Tanim kaydi olusturuldu.', 'veri' => ['id' => $id]], 201);
@@ -56,7 +60,7 @@ final class HizmetController extends Controller
     public function guncelle(): void
     {
         $data = $GLOBALS['talya_ajax_data'] ?? [];
-        $hatalar = Validator::gerekli($data, ['id', 'hizmet_adi', 'ucret']);
+        $hatalar = Validator::gerekli($data, ['id', 'hizmet_adi', 'ucret', 'kdv_orani']);
         if ($hatalar) {
             Response::json(['basari' => false, 'mesaj' => 'Eksik alanlar var.', 'hatalar' => $hatalar], 422);
             return;
@@ -69,12 +73,16 @@ final class HizmetController extends Controller
         }
 
         $haftalik = max(1, (int) ($data['haftalik_katilim_sayisi'] ?? 1));
+        $kdvOrani = $this->kdvOrani($data['kdv_orani'] ?? null);
+        if ($kdvOrani === null) { Response::json(['basari'=>false,'mesaj'=>'KDV orani 0 ile 100 arasinda olmalidir.','hatalar'=>['kdv_orani'=>'Gecersiz oran.']],422); return; }
         Hizmet::guncelle($id, [
             'hizmet_adi' => trim((string) $data['hizmet_adi']),
             'ucret' => (float) $data['ucret'],
+            'kdv_orani' => $kdvOrani,
             'haftalik_katilim_sayisi' => $haftalik,
             'toplam_normal_hak' => max(1, (int) ($data['toplam_normal_hak'] ?? ($haftalik === 1 ? 4 : 8))),
             'toplam_telafi_hak' => max(0, (int) ($data['toplam_telafi_hak'] ?? ($haftalik === 1 ? 1 : 2))),
+            'hak_hesaplama_turu' => (string) ($data['hak_hesaplama_turu'] ?? 'sabit'),
             'aktif' => (int) ($data['aktif'] ?? 1),
         ]);
 
@@ -96,5 +104,12 @@ final class HizmetController extends Controller
             'mesaj' => $basarili ? 'Hizmet tanimi silindi.' : 'Hizmet silinemedi.',
             'veri' => ['id' => $id],
         ], $basarili ? 200 : 409);
+    }
+
+    private function kdvOrani(mixed $value): ?string
+    {
+        $value=str_replace(',','.',trim((string)$value));
+        if(!is_numeric($value)||(float)$value<0||(float)$value>100)return null;
+        return number_format((float)$value,2,'.','');
     }
 }

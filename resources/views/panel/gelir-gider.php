@@ -8,7 +8,7 @@ $gorunum = (string) ($analiz['gorunum'] ?? 'aylik');
         <h1>Gelir Gider Analizi</h1>
         <p>Gerçekleşen tahsilatlar ve ödenmiş giderler üzerinden kâr/zarar takibi.</p>
     </div>
-    <button class="btn btn-ghost" type="button" onclick="window.print()">Yazdır</button>
+    <button class="btn btn-ghost" type="button" data-print-page>Yazdır</button>
 </section>
 
 <section class="panel-card finance-analysis-filter" data-finance-analysis-filter>

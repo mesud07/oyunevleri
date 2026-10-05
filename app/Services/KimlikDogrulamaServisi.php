@@ -10,7 +10,7 @@ use App\Models\Kullanici;
 
 final class KimlikDogrulamaServisi
 {
-    public function giris(string $eposta, string $sifre, string $kurumKodu = 'TALYA'): bool
+    public function dogrula(string $eposta, string $sifre, string $kurumKodu = 'TALYA'): ?array
     {
         $eposta = trim($eposta);
         $kurumKodu = strcasecmp($eposta, 'demo') === 0
@@ -22,11 +22,19 @@ final class KimlikDogrulamaServisi
                 'eposta' => $eposta,
                 'kurum_kodu' => $kurumKodu,
             ]);
-            return false;
+            return null;
         }
 
-        Auth::login($kullanici);
-        IslemKaydi::ekle((int) $kullanici['id'], 'giris_basarili', 'Kullanici giris yapti');
-        return true;
+        if (password_needs_rehash((string) $kullanici['sifre'], PASSWORD_DEFAULT)) {
+            Kullanici::sifreHashGuncelle((int) $kullanici['id'], password_hash($sifre, PASSWORD_DEFAULT));
+        }
+
+        return $kullanici;
+    }
+
+    public function oturumAc(array $kullanici, bool $beniHatirla = false): void
+    {
+        Auth::login($kullanici, $beniHatirla);
+        IslemKaydi::ekle((int) $kullanici['id'], 'giris_basarili', 'Kullanıcı giriş yaptı.');
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Core\Config;
+use App\Core\Session;
 use App\Core\Veritabani;
 use App\Models\Ayar;
 use App\Models\SmsKaydi;
@@ -16,9 +17,14 @@ final class SmsServisi
     private array $config;
     private NetgsmServisi $netgsm;
     private PDO $db;
+    private int $kurumId;
 
     public function __construct(?array $config = null, ?NetgsmServisi $netgsm = null)
     {
+        $this->kurumId = max(0, (int) Session::get('kurum_id', 0));
+        if ($this->kurumId < 1) {
+            throw new \RuntimeException('SMS islemi icin kurum baglami zorunludur.');
+        }
         $this->config = $config ?? require BASE_PATH . '/config/sms.php';
         $this->config = $this->ayarlarIleBirlesikConfig($this->config);
         $this->netgsm = $netgsm ?? new NetgsmServisi($this->config);
@@ -153,6 +159,11 @@ final class SmsServisi
     public function manuelToplu(array $telefonlar, string $mesaj, int $kullaniciId = 0): array
     {
         $alicilar = array_map(static fn(string $telefon): array => ['telefon' => $telefon], $telefonlar);
+        return $this->manuelTopluAlicilar($alicilar, $mesaj, $kullaniciId);
+    }
+
+    public function manuelTopluAlicilar(array $alicilar, string $mesaj, int $kullaniciId = 0): array
+    {
         return $this->kuyrugaEkle($alicilar, $mesaj, [
             'sablon_anahtari' => 'manuel_sms',
             'olay_tipi' => 'manuel_sms',
@@ -197,9 +208,9 @@ final class SmsServisi
                 'bitis_saati' => substr((string) $ilkRandevu['bitis_saati'], 0, 5),
                 'paket_adi' => (string) ($ilkRandevu['paket_adi'] ?? $ilkRandevu['tur']),
                 'ogretmen_adi' => (string) ($ilkRandevu['uzman'] ?? ''),
-                'katilim_linki' => $this->katilimLinki($ilkRandevuId),
                 'randevu_listesi' => $this->randevuListesiMetni($ogrenciyeAitRandevular),
             ]);
+            $this->katilimLinkiniSablonGerektiriyorsaEkle($degiskenler, 'randevu_olusturuldu', $ilkRandevuId);
 
             foreach ($alicilar as $alici) {
                 $mesaj = $this->randevuOlusturmaMesaji($degiskenler + ['veli_adi' => (string) ($alici['veli_adi'] ?? 'Velimiz')]);
@@ -221,8 +232,8 @@ final class SmsServisi
 
     public function paketRandevulariOlusturuldu(int $paketId): int
     {
-        $stmt = $this->db->prepare('SELECT id FROM randevular WHERE paket_id = :paket_id ORDER BY tarih ASC, baslangic_saati ASC');
-        $stmt->execute(['paket_id' => $paketId]);
+        $stmt = $this->db->prepare('SELECT id FROM randevular WHERE paket_id = :paket_id AND kurum_id = :kurum_id ORDER BY tarih ASC, baslangic_saati ASC');
+        $stmt->execute(['paket_id' => $paketId, 'kurum_id' => $this->kurumId]);
 
         return $this->randevularOlusturuldu(array_column($stmt->fetchAll(), 'id'));
     }
@@ -250,8 +261,8 @@ final class SmsServisi
             'ogretmen_adi' => (string) ($randevu['uzman'] ?? ''),
             'kaynak_tarih' => $kaynakTarih !== '' ? $this->tarihGunTr($kaynakTarih) : '-',
             'kaynak_saat' => $kaynakSaat !== '' ? substr($kaynakSaat, 0, 5) : '-',
-            'katilim_linki' => $this->katilimLinki($randevuId),
         ]);
+        $this->katilimLinkiniSablonGerektiriyorsaEkle($degiskenler, 'telafi_dersi_olusturuldu', $randevuId);
 
         $adet = 0;
         foreach ($alicilar as $alici) {
@@ -296,8 +307,8 @@ final class SmsServisi
             'bitis_saati' => substr((string) $randevu['bitis_saati'], 0, 5),
             'paket_adi' => (string) ($randevu['paket_adi'] ?? $randevu['tur']),
             'ogretmen_adi' => (string) ($randevu['uzman'] ?? ''),
-            'katilim_linki' => $this->katilimLinki($randevuId),
         ]);
+        $this->katilimLinkiniSablonGerektiriyorsaEkle($degiskenler, 'randevu_guncellendi', $randevuId);
 
         $adet = 0;
         foreach ($alicilar as $alici) {
@@ -332,13 +343,13 @@ final class SmsServisi
             'SELECT od.*, CONCAT(o.ad, " ", o.soyad) AS ogrenci_adi, p.paket_adi, p.net_paket_tutari,
                     COALESCE(SUM(CASE WHEN od2.iptal = 0 THEN od2.tutar ELSE 0 END), 0) AS tahsilat
              FROM odemeler od
-             INNER JOIN ogrenciler o ON o.id = od.ogrenci_id
-             INNER JOIN paketler p ON p.id = od.paket_id
-             LEFT JOIN odemeler od2 ON od2.paket_id = p.id
-             WHERE od.id = :id
+             INNER JOIN ogrenciler o ON o.id = od.ogrenci_id AND o.kurum_id = od.kurum_id
+             INNER JOIN paketler p ON p.id = od.paket_id AND p.kurum_id = od.kurum_id
+             LEFT JOIN odemeler od2 ON od2.paket_id = p.id AND od2.kurum_id = p.kurum_id
+             WHERE od.id = :id AND od.kurum_id = :kurum_id
              GROUP BY od.id'
         );
-        $stmt->execute(['id' => $odemeId]);
+        $stmt->execute(['id' => $odemeId, 'kurum_id' => $this->kurumId]);
         $odeme = $stmt->fetch();
         if (!$odeme) {
             return;
@@ -365,7 +376,7 @@ final class SmsServisi
         }
     }
 
-    public function randevuHatirlatmalariOlustur(): int
+    public function randevuHatirlatmalariOlustur(?string $planlananGonderimTarihi = null): int
     {
         if (!$this->config['appointment_reminder_enabled']) {
             return 0;
@@ -373,23 +384,38 @@ final class SmsServisi
 
         $gunOnce = max(0, (int) ($this->config['appointment_reminder_days_before'] ?? 1));
         $gonderimSaati = $this->saatNormalize((string) ($this->config['appointment_reminder_time'] ?? '14:00'));
-        if (!$this->hatirlatmaSaatiGeldiMi($gonderimSaati)) {
-            return 0;
+        $manuelTelafi = $planlananGonderimTarihi !== null;
+        $parametreler = ['kurum_id' => $this->kurumId];
+
+        if ($manuelTelafi) {
+            $gonderimTarihi = \DateTimeImmutable::createFromFormat('!Y-m-d', (string) $planlananGonderimTarihi);
+            if (!$gonderimTarihi || $gonderimTarihi->format('Y-m-d') !== $planlananGonderimTarihi) {
+                throw new \InvalidArgumentException('Planlanan SMS gonderim tarihi Y-m-d formatinda olmalidir.');
+            }
+            $hedefTarih = $gonderimTarihi->modify('+' . $gunOnce . ' days')->format('Y-m-d');
+            $randevuKosulu = 'r.durum IN ("planlandi", "geldi", "gelmedi") AND r.tarih = :hedef_tarih';
+            $parametreler['hedef_tarih'] = $hedefTarih;
+        } else {
+            // Cron bir sure calismazsa, sadece henuz baslamamis ve hatirlatma ani gecmis
+            // randevulari da yakala. Mukerrer anahtari ayni SMS'in tekrarini engeller.
+            $randevuKosulu = 'r.durum = "planlandi"
+                AND TIMESTAMP(r.tarih, r.baslangic_saati) > NOW()
+                AND TIMESTAMP(DATE_SUB(r.tarih, INTERVAL ' . $gunOnce . ' DAY), :gonderim_saati) <= NOW()';
+            $parametreler['gonderim_saati'] = $gonderimSaati . ':00';
         }
 
-        $hedefTarih = date('Y-m-d', strtotime('+' . $gunOnce . ' days'));
         $stmt = $this->db->prepare(
             'SELECT r.*, CONCAT(o.ad, " ", o.soyad) AS ogrenci_adi, COALESCE(p.paket_adi, r.tur) AS paket_adi,
                     COALESCE(g.ad, "") AS grup_adi, COALESCE(CONCAT(k.ad, " ", k.soyad), "") AS uzman
              FROM randevular r
-             INNER JOIN ogrenciler o ON o.id = r.ogrenci_id
-             LEFT JOIN paketler p ON p.id = r.paket_id
-             LEFT JOIN gruplar g ON g.id = r.grup_id
-             LEFT JOIN kullanicilar k ON k.id = r.ogretmen_id
-             WHERE r.durum = "planlandi"
-               AND r.tarih = :hedef_tarih'
+             INNER JOIN ogrenciler o ON o.id = r.ogrenci_id AND o.kurum_id = r.kurum_id
+             LEFT JOIN paketler p ON p.id = r.paket_id AND p.kurum_id = r.kurum_id
+             LEFT JOIN gruplar g ON g.id = r.grup_id AND g.kurum_id = r.kurum_id
+             LEFT JOIN kullanicilar k ON k.id = r.ogretmen_id AND k.kurum_id = r.kurum_id
+             WHERE ' . $randevuKosulu . '
+               AND r.kurum_id = :kurum_id'
         );
-        $stmt->execute(['hedef_tarih' => $hedefTarih]);
+        $stmt->execute($parametreler);
         $adet = 0;
         foreach ($stmt->fetchAll() as $randevu) {
             $anahtar = $this->randevuSablonAnahtari((string) $randevu['tur']);
@@ -413,7 +439,7 @@ final class SmsServisi
                     'ogrenci_id' => (int) $randevu['ogrenci_id'],
                     'grup_id' => $randevu['grup_id'] ?? null,
                     'randevu_id' => (int) $randevu['id'],
-                    'mukerrer_anahtari' => 'randevu_hatirlatma:' . $hedefTarih . ':' . $randevu['id'],
+                    'mukerrer_anahtari' => 'randevu_hatirlatma:' . $randevu['tarih'] . ':' . $randevu['id'],
                 ]);
                 $adet += (int) $sonuc['adet'];
             }
@@ -432,39 +458,45 @@ final class SmsServisi
             return 0;
         }
 
-        $stmt = $this->db->query(
+        $stmt = $this->db->prepare(
             'SELECT id, CONCAT(ad, " ", soyad) AS ogrenci_adi, dogum_tarihi
              FROM ogrenciler
              WHERE dogum_tarihi IS NOT NULL
                AND durum = "aktif"
+               AND kurum_id = :kurum_id
                AND DATE_FORMAT(dogum_tarihi, "%m-%d") = DATE_FORMAT(CURDATE(), "%m-%d")
              ORDER BY ad ASC, soyad ASC'
         );
+        $stmt->execute(['kurum_id' => $this->kurumId]);
 
         $adet = 0;
         foreach ($stmt->fetchAll() as $ogrenci) {
             $ogrenciId = (int) $ogrenci['id'];
-            $alicilar = $this->ogrenciVelileri($ogrenciId);
-            if ($alicilar === []) {
+            $alici = null;
+            foreach ($this->ogrenciVelileri($ogrenciId) as $veli) {
+                if ($this->telefonNormalize((string) ($veli['telefon'] ?? '')) !== null) {
+                    $alici = $veli;
+                    break;
+                }
+            }
+            if ($alici === null) {
                 continue;
             }
 
-            foreach ($alicilar as $alici) {
-                $degiskenler = [
-                    'veli_adi' => (string) ($alici['veli_adi'] ?? 'Velimiz'),
-                    'ogrenci_adi' => (string) $ogrenci['ogrenci_adi'],
-                    'kurum_adi' => (string) Ayar::deger('kurum_adi', 'Oyun Evleri Yönetim Sistemi'),
-                    'klinik_adi' => (string) Ayar::deger('kurum_adi', 'Oyun Evleri Yönetim Sistemi'),
-                ];
-                $mesaj = $this->dogumGunuMesaji($degiskenler);
-                $sonuc = $this->kuyrugaEkle([$alici], $mesaj, [
-                    'sablon_anahtari' => 'dogum_gunu',
-                    'olay_tipi' => 'dogum_gunu',
-                    'ogrenci_id' => $ogrenciId,
-                    'mukerrer_anahtari' => 'dogum_gunu:' . date('Y-m-d') . ':' . $ogrenciId,
-                ]);
-                $adet += (int) $sonuc['adet'];
-            }
+            $degiskenler = [
+                'veli_adi' => (string) ($alici['veli_adi'] ?? 'Velimiz'),
+                'ogrenci_adi' => (string) $ogrenci['ogrenci_adi'],
+                'kurum_adi' => (string) Ayar::deger('kurum_adi', 'Oyun Evleri'),
+                'klinik_adi' => (string) Ayar::deger('kurum_adi', 'Oyun Evleri'),
+            ];
+            $mesaj = $this->dogumGunuMesaji($degiskenler);
+            $sonuc = $this->kuyrugaEkle([$alici], $mesaj, [
+                'sablon_anahtari' => 'dogum_gunu',
+                'olay_tipi' => 'dogum_gunu',
+                'ogrenci_id' => $ogrenciId,
+                'mukerrer_anahtari' => 'dogum_gunu:' . date('Y-m-d') . ':' . $ogrenciId,
+            ]);
+            $adet += (int) $sonuc['adet'];
         }
 
         return $adet;
@@ -555,14 +587,16 @@ final class SmsServisi
         if (!$this->config['payment_promise_reminder_enabled']) {
             return 0;
         }
-        $stmt = $this->db->query(
+        $stmt = $this->db->prepare(
             'SELECT os.*, CONCAT(o.ad, " ", o.soyad) AS ogrenci_adi, p.paket_adi
              FROM odeme_sozleri os
-             INNER JOIN ogrenciler o ON o.id = os.ogrenci_id
-             INNER JOIN paketler p ON p.id = os.paket_id
+             INNER JOIN ogrenciler o ON o.id = os.ogrenci_id AND o.kurum_id = os.kurum_id
+             INNER JOIN paketler p ON p.id = os.paket_id AND p.kurum_id = os.kurum_id
              WHERE os.durum IN ("bekleniyor", "bugun_odenecek")
+               AND os.kurum_id = :kurum_id
                AND os.soz_verilen_tarih BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 1 DAY)'
         );
+        $stmt->execute(['kurum_id' => $this->kurumId]);
         $adet = 0;
         foreach ($stmt->fetchAll() as $soz) {
             $alicilar = $this->ogrenciVelileri((int) $soz['ogrenci_id']);
@@ -629,9 +663,10 @@ final class SmsServisi
     {
         $stmt = $this->db->prepare(
             "SELECT id, provider_islem_no FROM sms_kayitlari
-             WHERE durum = 'gonderildi' AND provider_islem_no IS NOT NULL
+             WHERE kurum_id = :kurum_id AND durum = 'gonderildi' AND provider_islem_no IS NOT NULL
              ORDER BY gonderilme_tarihi ASC LIMIT :limit"
         );
+        $stmt->bindValue('kurum_id', $this->kurumId, PDO::PARAM_INT);
         $stmt->bindValue('limit', $limit, PDO::PARAM_INT);
         $stmt->execute();
         $adet = 0;
@@ -677,11 +712,11 @@ final class SmsServisi
         $stmt = $this->db->prepare(
             'SELECT v.id AS veli_id, v.telefon, CONCAT(v.ad, " ", v.soyad) AS veli_adi, ov.birincil_mi, ov.ogrenci_id
              FROM ogrenci_velileri ov
-             INNER JOIN veliler v ON v.id = ov.veli_id
-             WHERE ov.ogrenci_id = :ogrenci_id
+             INNER JOIN veliler v ON v.id = ov.veli_id AND v.kurum_id = ov.kurum_id
+             WHERE ov.ogrenci_id = :ogrenci_id AND ov.kurum_id = :kurum_id
              ORDER BY ov.birincil_mi DESC, v.id ASC'
         );
-        $stmt->execute(['ogrenci_id' => $ogrenciId]);
+        $stmt->execute(['ogrenci_id' => $ogrenciId, 'kurum_id' => $this->kurumId]);
         return $stmt->fetchAll();
     }
 
@@ -692,15 +727,15 @@ final class SmsServisi
                     COALESCE(p.paket_adi, r.tur) AS paket_adi, COALESCE(CONCAT(k.ad, " ", k.soyad), "") AS uzman,
                     kr.tarih AS telafi_kaynak_tarih, kr.baslangic_saati AS telafi_kaynak_saat
              FROM randevular r
-             INNER JOIN ogrenciler o ON o.id = r.ogrenci_id
-             LEFT JOIN gruplar g ON g.id = r.grup_id
-             LEFT JOIN paketler p ON p.id = r.paket_id
-             LEFT JOIN kullanicilar k ON k.id = r.ogretmen_id
-             LEFT JOIN telafi_haklari th ON th.id = r.telafi_hakki_id
-             LEFT JOIN randevular kr ON kr.id = th.kaynak_randevu_id
-             WHERE r.id = :id LIMIT 1'
+             INNER JOIN ogrenciler o ON o.id = r.ogrenci_id AND o.kurum_id = r.kurum_id
+             LEFT JOIN gruplar g ON g.id = r.grup_id AND g.kurum_id = r.kurum_id
+             LEFT JOIN paketler p ON p.id = r.paket_id AND p.kurum_id = r.kurum_id
+             LEFT JOIN kullanicilar k ON k.id = r.ogretmen_id AND k.kurum_id = r.kurum_id
+             LEFT JOIN telafi_haklari th ON th.id = r.telafi_hakki_id AND th.kurum_id = r.kurum_id
+             LEFT JOIN randevular kr ON kr.id = th.kaynak_randevu_id AND kr.kurum_id = r.kurum_id
+             WHERE r.id = :id AND r.kurum_id = :kurum_id LIMIT 1'
         );
-        $stmt->execute(['id' => $randevuId]);
+        $stmt->execute(['id' => $randevuId, 'kurum_id' => $this->kurumId]);
         $randevu = $stmt->fetch();
         return $randevu ?: null;
     }
@@ -712,14 +747,14 @@ final class SmsServisi
             'SELECT r.*, CONCAT(o.ad, " ", o.soyad) AS ogrenci_adi, COALESCE(g.ad, "") AS grup_adi,
                     COALESCE(p.paket_adi, r.tur) AS paket_adi, COALESCE(CONCAT(k.ad, " ", k.soyad), "") AS uzman
              FROM randevular r
-             INNER JOIN ogrenciler o ON o.id = r.ogrenci_id
-             LEFT JOIN gruplar g ON g.id = r.grup_id
-             LEFT JOIN paketler p ON p.id = r.paket_id
-             LEFT JOIN kullanicilar k ON k.id = r.ogretmen_id
-             WHERE r.id IN (' . $yerTutucular . ')
+             INNER JOIN ogrenciler o ON o.id = r.ogrenci_id AND o.kurum_id = r.kurum_id
+             LEFT JOIN gruplar g ON g.id = r.grup_id AND g.kurum_id = r.kurum_id
+             LEFT JOIN paketler p ON p.id = r.paket_id AND p.kurum_id = r.kurum_id
+             LEFT JOIN kullanicilar k ON k.id = r.ogretmen_id AND k.kurum_id = r.kurum_id
+             WHERE r.kurum_id = ? AND r.id IN (' . $yerTutucular . ')
              ORDER BY r.ogrenci_id ASC, r.tarih ASC, r.baslangic_saati ASC'
         );
-        $stmt->execute($randevuIdleri);
+        $stmt->execute(array_merge([$this->kurumId], $randevuIdleri));
         return $stmt->fetchAll();
     }
 
@@ -730,8 +765,8 @@ final class SmsServisi
             'veli_adi' => (string) ($veri['veli_adi'] ?? 'Velimiz'),
             'ogrenci_adi' => $ogrenciAdi,
             'grup_adi' => (string) ($veri['grup_adi'] ?? $veri['grup'] ?? ''),
-            'kurum_adi' => 'Oyun Evleri Yönetim Sistemi',
-            'klinik_adi' => 'Oyun Evleri Yönetim Sistemi',
+            'kurum_adi' => (string) Ayar::deger('kurum_adi', 'Oyun Evleri'),
+            'klinik_adi' => (string) Ayar::deger('kurum_adi', 'Oyun Evleri'),
             'kurum_telefonu' => '',
             'paket_adi' => (string) ($veri['paket_adi'] ?? ''),
             'tarih' => isset($veri['tarih']) ? $this->tarihTr((string) $veri['tarih']) : '',
@@ -766,11 +801,24 @@ final class SmsServisi
             return '';
         }
 
-        $baseUrl = rtrim((string) Config::get('APP_URL', ''), '/');
+        // Panel yerelde calisirken APP_URL localhost olabilir. SMS veli telefonunda
+        // acilacagi icin varsa disaridan erisilebilen adresi ayrica kullan.
+        $baseUrl = rtrim((string) Config::get('SMS_PUBLIC_BASE_URL', Config::get('APP_URL', '')), '/');
         if ($baseUrl === '') {
             $baseUrl = 'http://localhost:8080';
         }
         return $baseUrl . '/randevu-katilim?t=' . rawurlencode($token);
+    }
+
+    private function katilimLinkiniSablonGerektiriyorsaEkle(array &$degiskenler, string $sablonAnahtari, int $randevuId): void
+    {
+        $sablon = SmsKaydi::sablonBul($sablonAnahtari);
+        if (!$sablon || (int) ($sablon['aktif'] ?? 0) !== 1
+            || !str_contains((string) ($sablon['mesaj'] ?? ''), '{katilim_linki}')) {
+            return;
+        }
+
+        $degiskenler['katilim_linki'] = $this->katilimLinki($randevuId);
     }
 
     private function randevuOlusturmaMesaji(array $degiskenler): string

@@ -60,8 +60,8 @@ $canChangeAppointmentStatus = yetki_var('randevu_durum_degistir');
             </div>
             <div class="appointment-toolbar-actions">
                 <div class="calendar-view-switch" aria-label="Takvim gorunumu">
-                    <button class="btn btn-ghost is-active" type="button" data-calendar-view="month">Ay</button>
-                    <button class="btn btn-ghost" type="button" data-calendar-view="week">Hafta</button>
+                    <button class="btn btn-ghost" type="button" data-calendar-view="month">Ay</button>
+                    <button class="btn btn-ghost is-active" type="button" data-calendar-view="week">Hafta</button>
                     <button class="btn btn-ghost" type="button" data-calendar-view="day">Gun</button>
                 </div>
                 <button class="btn btn-ghost" type="button" data-calendar-prev>&lt;</button>

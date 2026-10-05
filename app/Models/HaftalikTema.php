@@ -10,7 +10,7 @@ final class HaftalikTema extends Model
 {
     public static function tablolarVarMi(): bool
     {
-        foreach (['age_groups', 'weekly_themes', 'weekly_theme_age_groups', 'theme_activities', 'theme_activity_groups'] as $tablo) {
+        foreach (['age_groups', 'weekly_themes', 'weekly_theme_age_groups'] as $tablo) {
             $stmt = self::db()->query("SHOW TABLES LIKE " . self::db()->quote($tablo));
             if (!$stmt || !$stmt->fetchColumn()) {
                 return false;
@@ -135,15 +135,10 @@ final class HaftalikTema extends Model
 
         $stmt = self::db()->prepare(
             'SELECT wt.id, wt.title, wt.description, wt.week_start, wt.week_end,
-                    COUNT(DISTINCT ta.id) AS activity_count,
-                    GROUP_CONCAT(DISTINCT ag.name ORDER BY ag.sort_order ASC SEPARATOR ", ") AS age_groups,
-                    GROUP_CONCAT(DISTINCT g.ad ORDER BY g.ad ASC SEPARATOR ", ") AS groups
+                    GROUP_CONCAT(DISTINCT ag.name ORDER BY ag.sort_order ASC SEPARATOR ", ") AS age_groups
              FROM weekly_themes wt
              LEFT JOIN weekly_theme_age_groups wtag ON wtag.theme_id = wt.id AND wtag.kurum_id = wt.kurum_id
              LEFT JOIN age_groups ag ON ag.id = wtag.age_group_id
-             LEFT JOIN theme_activities ta ON ta.theme_id = wt.id AND ta.kurum_id = wt.kurum_id
-             LEFT JOIN theme_activity_groups tag ON tag.activity_id = ta.id AND tag.kurum_id = wt.kurum_id
-             LEFT JOIN gruplar g ON g.id = tag.group_id AND g.kurum_id = wt.kurum_id
              WHERE wt.kurum_id = :kurum_id
              GROUP BY wt.id
              ORDER BY wt.week_start DESC, wt.id DESC'
@@ -169,26 +164,7 @@ final class HaftalikTema extends Model
              ORDER BY wt.week_start DESC, wt.title ASC'
         );
         $stmt->execute(self::kurumParam());
-        $temalar = $stmt->fetchAll();
-
-        $etkinlikStmt = self::db()->prepare(
-            'SELECT id, theme_id, title, description
-             FROM theme_activities
-             WHERE kurum_id = :kurum_id
-             ORDER BY id ASC'
-        );
-        $etkinlikStmt->execute(self::kurumParam());
-        $etkinlikler = [];
-        foreach ($etkinlikStmt->fetchAll() as $etkinlik) {
-            $etkinlikler[(int) $etkinlik['theme_id']][] = $etkinlik;
-        }
-
-        foreach ($temalar as &$tema) {
-            $tema['activities'] = $etkinlikler[(int) $tema['id']] ?? [];
-        }
-        unset($tema);
-
-        return $temalar;
+        return $stmt->fetchAll();
     }
 
     public static function detay(int $id): ?array
@@ -213,35 +189,6 @@ final class HaftalikTema extends Model
         $yasStmt = self::db()->prepare('SELECT age_group_id FROM weekly_theme_age_groups WHERE theme_id = :id AND kurum_id = :kurum_id');
         $yasStmt->execute(['id' => $id, 'kurum_id' => self::kurumId()]);
         $tema['age_group_ids'] = array_map('intval', array_column($yasStmt->fetchAll(), 'age_group_id'));
-
-        $etkinlikStmt = self::db()->prepare(
-            'SELECT id, theme_id, activity_template_id, title, description
-             FROM theme_activities
-             WHERE theme_id = :id
-               AND kurum_id = :kurum_id
-             ORDER BY id ASC'
-        );
-        $etkinlikStmt->execute(['id' => $id, 'kurum_id' => self::kurumId()]);
-        $etkinlikler = $etkinlikStmt->fetchAll();
-
-        $grupStmt = self::db()->prepare(
-            'SELECT tag.activity_id, tag.group_id
-             FROM theme_activity_groups tag
-             INNER JOIN theme_activities ta ON ta.id = tag.activity_id AND ta.kurum_id = tag.kurum_id
-             WHERE ta.theme_id = :id
-               AND ta.kurum_id = :kurum_id'
-        );
-        $grupStmt->execute(['id' => $id, 'kurum_id' => self::kurumId()]);
-        $gruplar = [];
-        foreach ($grupStmt->fetchAll() as $row) {
-            $gruplar[(int) $row['activity_id']][] = (int) $row['group_id'];
-        }
-        foreach ($etkinlikler as &$etkinlik) {
-            $etkinlik['group_ids'] = $gruplar[(int) $etkinlik['id']] ?? [];
-        }
-        unset($etkinlik);
-
-        $tema['activities'] = $etkinlikler;
 
         return $tema;
     }
@@ -292,56 +239,6 @@ final class HaftalikTema extends Model
                 $yasEkle->execute(['kurum_id' => self::kurumId(), 'theme_id' => $temaId, 'age_group_id' => (int) $yasId]);
             }
 
-            $mevcutIdler = [];
-            $guncelle = $db->prepare(
-                'UPDATE theme_activities
-                 SET activity_template_id = :activity_template_id, title = :title, description = :description, updated_at = NOW()
-                 WHERE id = :id AND theme_id = :theme_id AND kurum_id = :kurum_id'
-            );
-            $ekle = $db->prepare(
-                'INSERT INTO theme_activities (kurum_id, theme_id, activity_template_id, title, description, created_at, updated_at)
-                 VALUES (:kurum_id, :theme_id, :activity_template_id, :title, :description, NOW(), NOW())'
-            );
-
-            foreach ($veri['activities'] as $etkinlik) {
-                $etkinlikId = (int) ($etkinlik['id'] ?? 0);
-                $params = [
-                    'kurum_id' => self::kurumId(),
-                    'theme_id' => $temaId,
-                    'activity_template_id' => !empty($etkinlik['activity_template_id']) ? (int) $etkinlik['activity_template_id'] : null,
-                    'title' => $etkinlik['title'],
-                    'description' => $etkinlik['description'] ?: null,
-                ];
-                if ($etkinlikId > 0) {
-                    $guncelle->execute($params + ['id' => $etkinlikId]);
-                    $mevcutIdler[] = $etkinlikId;
-                } else {
-                    $ekle->execute($params);
-                    $mevcutIdler[] = (int) $db->lastInsertId();
-                }
-
-                $sonEtkinlikId = end($mevcutIdler);
-                $db->prepare('DELETE FROM theme_activity_groups WHERE activity_id = :activity_id AND kurum_id = :kurum_id')
-                    ->execute(['activity_id' => (int) $sonEtkinlikId, 'kurum_id' => self::kurumId()]);
-                $grupEkle = $db->prepare('INSERT INTO theme_activity_groups (kurum_id, activity_id, group_id) VALUES (:kurum_id, :activity_id, :group_id)');
-                foreach (($etkinlik['group_ids'] ?? []) as $grupId) {
-                    $grupEkle->execute(['kurum_id' => self::kurumId(), 'activity_id' => (int) $sonEtkinlikId, 'group_id' => (int) $grupId]);
-                }
-            }
-
-            if ($id > 0) {
-                if ($mevcutIdler) {
-                    $yerTutucu = implode(',', array_fill(0, count($mevcutIdler), '?'));
-                    $db->prepare("DELETE FROM theme_activities WHERE kurum_id = ? AND theme_id = ? AND id NOT IN ($yerTutucu)")
-                        ->execute(array_merge([self::kurumId(), $temaId], $mevcutIdler));
-                } else {
-                    $db->prepare('DELETE FROM theme_activities WHERE theme_id = :theme_id AND kurum_id = :kurum_id')
-                        ->execute(['theme_id' => $temaId, 'kurum_id' => self::kurumId()]);
-                }
-            }
-
-            OgrenciEtkinlikKaydi::temaIcinSenkronize($temaId);
-
             $db->commit();
             return $temaId;
         } catch (\Throwable $e) {
@@ -360,6 +257,112 @@ final class HaftalikTema extends Model
         return $stmt->rowCount() > 0;
     }
 
+    public static function ogrenciTemaTakibi(string $baslangic, string $bitis, string $katilim = 'tumu'): array
+    {
+        if (!self::tablolarVarMi()) {
+            return [];
+        }
+
+        $durumlar = match ($katilim) {
+            'geldi' => ['geldi', 'tamamlandi'],
+            'gelmedi' => ['gelmedi', 'mazeretli_gelmedi', 'gec_iptal'],
+            'bekliyor' => ['planlandi', 'ertelendi'],
+            'iptal' => ['kurum_iptali'],
+            default => [],
+        };
+        $where = [
+            'r.kurum_id = :kurum_id',
+            'r.tarih BETWEEN :baslangic AND :bitis',
+        ];
+        $params = [
+            'kurum_id' => self::kurumId(),
+            'baslangic' => $baslangic,
+            'bitis' => $bitis,
+        ];
+        if ($durumlar) {
+            $yerTutucular = [];
+            foreach ($durumlar as $index => $durum) {
+                $anahtar = 'durum_' . $index;
+                $yerTutucular[] = ':' . $anahtar;
+                $params[$anahtar] = $durum;
+            }
+            $where[] = 'r.durum IN (' . implode(', ', $yerTutucular) . ')';
+        }
+
+        $stmt = self::db()->prepare(
+            'SELECT r.id AS randevu_id, r.ogrenci_id, r.tarih, r.baslangic_saati, r.bitis_saati,
+                    r.durum, r.tur, o.dogum_tarihi,
+                    CONCAT(o.ad, " ", o.soyad) AS ogrenci,
+                    COALESCE(g.ad, "Cocuk Etkinlik ve Oyun Evi") AS grup,
+                    wt.id AS tema_id, wt.title AS tema, wt.description AS tema_aciklamasi,
+                    wt.week_start, wt.week_end,
+                    (SELECT GROUP_CONCAT(DISTINCT ag.name ORDER BY ag.sort_order ASC SEPARATOR ", ")
+                       FROM weekly_theme_age_groups wtag
+                       INNER JOIN age_groups ag ON ag.id = wtag.age_group_id
+                      WHERE wtag.theme_id = wt.id AND wtag.kurum_id = wt.kurum_id) AS age_groups
+             FROM randevular r
+             INNER JOIN ogrenciler o ON o.id = r.ogrenci_id AND o.kurum_id = r.kurum_id
+             INNER JOIN weekly_themes wt ON wt.kurum_id = r.kurum_id
+                  AND r.tarih BETWEEN wt.week_start AND wt.week_end
+             LEFT JOIN gruplar g ON g.id = r.grup_id AND g.kurum_id = r.kurum_id
+             WHERE ' . implode(' AND ', $where) . '
+             ORDER BY r.tarih DESC, r.baslangic_saati DESC, o.ad ASC, o.soyad ASC, wt.title ASC
+             LIMIT 2000'
+        );
+        $stmt->execute($params);
+
+        $sonuc = [];
+        foreach ($stmt->fetchAll() as $row) {
+            if (!self::yasGrubunaUygunMu((string) ($row['dogum_tarihi'] ?? ''), (string) $row['tarih'], (string) ($row['age_groups'] ?? ''))) {
+                continue;
+            }
+            $row['tema_durumu'] = self::temaDurumu((string) $row['durum']);
+            $sonuc[] = $row;
+        }
+        return $sonuc;
+    }
+
+    public static function temaDurumu(string $randevuDurumu): string
+    {
+        if (in_array($randevuDurumu, ['geldi', 'tamamlandi'], true)) {
+            return 'islendi';
+        }
+        if (in_array($randevuDurumu, ['gelmedi', 'mazeretli_gelmedi', 'gec_iptal', 'kurum_iptali'], true)) {
+            return 'islenmedi';
+        }
+        return 'bekliyor';
+    }
+
+    private static function yasGrubunaUygunMu(string $dogumTarihi, string $randevuTarihi, string $yasGruplari): bool
+    {
+        if ($dogumTarihi === '' || $yasGruplari === '') {
+            return true;
+        }
+        try {
+            $dogum = new \DateTimeImmutable($dogumTarihi);
+            $randevu = new \DateTimeImmutable($randevuTarihi);
+            if ($dogum > $randevu) {
+                return false;
+            }
+            $fark = $dogum->diff($randevu);
+            $ay = ((int) $fark->y * 12) + (int) $fark->m;
+        } catch (\Throwable $e) {
+            return true;
+        }
+
+        $aralikBulundu = false;
+        foreach (explode(',', $yasGruplari) as $yasGrubu) {
+            if (preg_match('/(\d+)\s*-\s*(\d+)/u', $yasGrubu, $eslesme) !== 1) {
+                continue;
+            }
+            $aralikBulundu = true;
+            if ($ay >= (int) $eslesme[1] && $ay <= (int) $eslesme[2]) {
+                return true;
+            }
+        }
+        return !$aralikBulundu;
+    }
+
     private static function tabloVarMi(string $tablo): bool
     {
         $stmt = self::db()->query("SHOW TABLES LIKE " . self::db()->quote($tablo));
@@ -368,7 +371,7 @@ final class HaftalikTema extends Model
 
     private static function tablolarGerekli(): void
     {
-        if (!self::tablolarVarMi() || !EtkinlikSablonu::tabloVarMi()) {
+        if (!self::tablolarVarMi()) {
             throw new \RuntimeException('Tema tablolari bulunamadi. Migration calistirilmadan kayit yapilamaz.');
         }
     }

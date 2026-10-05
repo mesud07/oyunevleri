@@ -4,15 +4,17 @@ $veliler = $profil['veliler'] ?? [];
 $birincilVeli = $veliler[0] ?? [];
 $paketler = $profil['paketler'] ?? [];
 $odemeOzeti = $profil['odeme_ozeti'] ?? [];
+$odemeler = $profil['odemeler'] ?? [];
+$faturalar = $profil['faturalar'] ?? [];
+$faturaEntegrasyonuHazir = (bool) ($profil['fatura_entegrasyonu_hazir'] ?? false);
 $randevular = $profil['randevular'] ?? [];
 $gunlukNotlar = $profil['gunluk_notlar'] ?? [];
 $karaListeKayitlari = $profil['kara_liste_kayitlari'] ?? [];
 $karaListeAktif = $profil['kara_liste_aktif'] ?? null;
-$temaSecenekleri = $profil['tema_secenekleri'] ?? [];
-$etkinlikGecmisi = $profil['etkinlik_gecmisi'] ?? [];
 $telafiler = $profil['telafiler'] ?? [];
+$veliOnam = $profil['veli_onam'] ?? null;
+$veliOnamBilgileri = is_array($veliOnam['form_verisi'] ?? null) ? $veliOnam['form_verisi'] : [];
 $kasalar = $kasalar ?? [];
-$onamFormlari = $onamFormlari ?? [];
 $canEditStudent = yetki_var('ogrenci_ekle');
 $canCreateAppointment = yetki_var('randevu_ekle');
 $canChangeAppointmentStatus = yetki_var('randevu_durum_degistir');
@@ -25,16 +27,26 @@ $canSendSms = yetki_var('sms_gonder');
 $karaListeKategorileri = \App\Models\OgrenciKaraListe::KATEGORILER;
 $karaListeKategoriEtiketi = static fn(string $kategori): string => $karaListeKategorileri[$kategori] ?? $kategori;
 $adSoyad = trim(($ogrenci['ad'] ?? '') . ' ' . ($ogrenci['soyad'] ?? ''));
-$veliAdSoyad = trim(($birincilVeli['ad'] ?? '') . ' ' . ($birincilVeli['soyad'] ?? ''));
-$onamVeliAdSoyad = trim((string) ($ogrenci['vasi_ad_soyad'] ?? '')) ?: $veliAdSoyad;
-$onamVeliTc = trim((string) ($ogrenci['vasi_tc_kimlik_no'] ?? '')) ?: (string) ($birincilVeli['tc_kimlik_no'] ?? '');
-$onamTelefon = (string) ($birincilVeli['telefon'] ?? $ogrenci['acil_durum_telefon'] ?? $ogrenci['vasi_telefon'] ?? '');
-$personelAdSoyad = trim((string) (($kullanici['ad'] ?? '') . ' ' . ($kullanici['soyad'] ?? '')));
-$personelUnvan = (string) ($kullanici['rol_adi'] ?? 'Kurum Personeli');
 $tahsilatPaketleri = array_values(array_filter(
     $odemeOzeti,
     static fn(array $odeme): bool => (float) ($odeme['kalan_borc'] ?? 0) > 0
 ));
+$faturasizOdemeler = array_values(array_filter(
+    $faturaEntegrasyonuHazir ? $odemeler : [],
+    static fn(array $odeme): bool => (int) ($odeme['iptal'] ?? 0) === 0 && empty($odeme['fatura_id'])
+));
+$toplamPaketTutari = array_sum(array_map(static fn(array $satir): float => (float) ($satir['net_paket_tutari'] ?? 0), $odemeOzeti));
+$toplamTahsilat = array_sum(array_map(static fn(array $satir): float => (float) ($satir['tahsilat'] ?? 0), $odemeOzeti));
+$toplamKalanBorc = array_sum(array_map(static fn(array $satir): float => max(0, (float) ($satir['kalan_borc'] ?? 0)), $odemeOzeti));
+$finansBakiyesi = $toplamTahsilat - $toplamPaketTutari;
+$odemeYontemleri = [
+    'nakit' => 'Nakit',
+    'kredi_karti' => 'Kredi Kartı',
+    'havale_eft' => 'Havale / EFT',
+    'banka_havalesi' => 'Banka Havalesi',
+    'odeme_baglantisi' => 'Ödeme Bağlantısı',
+    'diger' => 'Diğer',
+];
 $randevuOlusturUrl = '/panel/paketler/tanimla?ogrenci_id=' . urlencode((string) ($ogrenci['id'] ?? ''));
 $yasMetni = '-';
 if (!empty($ogrenci['dogum_tarihi'])) {
@@ -125,6 +137,31 @@ $durumIkonu = static function (array $randevu): string {
 };
 ?>
 
+<section class="student-special-note<?= !empty($ogrenci['profil_ozel_notu']) ? ' has-note' : '' ?>" aria-label="Öğrenci özel notu">
+    <span class="student-special-note-label">Özel Not</span>
+    <?php if ($canEditStudent) : ?>
+        <form
+            class="student-special-note-form"
+            data-ajax-form="ogrenci_ozel_not_guncelle"
+            data-success-redirect="/panel/ogrenciler/profil?id=<?= e($ogrenci['id'] ?? '') ?>"
+        >
+            <input type="hidden" name="id" value="<?= e($ogrenci['id'] ?? '') ?>">
+            <input
+                type="text"
+                name="profil_ozel_notu"
+                maxlength="500"
+                value="<?= e($ogrenci['profil_ozel_notu'] ?? '') ?>"
+                placeholder="Örn. Haftada 2'ye çıkmak istiyor"
+                aria-label="Öğrenci özel notu"
+            >
+            <span class="student-special-note-message" data-form-message aria-live="polite"></span>
+            <button type="submit">Kaydet</button>
+        </form>
+    <?php else : ?>
+        <p><?= e($ogrenci['profil_ozel_notu'] ?: 'Bu öğrenci için özel not bulunmuyor.') ?></p>
+    <?php endif; ?>
+</section>
+
 <section class="student-profile-hero">
     <div class="student-avatar"><?= e(substr((string) ($ogrenci['ad'] ?? 'O'), 0, 1)) ?></div>
     <div>
@@ -134,7 +171,7 @@ $durumIkonu = static function (array $randevu): string {
         <span><?= e($yasMetni) ?></span>
         <span><?= e($ogrenci['cinsiyet'] ?? 'belirtilmedi') ?></span>
         <span><?= e($ogrenci['durum'] ?? '-') ?></span>
-        <?php if ($karaListeAktif) : ?><span class="is-danger">Tedbir listesinde</span><?php endif; ?>
+        <?php if ($karaListeAktif) : ?><span class="is-danger">Kara listede</span><?php endif; ?>
     </div>
     </div>
     <div class="appointment-toolbar-actions">
@@ -157,8 +194,7 @@ $durumIkonu = static function (array $randevu): string {
             <button class="btn btn-ghost" type="button" data-open-profile-sms-reports data-student-id="<?= e($ogrenci['id'] ?? '') ?>">SMS Raporlari</button>
         <?php endif; ?>
         <?php if ($canEditStudent) : ?>
-            <button class="btn btn-primary" type="button" data-open-consent-form>Onam Formu +</button>
-            <button class="btn btn-danger" type="button" data-open-dialog="#kara-liste-dialog">Tedbir Listesine Ekle</button>
+            <button class="btn btn-danger" type="button" data-open-dialog="#kara-liste-dialog">Kara Listeye Ekle</button>
             <button class="btn btn-ghost" type="button" data-open-profile-edit>Bilgileri Duzenle</button>
         <?php endif; ?>
         <?php if ($canCreateAppointment) : ?>
@@ -168,184 +204,45 @@ $durumIkonu = static function (array $randevu): string {
     </div>
 </section>
 
-<?php if ($canEditStudent) : ?>
-<dialog class="appointment-dialog consent-dialog" data-consent-dialog>
-    <form class="appointment-dialog-form consent-dialog-form" data-consent-form>
-        <div class="dialog-head consent-dialog-head">
-            <div>
-                <small data-consent-step-label>1 / 3 · Form Seçimi</small>
-                <h2>Onam Formu Oluştur</h2>
-            </div>
-            <button type="button" data-consent-close aria-label="Kapat">×</button>
+<?php if ($veliOnam) : ?>
+<section class="panel-card student-consent-card" aria-label="Veli onam formu bilgileri">
+    <div class="definition-head">
+        <div>
+            <h2>Onam Formu Bilgileri</h2>
+            <p><?= e(date('d.m.Y H:i', strtotime((string) $veliOnam['onay_tarihi']))) ?> tarihinde veli tarafından dolduruldu.</p>
         </div>
-
-        <div class="consent-dialog-body">
-            <section class="consent-step" data-consent-step="selection">
-                <div class="consent-info-box">
-                    <strong>Form Seçimi</strong>
-                    <span>Oluşturmak istediğiniz formu seçin. Öğrenci ve veli bilgileri sonraki adımda otomatik doldurulacaktır.</span>
-                </div>
-                <label class="consent-template-card">
-                    <input type="radio" name="sablon_kodu" value="gorsel_icerik_kullanim">
-                    <span class="consent-template-icon">▣</span>
-                    <span>
-                        <strong>Görsel İçerik Kullanım Onam Formu</strong>
-                        <small>Fotoğraf ve video içeriklerinin sosyal medya, web sitesi ve tanıtım çalışmalarında kullanımı için onam formu</small>
-                    </span>
-                    <b>›</b>
-                </label>
-            </section>
-
-            <section class="consent-step" data-consent-step="details" hidden>
-                <div class="consent-info-box is-compact">
-                    <strong>Oluşturulacak Form</strong>
-                    <span>Görsel İçerik Kullanım Onam Formu · Fiziksel belge</span>
-                </div>
-                <input type="hidden" name="ogrenci_id" value="<?= e($ogrenci['id'] ?? '') ?>">
-                <input type="hidden" name="veli_id" value="<?= e($birincilVeli['id'] ?? '') ?>">
-
-                <section class="consent-form-section">
-                    <h3>Belge Türü</h3>
-                    <div class="consent-document-type">
-                        <div><span>▣</span><strong>Fiziksel Belge</strong><small>Kağıt üzerinde imzalanacak</small></div>
-                    </div>
-                </section>
-
-                <section class="consent-form-section">
-                    <h3>Formu Hazırlayan Personel</h3>
-                    <div class="dialog-grid">
-                        <label><span>Unvan *</span><input name="personel_unvan" value="<?= e($personelUnvan) ?>" required></label>
-                        <label><span>Adı Soyadı *</span><input name="personel_ad_soyad" value="<?= e($personelAdSoyad) ?>" required></label>
-                    </div>
-                </section>
-
-                <section class="consent-form-section">
-                    <h3>Öğrenci Bilgileri</h3>
-                    <div class="dialog-grid">
-                        <label><span>Öğrenci Adı Soyadı *</span><input name="ogrenci_ad_soyad" value="<?= e($adSoyad) ?>" required></label>
-                        <label><span>T.C. Kimlik Numarası</span><input name="ogrenci_tc_kimlik_no" maxlength="20" value="<?= e($ogrenci['tc_kimlik_no'] ?? '') ?>"></label>
-                        <label><span>Doğum Tarihi</span><input type="date" name="ogrenci_dogum_tarihi" value="<?= e($ogrenci['dogum_tarihi'] ?? '') ?>"></label>
-                        <label><span>Telefon Numarası</span><input name="ogrenci_telefon" data-phone-mask maxlength="16" value="<?= e($onamTelefon) ?>"></label>
-                    </div>
-                </section>
-
-                <section class="consent-form-section">
-                    <h3>Veli / Yasal Temsilci Bilgileri</h3>
-                    <div class="dialog-grid">
-                        <label><span>Adı Soyadı *</span><input name="veli_ad_soyad" value="<?= e($onamVeliAdSoyad) ?>" required></label>
-                        <label><span>T.C. Kimlik Numarası</span><input name="veli_tc_kimlik_no" maxlength="20" value="<?= e($onamVeliTc) ?>"></label>
-                        <label><span>Yakınlık Derecesi</span><input name="veli_yakinlik" value="<?= e($birincilVeli['yakinlik'] ?? '') ?>" placeholder="Anne, baba, vasi..."></label>
-                        <label><span>Form Tarihi *</span><input type="date" name="form_tarihi" value="<?= e(date('Y-m-d')) ?>" required></label>
-                    </div>
-                </section>
-
-                <label class="consent-confirm-row">
-                    <input type="checkbox" name="bilgiler_dogrulandi" value="1" required>
-                    <span>Öğrenci ve veli bilgilerinin doğruluğunu kontrol ettim; formun fiziksel imza için oluşturulmasını onaylıyorum.</span>
-                </label>
-            </section>
-
-            <section class="consent-step" data-consent-step="preview" hidden>
-                <div class="consent-preview-paper">
-                    <header>
-                        <div class="consent-preview-brand"><span>O</span> Oyun Evleri</div>
-                        <small>GÖRSEL İÇERİK KULLANIM ONAM FORMU</small>
-                    </header>
-                    <div class="consent-preview-grid">
-                        <section>
-                            <h3>Öğrenci Bilgileri</h3>
-                            <p><b>Adı Soyadı:</b> <span data-consent-preview-value="ogrenci_ad_soyad"></span></p>
-                            <p><b>T.C. Kimlik No:</b> <span data-consent-preview-value="ogrenci_tc_kimlik_no"></span></p>
-                            <p><b>Doğum Tarihi:</b> <span data-consent-preview-value="ogrenci_dogum_tarihi"></span></p>
-                            <p><b>Form Tarihi:</b> <span data-consent-preview-value="form_tarihi"></span></p>
-                        </section>
-                        <section>
-                            <h3>Kullanım Amaçları</h3>
-                            <p>Sosyal medya paylaşımları, kurumsal web sitesi, tanıtım materyalleri ile eğitim ve etkinlik arşivi.</p>
-                        </section>
-                    </div>
-                    <section>
-                        <h3>Görsel İçerik Kullanım Açık Rıza Beyanı</h3>
-                        <p>Yukarıda yer alan bilgilendirme metnini okuduğumu, anladığımı ve öğrencime ait görsel içeriklerin belirtilen amaçlarla kullanılmasına açık rıza verdiğimi beyan ederim.</p>
-                    </section>
-                    <div class="consent-preview-signatures">
-                        <p><b>Veli/Yasal Temsilci:</b> <span data-consent-preview-value="veli_ad_soyad"></span></p>
-                        <p><b>Yakınlık:</b> <span data-consent-preview-value="veli_yakinlik"></span></p>
-                        <p><b>Personel:</b> <span data-consent-preview-value="personel_unvan"></span> <span data-consent-preview-value="personel_ad_soyad"></span></p>
-                    </div>
-                </div>
-            </section>
-        </div>
-
-        <div class="consent-dialog-actions" data-consent-actions="selection">
-            <span></span>
-            <button class="btn btn-ghost" type="button" data-consent-close>Kapat</button>
-            <button class="btn btn-primary" type="button" data-consent-next disabled>Devam Et</button>
-        </div>
-        <div class="consent-dialog-actions" data-consent-actions="details" hidden>
-            <span data-consent-message></span>
-            <button class="btn btn-ghost" type="button" data-consent-back>Geri</button>
-            <button class="btn btn-sky" type="button" data-consent-preview>Formu Önizle</button>
-            <button class="btn btn-primary" type="submit">Formu Oluştur</button>
-        </div>
-        <div class="consent-dialog-actions" data-consent-actions="preview" hidden>
-            <span data-consent-message></span>
-            <button class="btn btn-ghost" type="button" data-consent-edit>Düzenlemeye Dön</button>
-            <button class="btn btn-primary" type="submit">Formu Oluştur ve PDF'yi Aç</button>
-        </div>
-    </form>
-</dialog>
+        <a class="btn btn-ghost" href="/panel/veli-onamlari/pdf?id=<?= e($veliOnam['id']) ?>" target="_blank">Onam PDF'ini Aç</a>
+    </div>
+    <div class="student-consent-facts">
+        <div><span>Anne</span><strong><?= e($veliOnamBilgileri['anne_ad_soyad'] ?? '-') ?></strong></div>
+        <div><span>Baba</span><strong><?= e($veliOnamBilgileri['baba_ad_soyad'] ?? '-') ?></strong></div>
+        <div><span>Ev adresi</span><strong><?= e(implode(', ', array_filter([$veliOnamBilgileri['ev_adresi'] ?? '', $veliOnamBilgileri['ilce'] ?? '', $veliOnamBilgileri['il'] ?? ''])) ?: '-') ?></strong></div>
+        <div><span>Uzman desteği</span><strong><?= ($veliOnamBilgileri['uzman_destegi'] ?? '') === 'evet' ? 'Var' : 'Yok' ?><?= !empty($veliOnamBilgileri['uzman_aciklama']) ? ' — ' . e($veliOnamBilgileri['uzman_aciklama']) : '' ?></strong></div>
+        <div><span>Oyun grubu deneyimi</span><strong><?= ($veliOnamBilgileri['oyun_grubu_deneyimi'] ?? '') === 'evet' ? 'Var' : 'Yok' ?><?= !empty($veliOnamBilgileri['oyun_grubu_aciklama']) ? ' — ' . e($veliOnamBilgileri['oyun_grubu_aciklama']) : '' ?></strong></div>
+        <div><span>Tanı / gelişimsel farklılık</span><strong><?= ($veliOnamBilgileri['tani_durumu'] ?? '') === 'var' ? 'Var' : 'Yok' ?><?= !empty($veliOnamBilgileri['tani_aciklama']) ? ' — ' . e($veliOnamBilgileri['tani_aciklama']) : '' ?></strong></div>
+        <div><span>Düzenli ilaç</span><strong><?= ($veliOnamBilgileri['ilac_durumu'] ?? '') === 'var' ? 'Var' : 'Yok' ?><?= !empty($veliOnamBilgileri['ilac_aciklama']) ? ' — ' . e($veliOnamBilgileri['ilac_aciklama']) : '' ?></strong></div>
+        <div><span>Alerji</span><strong><?= e($veliOnamBilgileri['alerji_durumu'] ?? '-') ?: '-' ?></strong></div>
+        <div><span>Özel sağlık durumu</span><strong><?= e($veliOnamBilgileri['ozel_saglik_durumu'] ?? '-') ?: '-' ?></strong></div>
+        <div><span>Görsel kayıt izni</span><strong><?= !empty($veliOnamBilgileri['gorsel_kayit_izni']) ? 'Onaylandı' : 'Onaylanmadı' ?></strong></div>
+        <div><span>Sosyal medya izni</span><strong><?= !empty($veliOnamBilgileri['sosyal_medya_izni']) ? 'Onaylandı' : 'Onaylanmadı' ?></strong></div>
+        <div><span>Program kuralları</span><strong><?= !empty($veliOnamBilgileri['program_kurallari_kabul']) ? 'Kabul edildi' : 'Kabul edilmedi' ?></strong></div>
+    </div>
+</section>
 <?php endif; ?>
 
 <nav class="student-tabs">
-    <a href="#paketler" data-profile-anchor>Paketler</a>
-    <a class="is-active" href="#randevular" data-profile-anchor>Randevular</a>
-    <a href="/panel/ogrenciler/tema-etkinlikleri?id=<?= e($ogrenci['id'] ?? '') ?>">Tema ve Etkinlikler</a>
-    <button type="button" data-profile-section-tab="onam-formlari" aria-selected="false">Onam Formları</button>
-    <button type="button" data-profile-section-tab="kara-liste" aria-selected="false">Tedbir Listesi Kayıtları</button>
-    <button type="button" data-profile-section-tab="gunluk-notlar" aria-selected="false">Günlük Not Akışı</button>
+    <a href="#paketler" data-student-tab="profil">Paketler</a>
+    <a class="is-active" href="#randevular" data-student-tab="profil">Randevular</a>
+    <?php if ($canViewFinance) : ?><a href="#finans" data-student-tab="finans">Finans</a><?php endif; ?>
+    <a href="#kara-liste" data-student-tab="profil">Kara Liste</a>
+    <a href="#gunluk-notlar" data-student-tab="profil">Gunluk Notlar</a>
 </nav>
-
-<div class="student-tab-content" data-profile-section-content hidden></div>
-
-<section class="panel-card report-panel consent-list-panel" id="onam-formlari" data-profile-section-panel="onam-formlari" hidden>
-    <div class="appointment-toolbar">
-        <div>
-            <h2>Onam Formları</h2>
-            <p>Öğrenci adına oluşturulan fiziksel imza belgeleri.</p>
-        </div>
-        <?php if ($canEditStudent) : ?>
-            <button class="btn btn-primary" type="button" data-open-consent-form>Onam Formu +</button>
-        <?php endif; ?>
-    </div>
-    <div class="table-wrap">
-        <table>
-            <thead><tr><th>Form Adı</th><th>Belge Türü</th><th>Form Tarihi</th><th>Hazırlayan</th><th>Durum</th><th>İşlem</th></tr></thead>
-            <tbody>
-                <?php if (!$onamFormlari) : ?><tr><td colspan="6">Henüz onam formu oluşturulmadı.</td></tr><?php endif; ?>
-                <?php foreach ($onamFormlari as $onamFormu) : ?>
-                    <tr>
-                        <td><?= e($onamFormu['form_adi']) ?></td>
-                        <td>Fiziksel Belge</td>
-                        <td><?= e(tarih_goster($onamFormu['form_tarihi'])) ?></td>
-                        <td><?= e($onamFormu['personel_ad_soyad'] ?: trim((string) $onamFormu['olusturan'])) ?></td>
-                        <td><span class="status-pill">Oluşturuldu</span></td>
-                        <td><div class="row-actions">
-                            <a class="btn btn-ghost" target="_blank" rel="noopener" href="/panel/onam-formlari/pdf?id=<?= e($onamFormu['id']) ?>">Görüntüle</a>
-                            <a class="btn btn-primary" href="/panel/onam-formlari/pdf?id=<?= e($onamFormu['id']) ?>&amp;indir=1">PDF İndir</a>
-                        </div></td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
-</section>
 
 <?php if ($canEditStudent) : ?>
 <dialog class="appointment-dialog" id="kara-liste-dialog">
     <form method="dialog" class="appointment-dialog-form" data-blacklist-form>
         <div class="dialog-head">
-            <h2>Tedbir Listesi Kaydı</h2>
+            <h2>Kara Liste Kaydi</h2>
             <button type="button" data-close-dialog>x</button>
         </div>
         <input type="hidden" name="ogrenci_id" value="<?= e($ogrenci['id'] ?? '') ?>">
@@ -361,7 +258,7 @@ $durumIkonu = static function (array $randevu): string {
             </label>
             <label class="dialog-wide">
                 <span>Sebep</span>
-                <textarea name="sebep" rows="5" placeholder="Tedbir listesine alma sebebini yazın." required></textarea>
+                <textarea name="sebep" rows="5" placeholder="Kara listeye alma sebebini yazin." required></textarea>
             </label>
         </div>
         <div class="record-actions compact-actions">
@@ -498,11 +395,54 @@ $durumIkonu = static function (array $randevu): string {
                     <label><span>Yedek Telefon</span><input name="veli_yedek_telefon" data-phone-mask maxlength="16" value="<?= e($birincilVeli['yedek_telefon'] ?? '') ?>"></label>
                     <label><span>E-Posta</span><input type="email" name="veli_eposta" value="<?= e($birincilVeli['eposta'] ?? '') ?>"></label>
                     <label><span>Yakinlik</span><input name="veli_yakinlik" value="<?= e($birincilVeli['yakinlik'] ?? '') ?>"></label>
-                    <label><span>Il</span><input name="veli_il" value="<?= e($birincilVeli['il'] ?? '') ?>"></label>
-                    <label><span>Ilce</span><input name="veli_ilce" value="<?= e($birincilVeli['ilce'] ?? '') ?>"></label>
+                    <label><span>İl</span><select name="veli_il"><option value="Antalya" selected>Antalya</option></select></label>
+                    <label>
+                        <span>İlçe</span>
+                        <select name="veli_ilce">
+                            <option value="">Seçiniz</option>
+                            <?php foreach (['Muratpaşa', 'Kepez', 'Konyaaltı', 'Döşemealtı', 'Aksu'] as $ilceSecenegi) : ?>
+                                <option value="<?= e($ilceSecenegi) ?>" <?= ($birincilVeli['ilce'] ?? '') === $ilceSecenegi ? 'selected' : '' ?>><?= e($ilceSecenegi) ?></option>
+                            <?php endforeach; ?>
+                            <?php if (!empty($birincilVeli['ilce']) && !in_array($birincilVeli['ilce'], ['Muratpaşa', 'Kepez', 'Konyaaltı', 'Döşemealtı', 'Aksu'], true)) : ?>
+                                <option value="<?= e($birincilVeli['ilce']) ?>" selected><?= e($birincilVeli['ilce']) ?> (mevcut)</option>
+                            <?php endif; ?>
+                        </select>
+                    </label>
                     <label class="dialog-wide"><span>Adres</span><textarea name="veli_adres" rows="3"><?= e($birincilVeli['adres'] ?? '') ?></textarea></label>
-                    <label class="dialog-wide"><span>Bizimle kimin aracılığıyla iletişime geçtiniz?</span><input name="veli_iletisim_referansi" maxlength="190" value="<?= e($birincilVeli['iletisim_referansi'] ?? '') ?>" placeholder="Örn. Ayşe Hanım, Instagram, Google..."></label>
                     <label class="dialog-wide"><span>Veli Notu</span><textarea name="veli_notlar" rows="3"><?= e($birincilVeli['notlar'] ?? '') ?></textarea></label>
+                </div>
+            </section>
+
+            <section>
+                <h3>Öğrencinin Ev Adresi</h3>
+                <div class="dialog-grid">
+                    <label>
+                        <span>İl</span>
+                        <select name="ogrenci_il">
+                            <option value="Antalya" selected>Antalya</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>İlçe</span>
+                        <select name="ogrenci_ilce">
+                            <option value="">Seçiniz</option>
+                            <?php foreach (['Muratpaşa', 'Kepez', 'Konyaaltı', 'Döşemealtı', 'Aksu'] as $ilceSecenegi) : ?>
+                                <option value="<?= e($ilceSecenegi) ?>" <?= ($ogrenci['ilce'] ?? '') === $ilceSecenegi ? 'selected' : '' ?>><?= e($ilceSecenegi) ?></option>
+                            <?php endforeach; ?>
+                            <?php if (!empty($ogrenci['ilce']) && !in_array($ogrenci['ilce'], ['Muratpaşa', 'Kepez', 'Konyaaltı', 'Döşemealtı', 'Aksu'], true)) : ?>
+                                <option value="<?= e($ogrenci['ilce']) ?>" selected><?= e($ogrenci['ilce']) ?> (mevcut)</option>
+                            <?php endif; ?>
+                        </select>
+                    </label>
+                    <label class="dialog-wide"><span>Açık Adres</span><textarea name="ogrenci_adres" rows="3" maxlength="500"><?= e($ogrenci['adres'] ?? '') ?></textarea></label>
+                    <div class="dialog-wide info-box compact-info">
+                        <strong>Harita konumu</strong>
+                        <p><?= !empty($ogrenci['adres_konum_dogrulandi']) ? 'Konum doğrulandı. Adres değişirse harita konumu yeniden doğrulanmalıdır.' : 'Adres kaydedildikten sonra Adres Haritası ekranından konumu doğrulayın.' ?></p>
+                    </div>
+                </div>
+                <div class="profile-address-actions">
+                    <span data-profile-address-save-message></span>
+                    <button class="btn btn-primary" type="submit">Adresi Kaydet</button>
                 </div>
             </section>
 
@@ -514,7 +454,7 @@ $durumIkonu = static function (array $randevu): string {
                     <label><span>Vasi Telefon</span><input name="vasi_telefon" data-phone-mask maxlength="16" value="<?= e($ogrenci['vasi_telefon'] ?? '') ?>"></label>
                     <label class="dialog-wide"><span>Saglik Bilgisi</span><textarea name="saglik_bilgisi" rows="3"><?= e($ogrenci['saglik_bilgisi'] ?? '') ?></textarea></label>
                     <label class="dialog-wide"><span>Alerji Bilgisi</span><textarea name="alerji_bilgisi" rows="3"><?= e($ogrenci['alerji_bilgisi'] ?? '') ?></textarea></label>
-                    <label class="dialog-wide"><span>Aciklama</span><textarea name="ozel_durum_notu" rows="3"><?= e($ogrenci['ozel_durum_notu'] ?? '') ?></textarea></label>
+                    <label class="dialog-wide"><span>Açıklama</span><textarea name="ozel_durum_notu" rows="3"><?= e($ogrenci['ozel_durum_notu'] ?? '') ?></textarea></label>
                     <label class="dialog-wide"><span>Yonetici Notu</span><textarea name="yonetici_notu" rows="3"><?= e($ogrenci['yonetici_notu'] ?? '') ?></textarea></label>
                     <label class="dialog-wide"><span>Ogretmen Notu</span><textarea name="ogretmen_notu" rows="3"><?= e($ogrenci['ogretmen_notu'] ?? '') ?></textarea></label>
                 </div>
@@ -569,6 +509,9 @@ $durumIkonu = static function (array $randevu): string {
 </dialog>
 <?php endif; ?>
 
+<?php require __DIR__ . '/partials/ogrenci-finans.php'; ?>
+
+<div data-student-tab-panel="profil">
 <section class="profile-grid">
     <article class="panel-card report-panel" id="paketler">
         <h2>Paketler</h2>
@@ -623,9 +566,21 @@ $durumIkonu = static function (array $randevu): string {
                                 ? 'Odeme: ' . e($odeme['odeme_tarihleri'] ?: '-') . ' / ' . e(para_goster($tahsilat))
                                 : 'Odeme yapilmadi' ?>
                         </span>
+                        <?php if (!empty($odeme['tahsilat_notu'])) : ?>
+                            <span class="payment-note"><strong>Tahsilat notu:</strong> <?= nl2br(e($odeme['tahsilat_notu'])) ?></span>
+                        <?php endif; ?>
                     </div>
                     <div class="payment-mini-actions">
                         <b><?= $kalanBorc > 0 ? e('Kalan: ' . para_goster($kalanBorc)) : 'Odendi' ?></b>
+                        <?php if ($canManagePayments) : ?>
+                            <button
+                                class="btn btn-ghost"
+                                type="button"
+                                data-profile-payment-note
+                                data-paket-id="<?= e($odeme['paket_id'] ?? 0) ?>"
+                                data-payment-note="<?= e(rawurlencode((string) ($odeme['tahsilat_notu'] ?? ''))) ?>"
+                            ><?= empty($odeme['tahsilat_notu']) ? 'Not Ekle' : 'Notu Duzenle' ?></button>
+                        <?php endif; ?>
                         <?php if ($canManagePayments && $kalanBorc > 0) : ?>
                             <button
                                 class="btn btn-primary"
@@ -647,6 +602,36 @@ $durumIkonu = static function (array $randevu): string {
     </article>
     <?php endif; ?>
 </section>
+
+<?php if ($canManagePayments && $odemeOzeti) : ?>
+<dialog class="appointment-dialog payment-dialog" data-profile-payment-note-dialog>
+    <form
+        method="dialog"
+        class="appointment-dialog-form"
+        data-ajax-form="paket_tahsilat_notu_guncelle"
+        data-success-redirect="/panel/ogrenciler/profil?id=<?= e($ogrenci['id'] ?? '') ?>"
+        data-profile-payment-note-form
+    >
+        <div class="dialog-head">
+            <h2>Tahsilat Notu</h2>
+            <button type="button" data-profile-payment-note-close>x</button>
+        </div>
+        <input type="hidden" name="paket_id">
+        <div class="dialog-grid">
+            <label class="dialog-wide">
+                <span>Not</span>
+                <textarea name="tahsilat_notu" rows="5" maxlength="2000" placeholder="Ornek: Onumuzdeki hafta nakit olarak getirecek."></textarea>
+                <small>Notu silmek icin alani bosaltip kaydedebilirsiniz.</small>
+            </label>
+        </div>
+        <div class="record-actions compact-actions">
+            <span data-form-message></span>
+            <button class="btn btn-ghost" type="button" data-profile-payment-note-close>Vazgec</button>
+            <button class="btn btn-primary" type="submit">Notu Kaydet</button>
+        </div>
+    </form>
+</dialog>
+<?php endif; ?>
 
 <?php if ($canCreateAppointment) : ?>
 <section class="panel-card report-panel" data-profile-makeup>
@@ -679,22 +664,22 @@ $durumIkonu = static function (array $randevu): string {
 </section>
 <?php endif; ?>
 
-<section class="panel-card report-panel blacklist-panel" id="kara-liste" data-profile-section-panel="kara-liste" hidden>
+<section class="panel-card report-panel blacklist-panel" id="kara-liste">
     <div class="appointment-toolbar">
         <div>
-            <h2>Tedbir Listesi Kayıtları</h2>
+            <h2>Kara Liste Kayitlari</h2>
             <p>Bu ogrenci icin sebep ve kategori bazli takip kayitlari.</p>
         </div>
         <div class="appointment-toolbar-actions">
-            <a class="btn btn-ghost" href="/panel/ogrenciler/tedbir-listesi">Tüm Tedbir Listesi</a>
+            <a class="btn btn-ghost" href="/panel/ogrenciler/kara-liste">Tum Kara Liste</a>
             <?php if ($canEditStudent) : ?>
-                <button class="btn btn-danger" type="button" data-open-dialog="#kara-liste-dialog">Tedbir Listesine Ekle</button>
+                <button class="btn btn-danger" type="button" data-open-dialog="#kara-liste-dialog">Kara Listeye Ekle</button>
             <?php endif; ?>
         </div>
     </div>
     <div class="blacklist-timeline">
         <?php if (!$karaListeKayitlari) : ?>
-            <div class="empty-state">Bu öğrenci için tedbir listesi kaydı yok.</div>
+            <div class="empty-state">Bu ogrenci icin kara liste kaydi yok.</div>
         <?php endif; ?>
         <?php foreach ($karaListeKayitlari as $kayit) : ?>
             <article class="blacklist-item <?= (int) ($kayit['aktif'] ?? 0) === 1 ? 'is-active' : '' ?>">
@@ -714,7 +699,7 @@ $durumIkonu = static function (array $randevu): string {
     </div>
 </section>
 
-<section class="panel-card report-panel" id="gunluk-notlar" data-profile-section-panel="gunluk-notlar" hidden>
+<section class="panel-card report-panel" id="gunluk-notlar">
     <div class="appointment-toolbar">
         <div>
             <h2>Gunluk Not Akisi</h2>
@@ -809,3 +794,4 @@ $durumIkonu = static function (array $randevu): string {
         </table>
     </div>
 </section>
+</div>

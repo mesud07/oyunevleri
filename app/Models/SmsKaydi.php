@@ -11,6 +11,49 @@ final class SmsKaydi extends Model
 {
     public const KUYRUK_DURUMLARI = ['bekliyor', 'tekrar_bekliyor'];
 
+    public const VARSAYILAN_SABLONLAR = [
+        ['randevu_olusturuldu', 'Randevu Olusturuldu', 'Sayin {veli_adi}, {ogrenci_adi} icin {paket_adi} randevulariniz olusturuldu: {randevu_listesi}. {kurum_adi}', 1, 'Randevu olusturulunca kuyruga eklenir.'],
+        ['randevu_hatirlatma', 'Randevu Hatirlatma', 'Sayin {veli_adi}, {ogrenci_adi} icin {tarih} {saat} tarihinde {paket_adi} randevunuz bulunmaktadir. Katilim durumunuz: {katilim_linki} {kurum_adi}', 1, 'Standart randevu hatirlatmasi.'],
+        ['tanisma_dersi_hatirlatma', 'Tanisma Dersi Hatirlatma', 'Sayin {veli_adi}, {ogrenci_adi} icin tanisma dersiniz {tarih} {saat} tarihinde planlanmistir. Katilim durumunuz: {katilim_linki} {kurum_adi}', 1, 'Tek derslik tanisma hatirlatmasi.'],
+        ['veli_gorusmesi_hatirlatma', 'Veli Gorusmesi Hatirlatma', 'Sayin {veli_adi}, veli gorusmeniz {tarih} {saat} tarihinde planlanmistir. Katilim durumunuz: {katilim_linki} {kurum_adi}', 1, 'Veli gorusmesi hatirlatmasi.'],
+        ['workshop_hatirlatma', 'Workshop Hatirlatma', 'Sayin {veli_adi}, {ogrenci_adi} icin workshop etkinligi {tarih} {saat} tarihinde planlanmistir. Katilim durumunuz: {katilim_linki} {kurum_adi}', 1, 'Workshop hatirlatmasi.'],
+        ['odeme_alindi', 'Odeme Alindi', 'Sayin {veli_adi}, {ogrenci_adi} icin {odeme_tutari} tutarindaki odemeniz alinmistir. Kalan borc: {kalan_borc}. {kurum_adi}', 1, 'Tahsilat sonrasi bilgilendirme.'],
+        ['odeme_sozu_hatirlatma', 'Odeme Sozu Hatirlatma', 'Sayin {veli_adi}, {ogrenci_adi} icin {odeme_sozu_tarihi} tarihli {odeme_tutari} odeme sozunuz bulunmaktadir. {kurum_adi}', 1, 'Odeme sozu hatirlatmasi.'],
+        ['geciken_odeme', 'Geciken Odeme', 'Sayin {veli_adi}, {ogrenci_adi} icin {kalan_borc} tutarinda gecikmis odeme gorunmektedir. {kurum_adi}', 0, 'Manuel veya rapordan gonderilebilir.'],
+        ['paket_bitiyor', 'Paket Bitiyor', 'Sayin {veli_adi}, {ogrenci_adi} icin {paket_adi} paketiniz {tarih} tarihinde bitiyor. Kayit yenileme icin bizimle iletisime gecebilirsiniz. {kurum_adi}', 0, 'Paket yenileme bilgilendirmesi.'],
+        ['manuel_sms', 'Manuel SMS', '{mesaj}', 0, 'Manuel SMS metni.'],
+        ['randevu_guncellendi', 'Randevu Guncellendi', 'Sayin {veli_adi}, {ogrenci_adi} icin {eski_tarih} {eski_saat} randevunuz {tarih} {saat} olarak guncellenmistir. {paket_adi} - {kurum_adi}', 1, 'Randevu guncellendiginde veliye gonderilir.'],
+        ['dogum_gunu', 'Dogum Gunu', 'Sayin {veli_adi}, {ogrenci_adi} icin mutlu ve saglikli yaslar dileriz. {kurum_adi}', 1, 'Dogum gunu olan aktif ogrenciler icin otomatik SMS.'],
+        ['telafi_dersi_olusturuldu', 'Telafi Dersi Olusturuldu', 'Sayin {veli_adi}, {ogrenci_adi} icin {kaynak_tarih} {kaynak_saat} tarihli dersin telafisi {tarih} {saat} olarak planlanmistir. {kurum_adi}', 1, 'Telafi dersi planlandiginda veliye gonderilir.'],
+    ];
+
+    public static function varsayilanSablonlariEkle(int $kurumId, ?PDO $db = null): int
+    {
+        if ($kurumId < 1) {
+            throw new \InvalidArgumentException('SMS sablonlari icin kurum zorunludur.');
+        }
+
+        $db ??= self::db();
+        $stmt = $db->prepare(
+            'INSERT IGNORE INTO sms_sablonlari
+             (kurum_id, anahtar, baslik, mesaj, aktif, otomatik_gonderim, onay_durumu, aciklama)
+             VALUES (:kurum_id, :anahtar, :baslik, :mesaj, 1, :otomatik_gonderim, "kullanilabilir", :aciklama)'
+        );
+        $eklenen = 0;
+        foreach (self::VARSAYILAN_SABLONLAR as [$anahtar, $baslik, $mesaj, $otomatik, $aciklama]) {
+            $stmt->execute([
+                'kurum_id' => $kurumId,
+                'anahtar' => $anahtar,
+                'baslik' => $baslik,
+                'mesaj' => $mesaj,
+                'otomatik_gonderim' => $otomatik,
+                'aciklama' => $aciklama,
+            ]);
+            $eklenen += $stmt->rowCount();
+        }
+        return $eklenen;
+    }
+
     public static function olustur(array $veri): int
     {
         $stmt = self::db()->prepare(
@@ -450,10 +493,11 @@ final class SmsKaydi extends Model
     {
         try {
             $stmt = self::db()->prepare(
-                'INSERT INTO sms_olay_kayitlari (sms_kaydi_id, eski_durum, yeni_durum, mesaj)
-                 VALUES (:sms_kaydi_id, :eski_durum, :yeni_durum, :mesaj)'
+                'INSERT INTO sms_olay_kayitlari (kurum_id, sms_kaydi_id, eski_durum, yeni_durum, mesaj)
+                 VALUES (:kurum_id, :sms_kaydi_id, :eski_durum, :yeni_durum, :mesaj)'
             );
             $stmt->execute([
+                'kurum_id' => self::kurumId(),
                 'sms_kaydi_id' => $id,
                 'eski_durum' => $eskiDurum,
                 'yeni_durum' => $yeniDurum,

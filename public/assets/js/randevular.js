@@ -5,8 +5,10 @@
   const profileEditForm = document.querySelector('[data-profile-edit-form]');
   const profileAppointmentEditDialog = document.querySelector('[data-profile-appointment-edit-dialog]');
   const profileAppointmentEditForm = document.querySelector('[data-profile-appointment-edit-form]');
+  const profilePaymentNoteDialog = document.querySelector('[data-profile-payment-note-dialog]');
+  const profilePaymentNoteForm = document.querySelector('[data-profile-payment-note-form]');
   const packageMessage = document.querySelector('[data-profile-package-message]');
-  if (!profileAppointments && !profileMakeup && !profileEditForm && !profileAppointmentEditForm && !packageMessage) {
+  if (!profileAppointments && !profileMakeup && !profileEditForm && !profileAppointmentEditForm && !profilePaymentNoteForm && !packageMessage) {
     return;
   }
 
@@ -73,6 +75,28 @@
       return;
     }
     profileAppointmentEditDialog.setAttribute('open', 'open');
+  }
+
+  function closeProfilePaymentNoteDialog() {
+    if (!profilePaymentNoteDialog) {
+      return;
+    }
+    if (typeof profilePaymentNoteDialog.close === 'function') {
+      profilePaymentNoteDialog.close();
+      return;
+    }
+    profilePaymentNoteDialog.removeAttribute('open');
+  }
+
+  function openProfilePaymentNoteDialog() {
+    if (!profilePaymentNoteDialog) {
+      return;
+    }
+    if (typeof profilePaymentNoteDialog.showModal === 'function') {
+      profilePaymentNoteDialog.showModal();
+      return;
+    }
+    profilePaymentNoteDialog.setAttribute('open', 'open');
   }
 
   function timeShort(value) {
@@ -222,6 +246,23 @@
       return;
     }
 
+    if (event.target.closest('[data-profile-payment-note-close]')) {
+      closeProfilePaymentNoteDialog();
+      return;
+    }
+
+    const paymentNote = event.target.closest('[data-profile-payment-note]');
+    if (paymentNote && profilePaymentNoteForm) {
+      profilePaymentNoteForm.elements.paket_id.value = paymentNote.getAttribute('data-paket-id') || '';
+      try {
+        profilePaymentNoteForm.elements.tahsilat_notu.value = decodeURIComponent(paymentNote.getAttribute('data-payment-note') || '');
+      } catch (error) {
+        profilePaymentNoteForm.elements.tahsilat_notu.value = '';
+      }
+      openProfilePaymentNoteDialog();
+      return;
+    }
+
     const unpaidClose = event.target.closest('[data-profile-package-unpaid-close]');
     if (unpaidClose) {
       const id = Number(unpaidClose.getAttribute('data-profile-package-unpaid-close'));
@@ -294,8 +335,12 @@
   profileEditForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
     const editMessage = profileEditForm.querySelector('[data-profile-edit-message]');
+    const addressMessage = profileEditForm.querySelector('[data-profile-address-save-message]');
     if (editMessage) {
       editMessage.textContent = 'Kaydediliyor...';
+    }
+    if (addressMessage) {
+      addressMessage.textContent = 'Kaydediliyor...';
     }
 
     try {
@@ -303,10 +348,16 @@
       if (editMessage) {
         editMessage.textContent = result.mesaj;
       }
+      if (addressMessage) {
+        addressMessage.textContent = result.mesaj;
+      }
       window.location.reload();
     } catch (error) {
       if (editMessage) {
         editMessage.textContent = error.message;
+      }
+      if (addressMessage) {
+        addressMessage.textContent = error.message;
       }
     }
   });
@@ -358,7 +409,7 @@
     calendarRows: [],
     stats: { planlandi: 0, geldi: 0, gelmedi: 0 },
     currentDate: dateKey(new Date()),
-    calendarView: 'month',
+    calendarView: 'week',
     month: monthKey(new Date()),
     filter: '',
     selected: new Set()
@@ -1555,7 +1606,7 @@
     const viewButton = event.target.closest('[data-calendar-view]');
     if (viewButton) {
       hideDayPopover();
-      state.calendarView = viewButton.getAttribute('data-calendar-view') || 'month';
+      state.calendarView = viewButton.getAttribute('data-calendar-view') || 'week';
       await loadCalendar();
       return;
     }

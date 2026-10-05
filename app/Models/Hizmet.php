@@ -11,7 +11,7 @@ final class Hizmet extends Model
     public static function liste(): array
     {
         $stmt = self::db()->prepare(
-            'SELECT id, hizmet_adi, ucret, haftalik_katilim_sayisi, toplam_normal_hak, toplam_telafi_hak, aktif
+            'SELECT id, hizmet_adi, ucret, kdv_orani, haftalik_katilim_sayisi, toplam_normal_hak, toplam_telafi_hak, hak_hesaplama_turu, aktif
              FROM hizmetler
              WHERE kurum_id = :kurum_id
              ORDER BY aktif DESC, id DESC'
@@ -23,7 +23,7 @@ final class Hizmet extends Model
     public static function aktifListe(): array
     {
         $stmt = self::db()->prepare(
-            'SELECT id, hizmet_adi, ucret, haftalik_katilim_sayisi, toplam_normal_hak, toplam_telafi_hak
+            'SELECT id, hizmet_adi, ucret, kdv_orani, haftalik_katilim_sayisi, toplam_normal_hak, toplam_telafi_hak, hak_hesaplama_turu
              FROM hizmetler
              WHERE kurum_id = :kurum_id AND aktif = 1
              ORDER BY hizmet_adi'
@@ -35,7 +35,7 @@ final class Hizmet extends Model
     public static function idIleBul(int $id): ?array
     {
         $stmt = self::db()->prepare(
-            'SELECT id, hizmet_adi, ucret, haftalik_katilim_sayisi, toplam_normal_hak, toplam_telafi_hak, aktif
+            'SELECT id, hizmet_adi, ucret, kdv_orani, haftalik_katilim_sayisi, toplam_normal_hak, toplam_telafi_hak, hak_hesaplama_turu, aktif
              FROM hizmetler
              WHERE id = :id AND kurum_id = :kurum_id
              LIMIT 1'
@@ -48,7 +48,7 @@ final class Hizmet extends Model
     public static function tanismaDersi(): ?array
     {
         $stmt = self::db()->prepare(
-            'SELECT id, hizmet_adi, ucret, haftalik_katilim_sayisi, toplam_normal_hak, toplam_telafi_hak, aktif
+            'SELECT id, hizmet_adi, ucret, kdv_orani, haftalik_katilim_sayisi, toplam_normal_hak, toplam_telafi_hak, hak_hesaplama_turu, aktif
              FROM hizmetler
              WHERE kurum_id = :kurum_id
                AND aktif = 1
@@ -64,16 +64,18 @@ final class Hizmet extends Model
     public static function ekle(array $veri): int
     {
         $stmt = self::db()->prepare(
-            'INSERT INTO hizmetler (kurum_id, hizmet_adi, ucret, haftalik_katilim_sayisi, toplam_normal_hak, toplam_telafi_hak, aktif, olusturulma_tarihi)
-             VALUES (:kurum_id, :hizmet_adi, :ucret, :haftalik_katilim_sayisi, :toplam_normal_hak, :toplam_telafi_hak, 1, NOW())'
+            'INSERT INTO hizmetler (kurum_id, hizmet_adi, ucret, kdv_orani, haftalik_katilim_sayisi, toplam_normal_hak, toplam_telafi_hak, hak_hesaplama_turu, aktif, olusturulma_tarihi)
+             VALUES (:kurum_id, :hizmet_adi, :ucret, :kdv_orani, :haftalik_katilim_sayisi, :toplam_normal_hak, :toplam_telafi_hak, :hak_hesaplama_turu, 1, NOW())'
         );
         $stmt->execute([
             'kurum_id' => self::kurumId(),
             'hizmet_adi' => $veri['hizmet_adi'],
             'ucret' => (float) $veri['ucret'],
+            'kdv_orani' => $veri['kdv_orani'],
             'haftalik_katilim_sayisi' => (int) $veri['haftalik_katilim_sayisi'],
             'toplam_normal_hak' => (int) $veri['toplam_normal_hak'],
             'toplam_telafi_hak' => (int) $veri['toplam_telafi_hak'],
+            'hak_hesaplama_turu' => ($veri['hak_hesaplama_turu'] ?? '') === 'aylik_takvim' ? 'aylik_takvim' : 'sabit',
         ]);
 
         return (int) self::db()->lastInsertId();
@@ -85,9 +87,11 @@ final class Hizmet extends Model
             'UPDATE hizmetler
              SET hizmet_adi = :hizmet_adi,
                  ucret = :ucret,
+                 kdv_orani = :kdv_orani,
                  haftalik_katilim_sayisi = :haftalik_katilim_sayisi,
                  toplam_normal_hak = :toplam_normal_hak,
                  toplam_telafi_hak = :toplam_telafi_hak,
+                 hak_hesaplama_turu = :hak_hesaplama_turu,
                  aktif = :aktif
              WHERE id = :id AND kurum_id = :kurum_id'
         );
@@ -97,9 +101,11 @@ final class Hizmet extends Model
             'kurum_id' => self::kurumId(),
             'hizmet_adi' => $veri['hizmet_adi'],
             'ucret' => (float) $veri['ucret'],
+            'kdv_orani' => $veri['kdv_orani'],
             'haftalik_katilim_sayisi' => (int) $veri['haftalik_katilim_sayisi'],
             'toplam_normal_hak' => (int) $veri['toplam_normal_hak'],
             'toplam_telafi_hak' => (int) $veri['toplam_telafi_hak'],
+            'hak_hesaplama_turu' => ($veri['hak_hesaplama_turu'] ?? '') === 'aylik_takvim' ? 'aylik_takvim' : 'sabit',
             'aktif' => (int) $veri['aktif'],
         ]);
 

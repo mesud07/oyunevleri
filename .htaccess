@@ -1,11 +1,14 @@
 Options -Indexes
 RewriteEngine On
 
+RewriteRule "(^|/)\." - [F,L]
+RewriteRule "^(app|config|database|docker|docs|cron|resources|storage|tmp|output|vendor)(/|$)" - [F,L,NC]
+RewriteRule "^(bootstrap\.php|composer\.(json|lock)|Dockerfile|compose.*\.ya?ml|swagger\.json|info\.md)$" - [F,L,NC]
+
 RewriteCond %{REQUEST_URI} !^/public/
 RewriteCond %{DOCUMENT_ROOT}/public%{REQUEST_URI} -f [OR]
 RewriteCond %{DOCUMENT_ROOT}/public%{REQUEST_URI} -d
 RewriteRule ^(.*)$ public/$1 [L]
 
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/public/
 RewriteRule ^ public/index.php [QSA,L]

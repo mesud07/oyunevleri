@@ -13,8 +13,11 @@ use App\Models\Gider;
 use App\Models\Kasa;
 use App\Models\Odeme;
 use App\Models\Paket;
-use App\Models\Rapor;
+use App\Models\Ayar;
 use App\Services\SmsServisi;
+use App\Services\TahsilatAnalizServisi;
+use App\Services\TahsilatExcelServisi;
+use App\Services\LogServisi;
 
 final class OdemeController extends Controller
 {
@@ -34,6 +37,23 @@ final class OdemeController extends Controller
         foreach ($borcluPaketler as $borc) {
             $toplamKalanBorc += (float) ($borc['kalan_borc'] ?? 0);
         }
+        $bugun = date('Y-m-d');
+        $beklenenOdemeTakvimi = [];
+        foreach ($borcluPaketler as $borc) {
+            $beklenenTarih = (string) ($borc['beklenen_odeme_tarihi'] ?? '');
+            if ($beklenenTarih === '' || $beklenenTarih < $bugun) {
+                continue;
+            }
+            $beklenenOdemeTakvimi[] = [
+                'paket_id' => (int) ($borc['paket_id'] ?? 0),
+                'tarih' => $beklenenTarih,
+                'ogrenci' => (string) ($borc['ogrenci'] ?? ''),
+                'paket_adi' => (string) ($borc['paket_adi'] ?? ''),
+                'kalan_borc' => (float) ($borc['kalan_borc'] ?? 0),
+                'tahsilat_notu' => (string) ($borc['tahsilat_notu'] ?? ''),
+            ];
+        }
+        usort($beklenenOdemeTakvimi, static fn(array $a, array $b): int => [$a['tarih'], $a['ogrenci']] <=> [$b['tarih'], $b['ogrenci']]);
 
         $this->view('panel/odeme-borclular', [
             'baslik' => 'Mevcut Borclular',
@@ -44,6 +64,7 @@ final class OdemeController extends Controller
             'kasalar' => Kasa::secenekler(),
             'borcluPaketler' => $borcluPaketler,
             'toplamKalanBorc' => $toplamKalanBorc,
+            'beklenenOdemeTakvimi' => $beklenenOdemeTakvimi,
         ], 'panel');
     }
 
@@ -53,6 +74,12 @@ final class OdemeController extends Controller
             Response::redirect('/giris');
         }
 
+        $analizAy = $this->gecerliAnalizAyi($_GET['ay'] ?? date('Y-m'));
+        $analizDonem = $this->gecerliAnalizDonemi($_GET['donem'] ?? 'ay');
+        $analizAraligi = TahsilatAnalizServisi::donemAraligi($analizAy, $analizDonem);
+        $analizVerileri = Odeme::analizVerileri($analizAraligi['baslangic'], $analizAraligi['bitis']);
+        $kdvYontemleri = $this->kdvYontemleri();
+
         $this->view('panel/tahsilatlar', [
             'baslik' => 'Tahsilatlar',
             'aktif' => 'odemeler-tahsilatlar',
@@ -61,9 +88,48 @@ final class OdemeController extends Controller
             'paketler' => Paket::secenekler(),
             'kasalar' => Kasa::secenekler(),
             'tahsilatOzetleri' => Odeme::tahsilatOzetleri(),
-            'yaklasanTahsilatlar' => Rapor::yaklasanTahsilatlar(),
-            'gecikmisTahsilatlar' => Rapor::gecikmisTahsilatlar(),
+            'tahsilatAnalizi' => (new TahsilatAnalizServisi())->olustur($analizAy, $analizVerileri, $kdvYontemleri, $analizAraligi),
+            'analizAy' => $analizAy,
+            'analizDonem' => $analizDonem,
+            'kdvYontemleri' => $kdvYontemleri,
         ], 'panel');
+    }
+
+    public function tahsilatlarExcel(): void
+    {
+        if (!Auth::check()) {
+            Response::redirect('/giris');
+        }
+
+        $ay = $this->gecerliAnalizAyi($_GET['ay'] ?? date('Y-m'));
+        $donem = $this->gecerliAnalizDonemi($_GET['donem'] ?? 'ay');
+        $yontem = $this->gecerliOdemeYontemi($_GET['yontem'] ?? '');
+        $aralik = TahsilatAnalizServisi::donemAraligi($ay, $donem);
+        if ($yontem !== '') {
+            $aralik['dosya_eki'] .= '-' . $yontem;
+            $aralik['etiket'] .= ' · ' . $this->odemeYontemiEtiketi($yontem);
+        }
+        $analiz = (new TahsilatAnalizServisi())->olustur(
+            $ay,
+            Odeme::analizVerileri($aralik['baslangic'], $aralik['bitis'], $yontem),
+            $this->kdvYontemleri(),
+            $aralik
+        );
+        $dosya = (new TahsilatExcelServisi())->olustur(
+            $analiz,
+            Odeme::tarihAraligiTahsilatlari($aralik['baslangic'], $aralik['bitis'], $yontem),
+            (string) (Auth::user()['kurum_adi'] ?? 'Oyun Evleri')
+        );
+        (new LogServisi())->yaz('tahsilat_excel_indirildi', 'Tahsilat Excel raporu indirildi.', ['ay' => $ay, 'donem' => $donem, 'yontem' => $yontem]);
+
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        header('Content-Type: ' . $dosya['mime']);
+        header('Content-Disposition: attachment; filename="' . basename((string) $dosya['name']) . '"');
+        header('Content-Length: ' . strlen((string) $dosya['content']));
+        header('Cache-Control: private, no-store');
+        echo $dosya['content'];
     }
 
     public function tahsilatTakibiSayfa(): void
@@ -95,7 +161,31 @@ final class OdemeController extends Controller
         Response::json([
             'basari' => true,
             'mesaj' => 'Odemeler listelendi.',
-            'veri' => Odeme::liste($sayfa, $limit),
+            'veri' => Odeme::liste(
+                $sayfa,
+                $limit,
+                trim((string) ($data['yontem'] ?? '')),
+                trim((string) ($data['siralama'] ?? 'tarih_desc')),
+                trim((string) ($data['ay'] ?? ''))
+            ),
+        ]);
+    }
+
+    public function kdvAyarlariKaydet(): void
+    {
+        $data = $GLOBALS['talya_ajax_data'] ?? [];
+        $yontemler = is_array($data['yontemler'] ?? null) ? $data['yontemler'] : [];
+        $yontemler = TahsilatAnalizServisi::kdvYontemleriniNormalize($yontemler);
+        Ayar::kaydet(
+            'tahsilat_kdv_yontemleri',
+            json_encode($yontemler, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'KDV hesabina dahil edilen tahsilat yontemleri.'
+        );
+
+        Response::json([
+            'basari' => true,
+            'mesaj' => 'KDV hesaplama yöntemleri kaydedildi.',
+            'veri' => ['yontemler' => $yontemler],
         ]);
     }
 
@@ -211,6 +301,45 @@ final class OdemeController extends Controller
         }
 
         return $tutar;
+    }
+
+    private function gecerliAnalizAyi(mixed $deger): string
+    {
+        $ay = is_string($deger) ? trim($deger) : '';
+        return preg_match('/^20\d{2}-(?:0[1-9]|1[0-2])$/', $ay) ? $ay : date('Y-m');
+    }
+
+    private function gecerliAnalizDonemi(mixed $deger): string
+    {
+        $donem = is_string($deger) ? trim($deger) : '';
+        return in_array($donem, TahsilatAnalizServisi::DONEMLER, true) ? $donem : 'ay';
+    }
+
+    private function gecerliOdemeYontemi(mixed $deger): string
+    {
+        $yontem = is_string($deger) ? trim($deger) : '';
+        return in_array($yontem, ['nakit', 'kredi_karti', 'havale', 'odeme_baglantisi', 'diger'], true) ? $yontem : '';
+    }
+
+    private function odemeYontemiEtiketi(string $yontem): string
+    {
+        return match ($yontem) {
+            'nakit' => 'Nakit',
+            'kredi_karti' => 'Kredi Kartı',
+            'havale' => 'Havale / EFT',
+            'odeme_baglantisi' => 'Ödeme Bağlantısı',
+            default => 'Diğer',
+        };
+    }
+
+    private function kdvYontemleri(): array
+    {
+        $kayitli = Ayar::deger('tahsilat_kdv_yontemleri');
+        if ($kayitli === null || trim($kayitli) === '') {
+            return TahsilatAnalizServisi::VARSAYILAN_KDV_YONTEMLERI;
+        }
+        $cozulmus = json_decode($kayitli, true);
+        return TahsilatAnalizServisi::kdvYontemleriniNormalize(is_array($cozulmus) ? $cozulmus : []);
     }
 
     public function geriAl(): void

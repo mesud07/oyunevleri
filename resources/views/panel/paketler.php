@@ -28,9 +28,11 @@
                             value="<?= e($hizmet['id']) ?>"
                             data-name="<?= e($hizmet['hizmet_adi']) ?>"
                             data-price="<?= e($hizmet['ucret']) ?>"
+                            data-vat="<?= e($hizmet['kdv_orani']) ?>"
                             data-weekly="<?= e($hizmet['haftalik_katilim_sayisi']) ?>"
                             data-normal="<?= e($hizmet['toplam_normal_hak']) ?>"
                             data-makeup="<?= e($hizmet['toplam_telafi_hak']) ?>"
+                            data-calendar-mode="<?= e($hizmet['hak_hesaplama_turu'] ?? 'sabit') ?>"
                         ><?= e($hizmet['hizmet_adi']) ?> - <?= e(para_goster($hizmet['ucret'])) ?></option>
                     <?php endforeach; ?>
                 </select>
@@ -47,6 +49,7 @@
                     <option value="2">Haftada 2 Gun</option>
                 </select>
                 <input type="hidden" name="haftalik_katilim_sayisi" value="1">
+                <input type="hidden" name="hak_hesaplama_turu" value="sabit">
             </label>
             <label class="check-row">
                 <span>SMS</span>
@@ -70,6 +73,7 @@
             <label><span>Normal Hak</span><input type="number" name="toplam_normal_hak" min="0" value="4" readonly></label>
             <label><span>Telafi Hakki</span><input type="number" name="toplam_telafi_hak" min="0" value="1" readonly></label>
             <label><span>Liste Fiyati</span><input type="number" step="0.01" name="liste_fiyati" readonly></label>
+            <label><span>KDV Orani (%)</span><input type="number" step="0.01" name="kdv_orani" readonly></label>
             <label>
                 <span>Indirim Turu</span>
                 <select name="indirim_turu">
@@ -83,7 +87,12 @@
                 </select>
             </label>
             <label><span>Indirim Tutari</span><input type="number" step="0.01" name="indirim_tutari" value="0"></label>
-            <label class="textarea-row"><span>Not</span><textarea name="yonetici_notu" rows="4"></textarea></label>
+            <label class="textarea-row">
+                <span>Tahsilat Notu</span>
+                <textarea name="tahsilat_notu" rows="4" maxlength="2000" placeholder="Ornek: Onumuzdeki hafta nakit olarak getirecek."></textarea>
+                <small>Bu not ogrenci profilindeki odeme durumunda gorunur ve daha sonra duzenlenebilir.</small>
+            </label>
+            <label class="textarea-row"><span>Yonetici Notu</span><textarea name="yonetici_notu" rows="4"></textarea></label>
             </div>
         </article>
 
@@ -92,6 +101,7 @@
             <div class="info-box compact-info">
                 <strong>Bilgilendirme</strong>
                 <p>Paketi sectikten sonra ogrencinin duzenli gelecegi gun ve saatleri secin. Paketteki hak sayisi kadar randevu otomatik olusturulur. Tahmini son ders tarihi son olusturulan randevudan otomatik hesaplanir.</p>
+                <p data-monthly-calendar-note hidden>Aylık takvim paketinde seçilen ay içindeki işaretli günlerin tamamı sayılır. Örneğin ayda 5 Çarşamba ve 4 Cuma varsa 9 ders oluşturulur.</p>
             </div>
             <div class="schedule-planner">
                 <?php

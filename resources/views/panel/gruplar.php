@@ -10,7 +10,7 @@
     </div>
 </section>
 
-<section class="weekly-program" data-group-program-page>
+<section class="weekly-program" data-group-program-page data-can-manage-waiting="<?= yetki_var('bekleyen_veli_ekle') ? '1' : '0' ?>">
     <article class="weekly-program-card">
         <div class="info-box compact-info weekly-info">
             <button type="button" data-weekly-info-close>x</button>
@@ -79,6 +79,18 @@
             </div>
             <div class="group-monthly-list" data-group-monthly-list></div>
             <p class="form-message" data-group-student-message></p>
+        </div>
+    </dialog>
+
+    <dialog class="appointment-dialog dialog-wide group-waiting-dialog" data-group-waiting-dialog>
+        <div class="appointment-dialog-form">
+            <div class="dialog-head">
+                <div><h2>Grubu Bekleyen Veliler</h2><p data-group-waiting-title></p></div>
+                <button type="button" data-group-waiting-close>x</button>
+            </div>
+            <div class="group-waiting-list" data-group-waiting-list><div class="empty-table">Yükleniyor...</div></div>
+            <p class="form-message" data-group-waiting-message></p>
+            <div class="record-actions compact-actions"><button class="btn btn-ghost" type="button" data-group-waiting-close>Kapat</button></div>
         </div>
     </dialog>
 

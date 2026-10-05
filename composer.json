@@ -1,16 +1,44 @@
 {
   "name": "oyun-evleri/yonetim-sistemi",
-  "description": "Oyun Evleri Yönetim Sistemi bağımsız PHP 8.2 uygulaması",
+  "description": "Oyun Evleri bağımsız PHP 8.2 yönetim sistemi",
   "type": "project",
+  "license": "proprietary",
   "require": {
     "php": "^8.2",
+    "dompdf/dompdf": "^3.1",
     "ext-pdo": "*",
     "ext-pdo_mysql": "*",
-    "dompdf/dompdf": "^3"
+    "ext-zip": "*",
+    "endroid/qr-code": "^5.1"
   },
   "autoload": {
     "psr-4": {
       "App\\": "app/"
     }
+  },
+  "scripts": {
+    "test": [
+      "php tests/security-smoke.php",
+      "php tests/puantaj-smoke.php",
+      "php tests/bordro-smoke.php",
+      "php tests/tahsilat-analizi-smoke.php",
+      "php tests/gozlem-raporu-pdf-smoke.php",
+      "php tests/haftalik-tema-smoke.php",
+      "php tests/devamlilik-raporu-smoke.php",
+      "php tests/adres-haritasi-smoke.php",
+      "php tests/bekleyen-veli-gorusme-smoke.php",
+      "php tests/bekleyen-veli-grup-smoke.php",
+      "php tests/veli-onam-smoke.php",
+      "php tests/borclu-odeme-plani-smoke.php",
+      "php tests/dogum-gunu-smoke.php",
+      "php tests/randevu-katilim-smoke.php",
+      "php tests/ogrenci-hizli-duzenleme-smoke.php",
+      "php tests/ogrenci-toplu-import-smoke.php",
+      "php tests/yenileme-takvimi-smoke.php",
+      "php tests/aylik-paket-smoke.php",
+      "php tests/kurum-modulleri-smoke.php",
+      "php tests/kullanici-ek-yetkileri-smoke.php",
+      "php tests/kurum-izolasyonu-smoke.php"
+    ]
   }
 }

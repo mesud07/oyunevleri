@@ -119,6 +119,12 @@ final class RandevuController extends Controller
             return;
         }
 
+        $tahsilatNotu = trim((string) ($data['tahsilat_notu'] ?? ''));
+        if (mb_strlen($tahsilatNotu) > 2000) {
+            Response::json(['basari' => false, 'mesaj' => 'Tahsilat notu en fazla 2000 karakter olabilir.', 'hatalar' => []], 422);
+            return;
+        }
+
         $kullanici = Auth::user();
         $kullaniciId = (int) ($kullanici['id'] ?? 0);
         if ($kullaniciId < 1) {
@@ -161,6 +167,10 @@ final class RandevuController extends Controller
             } catch (\Throwable $e) {
                 error_log('Randevu SMS kuyrugu olusturulamadi veya islenemedi: ' . $e->getMessage());
             }
+        }
+
+        if ($paketId > 0 && $tahsilatNotu !== '') {
+            Paket::tahsilatNotuGuncelle($paketId, $tahsilatNotu);
         }
 
         $adet = count($olusanIdler);
