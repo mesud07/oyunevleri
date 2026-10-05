@@ -15,14 +15,14 @@
         <p class="section-helper">Bir ogrenciye paket atandiginda bu tanimin fiyat ve hak bilgileri ogrenci paketine kopyalanir.</p>
         <?php if ($paketYonetebilir) : ?><article id="paket-form-panel" class="inline-form-panel" hidden>
             <h3>Yeni Paket Tanimi</h3>
-            <form class="form-grid" data-ajax-form="hizmet_ekle" data-refresh="paket_listele" data-target="#paket-tablosu">
+            <form class="form-grid" data-ajax-form="hizmet_ekle" data-refresh="paket_listele" data-target="#paket-tablosu" data-service-definition-form>
                 <label><span>Paket Adi</span><input name="hizmet_adi" placeholder="Oyun Grubu 4 Seans (24-36 Ay)" required></label>
+                <label><span>Hak Hesaplama</span><select name="hak_hesaplama_turu"><option value="sabit">Sabit ders sayısı</option><option value="aylik_takvim">Aylık takvimdeki seçili günler</option></select></label>
                 <label><span>Ucret</span><input type="number" step="0.01" name="ucret" required></label>
                 <label><span>KDV Orani (%)</span><input type="number" step="0.01" min="0" max="100" name="kdv_orani" placeholder="Ornek: 20" required></label>
-                <label><span>Haftalik Katilim</span><input type="number" name="haftalik_katilim_sayisi" min="1" value="1"></label>
+                <label data-service-fixed-right-field><span>Haftalik Katilim</span><input type="number" name="haftalik_katilim_sayisi" min="1" value="1"></label>
                 <label><span>Normal Ders</span><input type="number" name="toplam_normal_hak" min="1" value="4"></label>
-                <label><span>Telafi Hakki</span><input type="number" name="toplam_telafi_hak" min="0" value="1"></label>
-                <label><span>Hak Hesaplama</span><select name="hak_hesaplama_turu"><option value="sabit">Sabit ders sayısı</option><option value="aylik_takvim">Aylık takvimdeki seçili günler</option></select></label>
+                <label data-service-fixed-right-field><span>Telafi Hakki</span><input type="number" name="toplam_telafi_hak" min="0" value="1"></label>
                 <div class="form-actions full">
                     <button class="btn btn-primary" type="submit">Paket Kaydet</button>
                     <span data-form-message></span>
@@ -33,17 +33,17 @@
     </article>
 </section>
 <?php if ($paketYonetebilir) : ?><dialog class="appointment-dialog" id="hizmet-duzenle-dialog">
-    <form class="appointment-dialog-form" data-ajax-form="hizmet_guncelle" data-refresh="hizmet_listele" data-target="#paket-tablosu">
+    <form class="appointment-dialog-form" data-ajax-form="hizmet_guncelle" data-refresh="hizmet_listele" data-target="#paket-tablosu" data-service-definition-form>
         <div class="dialog-head"><h2>Paket Tanimini Duzenle</h2><button type="button" data-close-dialog>x</button></div>
         <input type="hidden" name="id">
         <div class="dialog-grid">
             <label><span>Paket Adi</span><input name="hizmet_adi" required></label>
+            <label><span>Hak Hesaplama</span><select name="hak_hesaplama_turu"><option value="sabit">Sabit ders sayısı</option><option value="aylik_takvim">Aylık takvimdeki seçili günler</option></select></label>
             <label><span>Ucret</span><input type="number" step="0.01" name="ucret" required></label>
             <label><span>KDV Orani (%)</span><input type="number" step="0.01" min="0" max="100" name="kdv_orani" required></label>
-            <label><span>Haftalik Katilim</span><input type="number" min="1" name="haftalik_katilim_sayisi" required></label>
+            <label data-service-fixed-right-field><span>Haftalik Katilim</span><input type="number" min="1" name="haftalik_katilim_sayisi" required></label>
             <label><span>Normal Ders</span><input type="number" min="1" name="toplam_normal_hak" required></label>
-            <label><span>Telafi Hakki</span><input type="number" min="0" name="toplam_telafi_hak" required></label>
-            <label><span>Hak Hesaplama</span><select name="hak_hesaplama_turu"><option value="sabit">Sabit ders sayısı</option><option value="aylik_takvim">Aylık takvimdeki seçili günler</option></select></label>
+            <label data-service-fixed-right-field><span>Telafi Hakki</span><input type="number" min="0" name="toplam_telafi_hak" required></label>
             <label><span>Durum</span><select name="aktif"><option value="1">Aktif</option><option value="0">Pasif</option></select></label>
         </div>
         <div class="record-actions compact-actions"><span data-form-message></span><button class="btn btn-ghost" type="button" data-close-dialog>Vazgec</button><button class="btn btn-primary" type="submit">Kaydet</button></div>

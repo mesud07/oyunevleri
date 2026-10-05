@@ -56,6 +56,21 @@ function normalRightCount(form) {
   return Number(form.querySelector('[name="toplam_normal_hak"]')?.value || 0);
 }
 
+function updateServiceRightsVisibility(form) {
+  if (!form?.matches('[data-service-definition-form]')) return;
+  const monthly = form.querySelector('[name="hak_hesaplama_turu"]')?.value === 'aylik_takvim';
+  form.querySelectorAll('[data-service-fixed-right-field]').forEach((field) => {
+    field.hidden = monthly;
+  });
+}
+
+document.querySelectorAll('[data-service-definition-form]').forEach(updateServiceRightsVisibility);
+
+document.addEventListener('change', (event) => {
+  const calendarMode = event.target.closest('[data-service-definition-form] [name="hak_hesaplama_turu"]');
+  if (calendarMode) updateServiceRightsVisibility(calendarMode.closest('[data-service-definition-form]'));
+});
+
 function updateMonthlyPackageRights(form) {
   if (!form?.matches('[data-package-assignment-form]')) return;
   const monthly = form.querySelector('[name="hak_hesaplama_turu"]')?.value === 'aylik_takvim';
@@ -1805,6 +1820,7 @@ document.addEventListener('submit', async (event) => {
   try {
     const sonuc = await talyaAjax(islem, formValues(form));
     form.reset();
+    updateServiceRightsVisibility(form);
     if (message) {
       message.textContent = sonuc.mesaj;
     }
@@ -2090,6 +2106,7 @@ document.addEventListener('click', async (event) => {
       set('toplam_telafi_hak', serviceEdit.dataset.makeup);
       set('hak_hesaplama_turu', serviceEdit.dataset.calendarMode);
       set('aktif', serviceEdit.dataset.active);
+      updateServiceRightsVisibility(form);
     }
     openDialogElement(dialog);
     return;
