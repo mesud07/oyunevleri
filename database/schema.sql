@@ -1106,6 +1106,20 @@ CREATE TABLE IF NOT EXISTS `randevular` (
   CONSTRAINT `fk_tenant_ea874428d1692dc2d4f5` FOREIGN KEY (`kurum_id`, `telafi_hakki_id`) REFERENCES `telafi_haklari` (`kurum_id`, `id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `randevu_katilim_tokenlari` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `kurum_id` bigint(20) unsigned NOT NULL,
+  `randevu_id` bigint(20) unsigned NOT NULL,
+  `token_hash` char(64) NOT NULL,
+  `olusturulma_tarihi` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_randevu_katilim_tokenlari_hash` (`token_hash`),
+  UNIQUE KEY `uq_randevu_katilim_tokenlari_kurum_id` (`kurum_id`,`id`),
+  KEY `idx_randevu_katilim_tokenlari_randevu` (`kurum_id`,`randevu_id`),
+  CONSTRAINT `fk_randevu_katilim_tokenlari_kurum` FOREIGN KEY (`kurum_id`) REFERENCES `kurumlar` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_randevu_katilim_tokenlari_randevu` FOREIGN KEY (`kurum_id`, `randevu_id`) REFERENCES `randevular` (`kurum_id`, `id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `sms_kayitlari` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `sablon_anahtari` varchar(100) DEFAULT NULL,

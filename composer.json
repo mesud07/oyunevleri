@@ -33,6 +33,7 @@
       "php tests/borclu-odeme-plani-smoke.php",
       "php tests/dogum-gunu-smoke.php",
       "php tests/randevu-katilim-smoke.php",
+      "php tests/randevu-katilim-token-smoke.php",
       "php tests/ogrenci-hizli-duzenleme-smoke.php",
       "php tests/ogrenci-toplu-import-smoke.php",
       "php tests/yenileme-takvimi-smoke.php",

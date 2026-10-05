@@ -17,14 +17,13 @@ $automation = file_get_contents(dirname(__DIR__) . '/app/Services/SmsOtomasyonCa
 $cron = file_get_contents(dirname(__DIR__) . '/cron/sms-otomasyon.php') ?: '';
 $compose = file_get_contents(dirname(__DIR__) . '/compose.production.yaml') ?: '';
 
-$assert(str_contains($model, 'katilimTokeniniSmsKaydindanBul'), 'Mevcut SMS tokeni yeniden kullaniliyor');
-$assert(str_contains($model, 'hash_equals($beklenenHash'), 'SMS icindeki token veritabanindaki hash ile dogrulaniyor');
-$assert(str_contains($model, 'yetimKatilimTokeniniYenile'), 'SMS icine hic yazilmamis yetim token guvenle yenileniyor');
+$assert(str_contains($model, 'randevu_katilim_tokenlari'), 'Bir randevu icin birden fazla kalici SMS tokeni destekleniyor');
+$assert(str_contains($model, 'katilimTokenHashiniKaydet'), 'Eski SMS tokenleri kalici kayda aliniyor');
 $assert(str_contains($model, 'INNER JOIN sms_kayitlari sk') && str_contains($model, "'%?t=' . strtolower(\$token)"), 'Onceden gonderilmis eski SMS linkleri de randevuya baglaniyor');
-$assert(str_contains($model, 'AND katilim_token_hash IS NULL'), 'Mevcut token hatirlatma calismasinda ezilmiyor');
+$assert(!str_contains($model, 'SET katilim_token = NULL'), 'Yeni tokenlar onceki katilim linklerini ezmiyor');
 $assert(!str_contains($model, 'katilim_token_son_kullanim >= NOW()'), 'Ders sonrasi link randevu detayini gostermeye devam ediyor');
 $assert(str_contains($model, '(TIMESTAMP(r.tarih, r.baslangic_saati) > NOW()) AS katilim_acik'), 'Katilim penceresi ders baslangic saatine gore belirleniyor');
-$assert(str_contains($model, 'AND TIMESTAMP(r.tarih, r.baslangic_saati) > NOW()'), 'Ders saati gecince yeni yanit veritabaninda engelleniyor');
+$assert(str_contains($model, 'TIMESTAMP(r.tarih, r.baslangic_saati) > NOW()'), 'Ders saati gecince yeni yanit veritabaninda engelleniyor');
 $assert(str_contains($view, 'if ($katilimAcik)') && str_contains($view, 'artik degistirilemez'), 'Gecmis randevu salt okunur gosteriliyor');
 $assert(str_contains($controller, "empty(\$randevu['katilim_acik'])"), 'Gec kalan veliye acik durum mesaji veriliyor');
 $assert(str_contains($automation, 'foreach (Kurum::aktifIdler()'), 'Otomasyon tum aktif kurumlari isliyor');

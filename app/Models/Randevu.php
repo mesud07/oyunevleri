@@ -146,88 +146,16 @@ final class Randevu extends Model
 
     public static function katilimTokeni(int $id): ?string
     {
-        $mevcutStmt = self::db()->prepare(
-            'SELECT katilim_token_hash, katilim_token_iptal_tarihi
-             FROM randevular
-             WHERE id = :id AND kurum_id = :kurum_id
-             LIMIT 1'
-        );
-        $mevcutStmt->execute(['id' => $id, 'kurum_id' => self::kurumId()]);
-        $mevcut = $mevcutStmt->fetch();
-        if (!$mevcut || !empty($mevcut['katilim_token_iptal_tarihi'])) {
-            return null;
-        }
-
-        $mevcutHash = trim((string) ($mevcut['katilim_token_hash'] ?? ''));
-        if ($mevcutHash !== '') {
-            // Hatirlatma cron'u ayni randevuyu tekrar tarayabilir. Daha once veliye
-            // gonderilen tokeni asla degistirme; aksi halde eski SMS linki bozulur.
-            $gonderilmisToken = self::katilimTokeniniSmsKaydindanBul($id, $mevcutHash)
-                ?? self::katilimTokeniniSmsKaydindanBul($id);
-            if ($gonderilmisToken !== null) {
-                return $gonderilmisToken;
-            }
-
-            // Hash olusturulmus ancak token hicbir SMS'e yazilmamissa veliye ulasmis
-            // korunacak bir link yoktur. Bu durum, link degiskeninin kullanilmadigi
-            // bir sablon icin erkenden token uretilmesinden kaynaklanabilir. Hatirlatma
-            // SMS'inin bos linkle gitmemesi icin sadece bu yetim hash'i guvenle yenile.
-            return self::yetimKatilimTokeniniYenile($id, $mevcutHash);
-        }
-
         $token = bin2hex(random_bytes(24));
         $stmt = self::db()->prepare(
-            'UPDATE randevular
-             SET katilim_token = NULL,
-                 katilim_token_hash = :token_hash,
-                 katilim_token_son_kullanim = TIMESTAMP(tarih, baslangic_saati),
-                 katilim_token_iptal_tarihi = NULL
-             WHERE id = :id AND kurum_id = :kurum_id
-               AND katilim_token_hash IS NULL'
+            'INSERT INTO randevu_katilim_tokenlari
+             (kurum_id, randevu_id, token_hash, olusturulma_tarihi)
+             SELECT kurum_id, id, :token_hash, NOW()
+             FROM randevular
+             WHERE id = :id AND kurum_id = :kurum_id'
         );
         $stmt->execute(['id' => $id, 'kurum_id' => self::kurumId(), 'token_hash' => hash('sha256', $token)]);
-        if ($stmt->rowCount() > 0) {
-            return $token;
-        }
-
-        // Eszamanli iki islemden digeri token urettiyse onun gonderim kaydini kullan.
-        $mevcutStmt->execute(['id' => $id, 'kurum_id' => self::kurumId()]);
-        $mevcut = $mevcutStmt->fetch();
-        return $mevcut
-            ? self::katilimTokeniniSmsKaydindanBul($id, (string) ($mevcut['katilim_token_hash'] ?? ''))
-            : null;
-    }
-
-    private static function yetimKatilimTokeniniYenile(int $id, string $mevcutHash): ?string
-    {
-        if (!preg_match('/^[a-f0-9]{64}$/', $mevcutHash)) {
-            return null;
-        }
-
-        $token = bin2hex(random_bytes(24));
-        $stmt = self::db()->prepare(
-            'UPDATE randevular
-             SET katilim_token = NULL,
-                 katilim_token_hash = :yeni_hash,
-                 katilim_token_son_kullanim = TIMESTAMP(tarih, baslangic_saati),
-                 katilim_token_iptal_tarihi = NULL
-             WHERE id = :id AND kurum_id = :kurum_id
-               AND katilim_token_hash = :mevcut_hash
-               AND katilim_token_iptal_tarihi IS NULL'
-        );
-        $stmt->execute([
-            'id' => $id,
-            'kurum_id' => self::kurumId(),
-            'yeni_hash' => hash('sha256', $token),
-            'mevcut_hash' => $mevcutHash,
-        ]);
-        if ($stmt->rowCount() > 0) {
-            return $token;
-        }
-
-        // Eszamanli islem hash'i degistirdiyse yalnizca SMS'e kaydedilmis tokeni
-        // kullan; yeni bir token daha uretip diger islemin linkini gecersiz kilma.
-        return self::katilimTokeniniSmsKaydindanBul($id);
+        return $stmt->rowCount() > 0 ? $token : null;
     }
 
     public static function katilimTokenIleBul(string $token): ?array
@@ -248,8 +176,9 @@ final class Randevu extends Model
              LEFT JOIN paketler p ON p.id = r.paket_id AND p.kurum_id = r.kurum_id ';
         $stmt = self::db()->prepare(
             $select .
-            'WHERE r.katilim_token_hash = :token_hash
-               AND r.katilim_token_iptal_tarihi IS NULL
+            'INNER JOIN randevu_katilim_tokenlari kt
+                    ON kt.randevu_id = r.id AND kt.kurum_id = r.kurum_id
+             WHERE kt.token_hash = :token_hash
              LIMIT 1'
         );
         $stmt->execute(['token_hash' => hash('sha256', $token)]);
@@ -258,19 +187,34 @@ final class Randevu extends Model
             return $randevu;
         }
 
-        // Eski cron surumu token hash'ini her calismada degistiriyordu. SMS'te
-        // gercekten gonderildigi kayitli olan eski linkleri de randevuya bagla.
+        // Tek token kullanan eski surumlerden kalan hashler de suresiz gecerlidir.
+        $stmt = self::db()->prepare(
+            $select .
+            'WHERE r.katilim_token_hash = :token_hash
+             LIMIT 1'
+        );
+        $stmt->execute(['token_hash' => hash('sha256', $token)]);
+        $randevu = $stmt->fetch();
+        if ($randevu) {
+            self::katilimTokenHashiniKaydet((int) $randevu['kurum_id'], (int) $randevu['id'], $token);
+            return $randevu;
+        }
+
+        // Eski SMS'lerde gercekten gonderilmis tum tokenlari kalici token
+        // tablosuna tasiyarak SMS kaydi sonradan silinse bile linki koru.
         $stmt = self::db()->prepare(
             $select .
             'INNER JOIN sms_kayitlari sk
                     ON sk.randevu_id = r.id AND sk.kurum_id = r.kurum_id
              WHERE sk.mesaj LIKE :link_deseni
-               AND r.katilim_token_iptal_tarihi IS NULL
              ORDER BY sk.id DESC
              LIMIT 1'
         );
         $stmt->execute(['link_deseni' => '%?t=' . strtolower($token) . '%']);
         $randevu = $stmt->fetch();
+        if ($randevu) {
+            self::katilimTokenHashiniKaydet((int) $randevu['kurum_id'], (int) $randevu['id'], $token);
+        }
         return $randevu ?: null;
     }
 
@@ -284,10 +228,16 @@ final class Randevu extends Model
         $stmt = self::db()->prepare(
             'UPDATE randevular r
              SET r.katilim_yaniti = :yanit, r.katilim_yanit_tarihi = NOW()
-             WHERE r.katilim_token_iptal_tarihi IS NULL
-               AND TIMESTAMP(r.tarih, r.baslangic_saati) > NOW()
+             WHERE TIMESTAMP(r.tarih, r.baslangic_saati) > NOW()
                AND (
                     r.katilim_token_hash = :token_hash
+                    OR EXISTS (
+                        SELECT 1
+                        FROM randevu_katilim_tokenlari kt
+                        WHERE kt.randevu_id = r.id
+                          AND kt.kurum_id = r.kurum_id
+                          AND kt.token_hash = :kalici_token_hash
+                    )
                     OR EXISTS (
                         SELECT 1
                         FROM sms_kayitlari sk
@@ -299,48 +249,25 @@ final class Randevu extends Model
         );
         $stmt->execute([
             'token_hash' => hash('sha256', $token),
+            'kalici_token_hash' => hash('sha256', $token),
             'link_deseni' => '%?t=' . strtolower($token) . '%',
             'yanit' => $yanit,
         ]);
         return $stmt->rowCount() > 0;
     }
 
-    private static function katilimTokeniniSmsKaydindanBul(int $randevuId, ?string $beklenenHash = null): ?string
+    private static function katilimTokenHashiniKaydet(int $kurumId, int $randevuId, string $token): void
     {
-        if ($beklenenHash !== null && !preg_match('/^[a-f0-9]{64}$/', $beklenenHash)) {
-            return null;
-        }
-
         $stmt = self::db()->prepare(
-            'SELECT mesaj
-             FROM sms_kayitlari
-             WHERE kurum_id = :kurum_id
-               AND randevu_id = :randevu_id
-               AND mesaj LIKE :link_deseni
-             ORDER BY id DESC
-             LIMIT 20'
+            'INSERT IGNORE INTO randevu_katilim_tokenlari
+             (kurum_id, randevu_id, token_hash, olusturulma_tarihi)
+             VALUES (:kurum_id, :randevu_id, :token_hash, NOW())'
         );
         $stmt->execute([
-            'kurum_id' => self::kurumId(),
+            'kurum_id' => $kurumId,
             'randevu_id' => $randevuId,
-            'link_deseni' => '%/randevu-katilim?t=%',
+            'token_hash' => hash('sha256', strtolower($token)),
         ]);
-
-        foreach ($stmt->fetchAll() as $kayit) {
-            if (!preg_match_all('/[?&]t=([a-f0-9]{48,80})/i', (string) ($kayit['mesaj'] ?? ''), $eslesmeler)) {
-                continue;
-            }
-            foreach ($eslesmeler[1] as $aday) {
-                $aday = strtolower((string) $aday);
-                if ($beklenenHash === null || hash_equals($beklenenHash, hash('sha256', $aday))) {
-                    return $aday;
-                }
-            }
-        }
-
-        // Mevcut veli linkini korumak icin hash'i yenileme. Kayit bulunamiyorsa
-        // yeni bir link uretmek eski SMS'i gecersiz kilacagindan null donulur.
-        return null;
     }
 
     public static function guncelle(int $id, array $veri): bool

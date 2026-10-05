@@ -14,14 +14,6 @@ final class RandevuKatilimController extends Controller
     public function form(): void
     {
         $token = trim((string) ($_GET['t'] ?? ''));
-        $limit = new HizSinirlayici();
-        $scope = 'randevu-katilim:get:' . Request::clientIp();
-        if ($limit->engelliMi($scope, 60, 600)['engelli']) {
-            http_response_code(429);
-            $token = '';
-        } else {
-            $limit->kaydet($scope, 60, 600, 600);
-        }
         $this->view('randevu-katilim/form', [
             'baslik' => 'Randevu Katilim Durumu',
             'token' => $token,

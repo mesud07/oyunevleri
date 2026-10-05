@@ -30,7 +30,7 @@ $kurumTablolari = $db->query(
      WHERE TABLE_SCHEMA = DATABASE() AND COLUMN_NAME = "kurum_id"
      ORDER BY TABLE_NAME'
 )->fetchAll(PDO::FETCH_COLUMN);
-$assert(count($kurumTablolari) === 58, 'Kurum bilgisi taşıyan 58 tablo tespit edildi');
+$assert(count($kurumTablolari) === 59, 'Kurum bilgisi taşıyan 59 tablo tespit edildi');
 
 $varsayilanSayisi = (int) $db->query(
     'SELECT COUNT(*)
