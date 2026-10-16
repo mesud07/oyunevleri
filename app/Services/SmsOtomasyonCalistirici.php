@@ -44,6 +44,7 @@ final class SmsOtomasyonCalistirici
         try {
             @file_put_contents($sonCalismaDosyasi, (string) time());
 
+            DemoVerisiYenileyici::yenile();
             self::tumKurumlarIcinCalistir(100, true, 'web-yedek');
         } catch (Throwable $e) {
             error_log('[sms-otomasyon] ' . $e->getMessage());

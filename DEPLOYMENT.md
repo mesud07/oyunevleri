@@ -253,6 +253,14 @@ kendiliginden calistirir. Paylasimli hostingde ise proje yolunuza gore su tek cr
 * * * * * cd /sunucudaki/proje/yolu && /usr/local/bin/php cron/sms-otomasyon.php 100 >> storage/logs/cron-sms-otomasyon.log 2>&1
 ```
 
+Bu komut SMS islemlerinin yaninda DEMO kurumunun aylik ornek randevu, tahsilat ve
+gider verilerini de idempotent olarak gunceller. Ayni ay icinde tekrar calismasi
+mukerrer kayit olusturmaz. Gerektiginde yenileme tek basina da calistirilabilir:
+
+```bash
+php cron/demo-verilerini-yenile.php
+```
+
 Cron gecici olarak calisamazsa `SMS_WEB_AUTOMATION_ENABLED=true` ayari, gercek web
 trafiginde tum aktif kurumlari en fazla 10 dakikada bir isleyen yedek mekanizmayi etkin tutar.
 
