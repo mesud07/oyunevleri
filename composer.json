@@ -9,7 +9,7 @@
     "ext-pdo": "*",
     "ext-pdo_mysql": "*",
     "ext-zip": "*",
-    "endroid/qr-code": "^5.1"
+    "endroid/qr-code": "^6.1"
   },
   "autoload": {
     "psr-4": {
