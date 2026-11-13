@@ -245,7 +245,7 @@
     const vacancy = Math.max(capacity - studentCount, 0);
     const waitingCount = Number(row.bekleyen_veli_sayisi || 0);
     return `
-      <tr data-program-row data-id="${escapeHtml(id)}" data-group-id="${escapeHtml(groupId)}">
+      <tr data-program-row data-id="${escapeHtml(id)}" data-group-id="${escapeHtml(groupId)}" data-durum="${escapeHtml(row.durum || 'durum_yok')}">
         <td>
           <select name="gun">
             ${options(days, row.gun || 1)}
@@ -256,11 +256,6 @@
         <td><input name="yas_araligi" value="${escapeHtml(row.yas_araligi || '')}" placeholder="30-50 Ay"></td>
         <td><input name="program_adi" value="${escapeHtml(row.program_adi || '')}" placeholder="Yarim Gun"></td>
         <td><input type="number" name="kontenjan" min="1" max="99" value="${escapeHtml(row.kontenjan || 8)}"></td>
-        <td>
-          <select name="durum">
-            ${options(statuses, row.durum || 'durum_yok')}
-          </select>
-        </td>
         <td>
           <div class="weekly-actions">
             <button class="is-assign" type="button" data-assign-student ${groupId ? '' : 'disabled'}>Ogrenci Ata${row.ogrenci_sayisi ? ` (${escapeHtml(row.ogrenci_sayisi)})` : ''}</button>
@@ -355,13 +350,13 @@
       bitis_saati: row.querySelector('[name="bitis_saati"]').value,
       yas_araligi: row.querySelector('[name="yas_araligi"]').value.trim(),
       program_adi: row.querySelector('[name="program_adi"]').value.trim(),
-      durum: row.querySelector('[name="durum"]').value,
+      durum: row.dataset.durum || 'durum_yok',
       kontenjan: Math.max(1, Number(row.querySelector('[name="kontenjan"]').value || 8))
     };
   }
 
   async function loadRows() {
-    body.innerHTML = '<tr><td colspan="8">Yukleniyor...</td></tr>';
+    body.innerHTML = '<tr><td colspan="7">Yukleniyor...</td></tr>';
     try {
       const result = await talyaAjax('grup_program_listele');
       const rows = result.veri || [];
@@ -369,7 +364,7 @@
       renderRows();
       setMessage('');
     } catch (error) {
-      body.innerHTML = `<tr><td colspan="8">${escapeHtml(error.message)}</td></tr>`;
+      body.innerHTML = `<tr><td colspan="7">${escapeHtml(error.message)}</td></tr>`;
     }
   }
 

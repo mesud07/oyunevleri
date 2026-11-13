@@ -2522,7 +2522,7 @@ button.debt-calendar-day { cursor: pointer; }
   overflow-x: auto;
 }
 .weekly-program-table {
-  min-width: 1080px;
+  min-width: 960px;
   border-collapse: collapse;
   width: 100%;
 }

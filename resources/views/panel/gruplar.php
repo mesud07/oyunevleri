@@ -1,7 +1,7 @@
 <section class="page-head">
     <div>
         <h1>Haftalik Ders Programi</h1>
-        <p>Gruplari gun, saat, yas araligi, program adi ve durum bilgisiyle yonetin.</p>
+        <p>Gruplari gun, saat, yas araligi ve program adi bilgileriyle yonetin.</p>
     </div>
     <div class="appointment-toolbar-actions">
         <button class="btn btn-ghost" type="button" data-sync-group-appointments title="Mevcut randevulari grup gun ve saatleriyle yeniden eslestir">Yenile Randevulari Senkronize Et</button>
@@ -32,13 +32,12 @@
                         </th>
                         <th>Program Adi</th>
                         <th>Kontenjan</th>
-                        <th>Durum</th>
                         <th>Islem</th>
                     </tr>
                 </thead>
                 <tbody data-group-program-body>
                     <tr>
-                        <td colspan="8">Yukleniyor...</td>
+                        <td colspan="7">Yukleniyor...</td>
                     </tr>
                 </tbody>
             </table>
