@@ -3510,6 +3510,40 @@ button.debt-calendar-day { cursor: pointer; }
   color: var(--muted);
   font-size: .78rem;
 }
+.address-book-page { display: grid; gap: 16px; }
+.address-book-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.address-book-summary article { display: grid; gap: 7px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--white); }
+.address-book-summary span { color: var(--muted); font-size: 12px; font-weight: 800; }
+.address-book-summary strong { color: var(--primary-dark); font-size: 26px; }
+.address-book-card { display: grid; gap: 12px; }
+.address-book-toolbar { display: grid; grid-template-columns: minmax(260px, 1fr) repeat(2, minmax(160px, .35fr)) auto; gap: 10px; align-items: end; }
+.address-book-toolbar label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 800; }
+.address-book-toolbar input,
+.address-book-toolbar select { width: 100%; min-height: 42px; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; color: var(--ink); background: var(--white); }
+.address-book-result-note { color: var(--muted); font-size: 12px; font-weight: 700; }
+.address-book-table td { vertical-align: top; }
+.address-book-table td > small { display: block; margin-top: 4px; color: var(--muted); }
+.address-book-person,
+.address-book-contact,
+.address-book-note { display: grid; gap: 4px; min-width: 145px; }
+.address-book-person span,
+.address-book-contact small,
+.address-book-note span { color: var(--muted); font-size: 11px; }
+.address-book-contact a { color: var(--primary-dark); font-weight: 750; }
+.address-book-address { display: block; min-width: 180px; max-width: 300px; line-height: 1.45; }
+.address-book-note span { display: -webkit-box; max-width: 240px; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.address-book-actions { display: flex; flex-wrap: wrap; gap: 5px; min-width: 180px; }
+.address-book-dialog .appointment-dialog-form { width: min(760px, calc(100vw - 28px)); }
+@media (max-width: 900px) {
+  .address-book-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .address-book-toolbar { grid-template-columns: 1fr 1fr; }
+  .address-book-search { grid-column: 1 / -1; }
+}
+@media (max-width: 560px) {
+  .address-book-summary,
+  .address-book-toolbar { grid-template-columns: 1fr; }
+  .address-book-search { grid-column: auto; }
+}
 .capacity-split {
   display: grid;
   grid-template-columns: 340px minmax(0, 1fr);

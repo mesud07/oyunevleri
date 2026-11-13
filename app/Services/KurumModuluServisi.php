@@ -14,7 +14,7 @@ final class KurumModuluServisi
             'ogrenciler' => 'Öğrenciler', 'devamlilik_raporu' => 'Devamlılık Raporu',
             'adres_haritasi' => 'Adres Haritası', 'ozel_notlar' => 'Özel Notlar',
             'tedbir_listesi' => 'Tedbir Listesi', 'bekleyen_veliler' => 'Bekleyen Veliler',
-            'veli_onamlari' => 'Veli Onamları',
+            'veli_onamlari' => 'Veli Onamları', 'adres_defteri' => 'Adres Defteri',
         ]],
         'program' => ['ad' => 'Program', 'sayfalar' => [
             'randevular' => 'Randevular', 'haftalik_program' => 'Haftalık Program',
@@ -55,8 +55,8 @@ final class KurumModuluServisi
     private const YETKI_SAYFALARI = [
         'ogrenci_listele' => ['ogrenciler', 'devamlilik_raporu', 'adres_haritasi', 'ozel_notlar', 'tedbir_listesi', 'veli_onamlari'],
         'ogrenci_ekle' => ['ogrenciler', 'devamlilik_raporu', 'adres_haritasi', 'ozel_notlar', 'tedbir_listesi', 'veli_onamlari'],
-        'veli_listele' => ['ogrenciler'],
-        'veli_ekle' => ['ogrenciler'],
+        'veli_listele' => ['ogrenciler', 'adres_defteri'],
+        'veli_ekle' => ['ogrenciler', 'adres_defteri'],
         'bekleyen_veli_listele' => ['bekleyen_veliler'],
         'bekleyen_veli_ekle' => ['bekleyen_veliler'],
         'grup_listele' => ['haftalik_program'],
@@ -90,6 +90,7 @@ final class KurumModuluServisi
         '/panel/ogrenciler/adres-haritasi' => 'adres_haritasi',
         '/panel/ogrenciler/ozel-notlar' => 'ozel_notlar',
         '/panel/ogrenciler/tedbir-listesi' => 'tedbir_listesi',
+        '/panel/adres-defteri' => 'adres_defteri',
         '/panel/ogrenciler/kara-liste' => 'tedbir_listesi',
         '/panel/odemeler/tahsilat-takibi' => 'borclu_paketler',
         '/panel/odemeler/borclular' => 'borclu_paketler',
@@ -97,7 +98,7 @@ final class KurumModuluServisi
         '/panel/odemeler/giderler' => 'giderler', '/panel/odemeler/kasalar' => 'kasalar',
         '/panel/finans/gelir-gider' => 'gelir_gider', '/panel/veli-onamlari' => 'veli_onamlari',
         '/panel/bekleyen-veliler' => 'bekleyen_veliler', '/panel/onam-formlari' => 'ogrenciler',
-        '/panel/ogrenciler' => 'ogrenciler', '/panel/veliler' => 'ogrenciler',
+        '/panel/ogrenciler' => 'ogrenciler', '/panel/veliler' => 'adres_defteri',
         '/panel/randevular' => 'randevular', '/panel/gruplar' => 'haftalik_program',
         '/panel/paketler' => 'paketler', '/panel/odemeler' => 'tahsilatlar',
         '/panel/cariler' => 'cariler', '/panel/faturalar' => 'faturalar',
@@ -170,11 +171,17 @@ final class KurumModuluServisi
 
     public function islemIcinAktifMi(string $islem, ?int $kurumId = null): bool
     {
+        if (in_array($islem, ['veli_listele', 'veli_ekle'], true)) {
+            return $this->sayfaAktifMi('ogrenciler', $kurumId)
+                || $this->sayfaAktifMi('adres_defteri', $kurumId);
+        }
+
         $sayfa = match (true) {
             str_starts_with($islem, 'ogrenci_kara_liste_') => 'tedbir_listesi',
             str_starts_with($islem, 'ogrenci_adres_') => 'adres_haritasi',
             str_starts_with($islem, 'ogrenci_ozel_not_') => 'ozel_notlar',
             str_starts_with($islem, 'bekleyen_veli_') => 'bekleyen_veliler',
+            $islem === 'veli_guncelle' => 'adres_defteri',
             str_starts_with($islem, 'veli_'), str_starts_with($islem, 'ogrenci_'), $islem === 'onam_formu_olustur' => 'ogrenciler',
             str_starts_with($islem, 'grup_') => 'haftalik_program',
             str_starts_with($islem, 'randevu_'), str_starts_with($islem, 'telafi_'), $islem === 'hizli_randevu_ekle' => 'randevular',

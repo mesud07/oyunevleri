@@ -125,6 +125,7 @@ $islemHaritasi = [
     'bekleyen_veli_sil' => ['controller' => BekleyenVeliController::class, 'metot' => 'sil', 'yetki' => 'bekleyen_veli_ekle'],
     'veli_listele' => ['controller' => VeliController::class, 'metot' => 'liste', 'yetki' => 'veli_listele'],
     'veli_ekle' => ['controller' => VeliController::class, 'metot' => 'ekle', 'yetki' => 'veli_ekle'],
+    'veli_guncelle' => ['controller' => VeliController::class, 'metot' => 'guncelle', 'yetki' => 'veli_ekle'],
     'veli_onam_ayari_kaydet' => ['controller' => VeliOnamController::class, 'metot' => 'ayarKaydet', 'yetki' => 'veli_listele'],
     'grup_listele' => ['controller' => GrupController::class, 'metot' => 'liste', 'yetki' => 'grup_listele'],
     'grup_ekle' => ['controller' => GrupController::class, 'metot' => 'ekle', 'yetki' => 'grup_ekle'],

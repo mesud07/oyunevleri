@@ -27,6 +27,7 @@
       "php tests/haftalik-tema-smoke.php",
       "php tests/devamlilik-raporu-smoke.php",
       "php tests/adres-haritasi-smoke.php",
+      "php tests/adres-defteri-smoke.php",
       "php tests/bekleyen-veli-gorusme-smoke.php",
       "php tests/bekleyen-veli-grup-smoke.php",
       "php tests/bekleyen-veli-crm-smoke.php",

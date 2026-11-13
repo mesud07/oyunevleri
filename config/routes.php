@@ -55,6 +55,7 @@ return function (Router $router): void {
     $router->get('/panel/ogrenciler/adres-haritasi', [OgrenciController::class, 'adresHaritasiSayfa'], 'ogrenci_listele');
     $router->get('/panel/ogrenciler/ozel-notlar', [OgrenciController::class, 'ozelNotlarSayfa'], 'ogrenci_listele');
     $router->get('/panel/bekleyen-veliler', [BekleyenVeliController::class, 'sayfa'], 'bekleyen_veli_listele');
+    $router->get('/panel/adres-defteri', [VeliController::class, 'sayfa'], 'veli_listele');
     $router->get('/panel/veliler', [VeliController::class, 'sayfa'], 'veli_listele');
     $router->get('/panel/veli-onamlari', [VeliOnamController::class, 'panel'], 'veli_listele');
     $router->get('/panel/veli-onamlari/qr.svg', [VeliOnamController::class, 'qr'], 'veli_listele');

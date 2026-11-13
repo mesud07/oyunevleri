@@ -66,7 +66,7 @@ $kurumLogosuVar = preg_match('#^/uploads/kurum-logolari/[A-Za-z0-9._-]+$#', $kur
             <?php
             $odemeAktif = str_starts_with((string) ($aktif ?? ''), 'odemeler');
             $grupAktif = str_starts_with((string) ($aktif ?? ''), 'gruplar');
-            $ogrenciAktif = in_array((string) ($aktif ?? ''), ['ogrenciler', 'ogrenci-devamlilik', 'ogrenci-adres-haritasi', 'ogrenci-ozel-notlar', 'ogrenci-kara-liste', 'bekleyen-veliler', 'veli-onamlari'], true);
+            $ogrenciAktif = in_array((string) ($aktif ?? ''), ['ogrenciler', 'ogrenci-devamlilik', 'ogrenci-adres-haritasi', 'ogrenci-ozel-notlar', 'ogrenci-kara-liste', 'bekleyen-veliler', 'veli-onamlari', 'adres-defteri'], true);
             $programAktif = $grupAktif || in_array((string) ($aktif ?? ''), ['randevular'], true);
             $finansAktif = $odemeAktif || in_array((string) ($aktif ?? ''), ['paketler', 'cariler', 'faturalar', 'mysoft-ayarlari', 'raporlar', 'gelir-gider'], true);
             $icerikAktif = in_array((string) ($aktif ?? ''), ['haftalik-temalar', 'gunluk-kayitlar'], true);
@@ -79,7 +79,7 @@ $kurumLogosuVar = preg_match('#^/uploads/kurum-logolari/[A-Za-z0-9._-]+$#', $kur
             ?>
             <nav class="menu">
                 <a class="<?= aktif_menu($aktif ?? '', 'genel-bakis') ?>" href="/panel" data-short="GB" data-icon="dashboard" data-tooltip="Genel Bakış">Genel Bakis</a>
-                <?php if (($menuIzin('ogrenci_listele') && ($sayfaIzin('ogrenciler') || $sayfaIzin('devamlilik_raporu') || $sayfaIzin('adres_haritasi') || $sayfaIzin('ozel_notlar') || $sayfaIzin('tedbir_listesi'))) || ($menuIzin('bekleyen_veli_listele') && $sayfaIzin('bekleyen_veliler')) || ($menuIzin('veli_listele') && $sayfaIzin('veli_onamlari'))) : ?>
+                <?php if (($menuIzin('ogrenci_listele') && ($sayfaIzin('ogrenciler') || $sayfaIzin('devamlilik_raporu') || $sayfaIzin('adres_haritasi') || $sayfaIzin('ozel_notlar') || $sayfaIzin('tedbir_listesi'))) || ($menuIzin('bekleyen_veli_listele') && $sayfaIzin('bekleyen_veliler')) || ($menuIzin('veli_listele') && ($sayfaIzin('veli_onamlari') || $sayfaIzin('adres_defteri')))) : ?>
                     <div class="menu-group <?= $ogrenciAktif ? 'is-open' : '' ?>">
                         <button class="<?= $ogrenciAktif ? ' is-active' : '' ?>" type="button" data-menu-group-toggle data-short="OI" data-icon="student-operations" data-tooltip="Öğrenci İşlemleri" aria-expanded="<?= $ogrenciAktif ? 'true' : 'false' ?>">Ogrenci Islemleri</button>
                         <div class="submenu" data-menu-title="Öğrenci İşlemleri">
@@ -89,6 +89,7 @@ $kurumLogosuVar = preg_match('#^/uploads/kurum-logolari/[A-Za-z0-9._-]+$#', $kur
                             <?php if ($menuIzin('ogrenci_listele') && $sayfaIzin('ozel_notlar')) : ?><a class="<?= aktif_menu($aktif ?? '', 'ogrenci-ozel-notlar') ?>" href="/panel/ogrenciler/ozel-notlar" data-short="ON" data-icon="private-notes" title="Özel Notlar">Özel Notlar</a><?php endif; ?>
                             <?php if ($menuIzin('ogrenci_listele') && $sayfaIzin('tedbir_listesi')) : ?><a class="<?= aktif_menu($aktif ?? '', 'ogrenci-kara-liste') ?>" href="/panel/ogrenciler/tedbir-listesi" data-short="TL" data-icon="measures" title="Öğrenci Tedbir Listesi">Tedbir Listesi</a><?php endif; ?>
                             <?php if ($menuIzin('bekleyen_veli_listele') && $sayfaIzin('bekleyen_veliler')) : ?><a class="<?= aktif_menu($aktif ?? '', 'bekleyen-veliler') ?>" href="/panel/bekleyen-veliler" data-short="BV" data-icon="waiting-parents" title="Bekleyen Veliler">Bekleyen Veliler</a><?php endif; ?>
+                            <?php if ($menuIzin('veli_listele') && $sayfaIzin('adres_defteri')) : ?><a class="<?= aktif_menu($aktif ?? '', 'adres-defteri') ?>" href="/panel/adres-defteri" data-short="AD" data-icon="address-map" title="Adres Defteri">Adres Defteri</a><?php endif; ?>
                             <?php if ($menuIzin('veli_listele') && $sayfaIzin('veli_onamlari')) : ?><a class="<?= aktif_menu($aktif ?? '', 'veli-onamlari') ?>" href="/panel/veli-onamlari" data-short="VO" data-icon="parent-consents" title="Veli Onamları">Veli Onamları</a><?php endif; ?>
                         </div>
                     </div>
@@ -189,6 +190,7 @@ $kurumLogosuVar = preg_match('#^/uploads/kurum-logolari/[A-Za-z0-9._-]+$#', $kur
                 'ogrenci-kara-liste' => 'ogrenci_listele',
                 'bekleyen-veliler' => 'bekleyen_veli_listele',
                 'veli-onamlari' => 'veli_listele',
+                'adres-defteri' => 'veli_listele',
                 'veliler' => 'veli_listele',
                 'gruplar' => 'grup_listele',
                 'paketler' => 'paket_listele',
