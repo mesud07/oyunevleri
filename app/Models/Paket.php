@@ -28,7 +28,8 @@ final class Paket extends Model
     public static function secenekler(): array
     {
         $stmt = self::db()->prepare(
-            'SELECT p.id, p.ogrenci_id, CONCAT(o.ad, " ", o.soyad, " - ", p.paket_adi, " #", p.paket_sira_no) AS etiket
+            'SELECT p.id, p.ogrenci_id, p.net_paket_tutari,
+                    CONCAT(o.ad, " ", o.soyad, " - ", p.paket_adi, " #", p.paket_sira_no) AS etiket
              FROM paketler p
              INNER JOIN ogrenciler o ON o.id = p.ogrenci_id
              WHERE p.kurum_id = :kurum_id AND p.paket_durumu = "aktif"

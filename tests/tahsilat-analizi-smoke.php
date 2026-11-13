@@ -21,6 +21,8 @@ $controller = file_get_contents($root . '/app/Controllers/OdemeController.php') 
 $model = file_get_contents($root . '/app/Models/Odeme.php') ?: '';
 $view = file_get_contents($root . '/resources/views/panel/tahsilatlar.php') ?: '';
 $legacyView = file_get_contents($root . '/resources/views/panel/odemeler.php') ?: '';
+$debtView = file_get_contents($root . '/resources/views/panel/odeme-borclular.php') ?: '';
+$packageModel = file_get_contents($root . '/app/Models/Paket.php') ?: '';
 $javascript = file_get_contents($root . '/public/assets/js/odemeler.js') ?: '';
 $assert(str_contains($routes, "'/panel/odemeler/tahsilatlar.xlsx'"), 'Aylık tahsilat Excel indirme rotası tanımlı');
 $assert(str_contains($controller, 'TahsilatExcelServisi') && str_contains($controller, 'tahsilatlarExcel'), 'Excel indirme işlemi denetleyiciye bağlı');
@@ -36,6 +38,8 @@ $assert(!str_contains($javascript, '<div class="brand">Oyun Evleri'), 'Tahsilat 
 $assert(str_contains($view, 'data-institution-logo') && str_contains($legacyView, 'data-institution-logo'), 'Kurum logosu tum tahsilat listelerinden makbuza aktariliyor');
 $assert(!str_contains($javascript, '>Kasaya Aktar</button>'), 'Tahsilat listesindeki kasaya aktar butonu gizleniyor');
 $assert(!str_contains($view, 'payment-tracking-grid') && !str_contains($view, 'Yaklasan Tahsilatlar') && !str_contains($view, 'Gecikmis Tahsilatlar'), 'Yaklasan ve gecikmis tahsilat bolumleri gizleniyor');
+$assert(str_contains($packageModel, 'p.net_paket_tutari') && str_contains($view, 'data-package-total') && str_contains($legacyView, 'data-package-total') && str_contains($debtView, 'data-package-total'), 'Tahsilat formlarına sabit hizmet fiyatı yerine güncel paket toplamı aktarılıyor');
+$assert(str_contains($javascript, 'selectedPackageTotal') && str_contains($javascript, 'priceInput.value = selectedPackageTotal()'), 'Paket tutarı güncelleme alanı seçili paketin güncel toplamıyla dolduruluyor');
 
 $servis = new TahsilatAnalizServisi();
 $analiz = $servis->olustur('2026-08', [

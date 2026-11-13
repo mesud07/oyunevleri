@@ -190,7 +190,7 @@
                 <select name="paket_id" required>
                     <option value="">Seciniz</option>
                     <?php foreach (($paketler ?? []) as $paket) : ?>
-                        <option value="<?= e($paket['id']) ?>"><?= e($paket['etiket']) ?></option>
+                        <option value="<?= e($paket['id']) ?>" data-package-total="<?= e($paket['net_paket_tutari'] ?? 0) ?>"><?= e($paket['etiket']) ?> - <?= e(para_goster($paket['net_paket_tutari'] ?? 0)) ?></option>
                     <?php endforeach; ?>
                 </select>
             </label>
@@ -205,6 +205,7 @@
                     <span>Yeni Toplam Odenecek Tutar</span>
                     <input type="number" step="0.01" min="0" name="yeni_paket_tutari" placeholder="Orn. 5000">
                 </label>
+                <p class="muted-note">Mevcut paket toplamı: <strong data-current-package-total>-</strong></p>
                 <p class="muted-note">Bu alan sadece secili paketin borc hesabinda kullanilan toplam tutarini degistirir. Randevular ve paket kaydi aynen kalir.</p>
             </div>
             <label><span>Tarih</span><input type="date" name="tarih" value="<?= e(date('Y-m-d')) ?>" required></label>

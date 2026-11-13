@@ -12,12 +12,31 @@
     }
 
     const priceInput = panel.querySelector('[name="yeni_paket_tutari"]');
+    const packageSelect = form?.querySelector('[name="paket_id"]');
+    const currentTotal = panel.querySelector('[data-current-package-total]');
+
+    function selectedPackageTotal() {
+      const option = packageSelect?.selectedOptions?.[0];
+      return option?.dataset.packageTotal ?? '';
+    }
+
+    function syncCurrentTotal() {
+      if (!currentTotal) return;
+      const total = selectedPackageTotal();
+      currentTotal.textContent = total === ''
+        ? '-'
+        : `${Number(total).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} TL`;
+    }
 
     function sync() {
       const active = toggle.checked;
       panel.hidden = !active;
+      syncCurrentTotal();
       if (priceInput) {
         priceInput.required = active;
+      }
+      if (active && priceInput && priceInput.value === '') {
+        priceInput.value = selectedPackageTotal();
       }
       if (!active) {
         if (priceInput) {
@@ -27,6 +46,12 @@
     }
 
     toggle.addEventListener('change', sync);
+    packageSelect?.addEventListener('change', () => {
+      syncCurrentTotal();
+      if (toggle.checked && priceInput) {
+        priceInput.value = selectedPackageTotal();
+      }
+    });
     form?.addEventListener('reset', () => window.setTimeout(sync, 0));
     sync();
   });
