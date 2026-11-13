@@ -455,18 +455,36 @@ final class Rapor extends Model
             'SELECT dp.id AS program_id, g.ad AS program_adi, g.yas_araligi,
                     g.kontenjan, COALESCE(g.durum, "durum_yok") AS durum,
                     dp.gun, dp.baslangic_saati, dp.bitis_saati,
-                    COUNT(DISTINCT r.ogrenci_id) AS ogrenci_sayisi,
                     COUNT(DISTINCT CASE
-                        WHEN p.id IS NOT NULL AND p.toplam_normal_hak > 0 THEN r.ogrenci_id
+                        WHEN COALESCE(r.durum, "planlandi") NOT IN ("gelmedi", "mazeretli_gelmedi", "gec_iptal", "kurum_iptali", "ertelendi")
+                        THEN r.ogrenci_id
+                        ELSE NULL
+                    END) AS ogrenci_sayisi,
+                    COUNT(DISTINCT CASE
+                        WHEN COALESCE(r.durum, "planlandi") NOT IN ("gelmedi", "mazeretli_gelmedi", "gec_iptal", "kurum_iptali", "ertelendi")
+                          AND p.id IS NOT NULL AND p.toplam_normal_hak > 0 THEN r.ogrenci_id
                         ELSE NULL
                     END) AS gelire_dahil_ogrenci,
                     COALESCE(SUM(
                         CASE
-                            WHEN p.id IS NOT NULL AND p.toplam_normal_hak > 0
+                            WHEN COALESCE(r.durum, "planlandi") NOT IN ("gelmedi", "mazeretli_gelmedi", "gec_iptal", "kurum_iptali", "ertelendi")
+                              AND p.id IS NOT NULL AND p.toplam_normal_hak > 0
                             THEN p.net_paket_tutari / p.toplam_normal_hak
                             ELSE 0
                         END
-                    ), 0) AS tahmini_gelir
+                    ), 0) AS tahmini_gelir,
+                    COUNT(DISTINCT CASE
+                        WHEN r.durum IN ("gelmedi", "mazeretli_gelmedi", "gec_iptal", "kurum_iptali") THEN r.id
+                        ELSE NULL
+                    END) AS kayip_ders_sayisi,
+                    COALESCE(SUM(
+                        CASE
+                            WHEN r.durum IN ("gelmedi", "mazeretli_gelmedi", "gec_iptal", "kurum_iptali")
+                              AND p.id IS NOT NULL AND p.toplam_normal_hak > 0
+                            THEN p.net_paket_tutari / p.toplam_normal_hak
+                            ELSE 0
+                        END
+                    ), 0) AS kayip_bakiye
              FROM ders_programlari dp
              INNER JOIN gruplar g ON g.id = dp.grup_id AND g.kurum_id = dp.kurum_id
              LEFT JOIN randevular r ON r.grup_id = g.id
@@ -474,7 +492,6 @@ final class Rapor extends Model
                 AND r.tarih BETWEEN :hafta_baslangici AND :hafta_bitisi
                 AND WEEKDAY(r.tarih) + 1 = dp.gun
                 AND r.baslangic_saati = dp.baslangic_saati
-                AND COALESCE(r.durum, "planlandi") NOT IN ("iptal", "kurum_iptali", "ertelendi")
              LEFT JOIN paketler p ON p.id = r.paket_id AND p.kurum_id = dp.kurum_id AND p.paket_durumu <> "iptal"
              WHERE dp.kurum_id = :kurum_id
                AND dp.aktif = 1
@@ -518,6 +535,14 @@ final class Rapor extends Model
             static fn(array $row): float => (float) ($row['tahmini_gelir'] ?? 0),
             $programlar
         ));
+        $kayipDersSayisi = array_sum(array_map(
+            static fn(array $row): int => (int) ($row['kayip_ders_sayisi'] ?? 0),
+            $programlar
+        ));
+        $kayipBakiye = array_sum(array_map(
+            static fn(array $row): float => (float) ($row['kayip_bakiye'] ?? 0),
+            $programlar
+        ));
         $dersBasiOrtalama = $gelireDahilDersSayisi > 0
             ? $haftalikTahminiGelir / $gelireDahilDersSayisi
             : $ortalamaDersGeliri;
@@ -543,6 +568,8 @@ final class Rapor extends Model
             'tekil_ogrenci' => (int) ($kapasite['tekil_ogrenci'] ?? 0),
             'paketli_ogrenci' => (int) ($gelir['paketli_ogrenci'] ?? 0),
             'mevcut_gelir' => $haftalikTahminiGelir,
+            'kayip_ders_sayisi' => $kayipDersSayisi,
+            'kayip_bakiye' => $kayipBakiye,
             'ortalama_ogrenci_geliri' => $ortalama,
             'ortalama_ders_geliri' => $dersBasiOrtalama,
             'maksimum_gelir' => $maksimum * $dersBasiOrtalama,

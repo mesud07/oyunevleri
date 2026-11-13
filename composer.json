@@ -22,6 +22,7 @@
       "php tests/puantaj-smoke.php",
       "php tests/bordro-smoke.php",
       "php tests/tahsilat-analizi-smoke.php",
+      "php tests/kapasite-gelir-smoke.php",
       "php tests/gozlem-raporu-pdf-smoke.php",
       "php tests/haftalik-tema-smoke.php",
       "php tests/devamlilik-raporu-smoke.php",

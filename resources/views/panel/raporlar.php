@@ -68,7 +68,7 @@ $yenilemeBitisi = $yenilemeTarihleri ? $yenilemeTarihleri[array_key_last($yenile
     <div class="report-section-head">
         <div>
             <h2>Grup Kapasite ve Gelir Raporu</h2>
-            <p class="report-helper"><?= e(tarih_goster($kapasiteHaftaBaslangici)) ?> - <?= e(tarih_goster($kapasiteHaftaBitisi)) ?> haftasindaki randevular esas alinir. Grup geliri, dahil olan her ogrencinin paket tutari normal ders sayisina bolunerek hesaplanir.</p>
+            <p class="report-helper"><?= e(tarih_goster($kapasiteHaftaBaslangici)) ?> - <?= e(tarih_goster($kapasiteHaftaBitisi)) ?> haftasindaki randevular esas alinir. Gelmedi, mazeretli gelmedi, gec iptal, kurum iptali ve ertelenen dersler hesaplamadan dusulur. Grup geliri, dahil olan her ogrencinin paket tutari normal ders sayisina bolunerek hesaplanir.</p>
         </div>
         <form class="capacity-week-filter" method="get" action="/panel/raporlar">
             <a class="btn btn-ghost" href="/panel/raporlar?hafta=<?= e($oncekiKapasiteHaftasi) ?>">Onceki Hafta</a>
@@ -83,7 +83,7 @@ $yenilemeBitisi = $yenilemeTarihleri ? $yenilemeTarihleri[array_key_last($yenile
             <strong><?= e($kapasiteGelir['maksimum_ders_sayisi'] ?? 0) ?></strong>
         </article>
         <article>
-            <span>Planlanan Ders Sayisi</span>
+            <span>Net Ders Sayisi</span>
             <strong><?= e($kapasiteGelir['mevcut_ders_sayisi'] ?? 0) ?></strong>
         </article>
         <article>
@@ -97,6 +97,11 @@ $yenilemeBitisi = $yenilemeTarihleri ? $yenilemeTarihleri[array_key_last($yenile
         <article>
             <span>Haftalik Tahmini Gelir</span>
             <strong><?= e(para_goster($kapasiteGelir['mevcut_gelir'] ?? 0)) ?></strong>
+        </article>
+        <article class="capacity-loss-metric">
+            <span>Gelmedi / Iptal Eksi Bakiye</span>
+            <strong><?= e(para_goster(-abs((float) ($kapasiteGelir['kayip_bakiye'] ?? 0)))) ?></strong>
+            <small><?= e((string) ($kapasiteGelir['kayip_ders_sayisi'] ?? 0)) ?> ders hesaplamadan dusuldu</small>
         </article>
         <article>
             <span>Maksimum Gelir Potansiyeli</span>

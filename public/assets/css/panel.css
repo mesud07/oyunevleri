@@ -3501,6 +3501,15 @@ button.debt-calendar-day { cursor: pointer; }
   color: #1f2f46;
   font-size: 22px;
 }
+.capacity-metrics .capacity-loss-metric strong {
+  color: #b91c1c;
+}
+.capacity-metrics .capacity-loss-metric small {
+  display: block;
+  margin-top: .3rem;
+  color: var(--muted);
+  font-size: .78rem;
+}
 .capacity-split {
   display: grid;
   grid-template-columns: 340px minmax(0, 1fr);
